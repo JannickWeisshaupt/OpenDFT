@@ -5,7 +5,7 @@ from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
 
 import numpy as np
 
-colors = {0: (0.8, 0.8, 0.8), 8: (1, 0, 0)}
+colors = {1: (0.8, 0.8, 0.8), 6:(0,1,1), 8: (1, 0, 0)}
 
 
 class StructureVisualization(HasTraits):
@@ -54,7 +54,7 @@ class StructureVisualization(HasTraits):
                             for c in [np.zeros(3), cell[i3]]:
                                 p1 = b + c + offset
                                 p2 = p1 + a
-                                self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.1)
+                                self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.03)
                                 # self.scene.mlab.points3d([p1[0], p2[0]],
                                 #                          [p1[1], p2[1]],
                                 #                          [p1[2], p2[2]], scale_factor=.2)
@@ -68,8 +68,13 @@ class StructureVisualization(HasTraits):
         n_atoms = abs_coord_atoms.shape[0]
 
         for i in range(n_atoms):
+            species_number = int(abs_coord_atoms[i, 3])
+            try:
+                atomic_color = colors[species_number]
+            except KeyError:
+                atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(*abs_coord_atoms[i, :],
-                                     scale_factor=3,
+                                     scale_factor=1,
                                      resolution=10,
-                                     color=colors[abs_coord_atoms[i, 3]],
+                                     color=atomic_color,
                                      scale_mode='none')

@@ -50,13 +50,9 @@ class MainWindow(QtGui.QWidget):
         self.mayavi_widget.update_plot()
 
     def load_crystal_structure(self):
-        atoms = np.array([[0.25, 0.25, 0.25, 0], [0.75, 0.75, 0.75, 8]])
 
-        unit_cell = 10 * np.array([[1, 1, 0], [1, 0, 1], [0, 1, 1]])
 
-        crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-
-        self.crystal_structure = crystal_structure
+        self.crystal_structure = esc_handler.parse_input_file('testfiles/exciting_test.xml')
         self.update_structure_plot()
 
     def make_menu_bar(self):
