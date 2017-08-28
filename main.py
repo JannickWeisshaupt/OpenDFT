@@ -5,8 +5,9 @@ os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization
 import solid_state_tools as sst
-import exciting_handler.Handler as esc
+from exciting_handler import Handler as Handler
 
+esc_handler = Handler()
 
 class MayaviQWidget(QtGui.QWidget):
     def __init__(self, crystal_structure, parent=None):
