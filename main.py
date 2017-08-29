@@ -3,7 +3,7 @@ import os
 import numpy as np
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization
+from visualization import StructureVisualization,BandStructureVisualization
 import solid_state_tools as sst
 from exciting_handler import Handler as Handler
 
@@ -33,9 +33,23 @@ class MainWindow(QtGui.QWidget):
         super(MainWindow,self).__init__(*args, **kwargs)
         self.layout = QtGui.QGridLayout(self)
         self.crystal_structure = None
-        self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
 
-        self.layout.addWidget(self.mayavi_widget, 0, 0)
+        self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
+        self.bs_widget = BandStructureVisualization(parent=self)
+
+        self.tabWidget = QtGui.QTabWidget()
+        self.layout.addWidget(self.tabWidget)
+
+        self.tab_layout = QtGui.QVBoxLayout()
+        self.tabWidget.setLayout(self.tab_layout)
+
+        self.tabWidget.addTab(self.mayavi_widget,'Structure')
+        self.tabWidget.addTab(QtGui.QWidget(),'DFT-Engine')
+        self.tabWidget.addTab(self.bs_widget,'Bandstructure')
+        self.tabWidget.addTab(QtGui.QWidget(), 'Optical properties')
+
+
+        # self.layout.addWidget(self.mayavi_widget, 0, 0)
         self.show()
         self.window = QtGui.QMainWindow()
         self.window.setWindowTitle("Embedding Mayavi in a PyQt4 Application")
