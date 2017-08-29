@@ -35,10 +35,9 @@ class CrystalStructure:
             for j2 in range(j1+1,n_atoms):
 
                 dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
-                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.05:
+                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.1:
                     dist_mat[j1, j2] = dist
                     bonds.append([j1,j2]);
-        print(dist_mat)
         return bonds
 
 class BandStructure:

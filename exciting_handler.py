@@ -51,8 +51,6 @@ class Handler:
                 atomic_cord_list.append(pos_vec)
 
         atom_array = np.array(atomic_cord_list)
-        print(atom_array)
-        print(crystal_base)
         crystal_structure = sst.CrystalStructure(crystal_base,atom_array)
         return crystal_structure
 
