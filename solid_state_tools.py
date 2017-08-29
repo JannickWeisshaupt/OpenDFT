@@ -41,8 +41,10 @@ class CrystalStructure:
         return bonds
 
 class BandStructure:
-    def __init__(self):
-        pass
+    def __init__(self,bands,bandgap,special_k_points=None):
+        self.bands = bands
+        self.bandgap = bandgap
+        self.special_k_points = special_k_points
 
 
 if __name__ == "__main__":
