@@ -11,7 +11,7 @@ import matplotlib as mpl
 mpl.use('Qt4Agg')
 mpl.rcParams['backend.qt4']='PySide'
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg as NavigationToolbar
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import random
 
@@ -120,7 +120,7 @@ class StructureVisualization(HasTraits):
                 atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
                                      scale_factor=atom_size,
-                                     resolution=10,
+                                     resolution=30,
                                      color=atomic_color)
 
 
@@ -142,7 +142,7 @@ class BandStructureVisualization(QtGui.QDialog):
 
         # a figure instance to plot on
         self.figure = plt.figure(1)
-
+        self.ax = self.figure.add_subplot(111)
         # this is the Canvas Widget that displays the `figure`
         # it takes the `figure` instance as a parameter to __init__
         self.canvas = FigureCanvas(self.figure)
@@ -161,21 +161,16 @@ class BandStructureVisualization(QtGui.QDialog):
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
         self.setLayout(layout)
-        plt.close(self.figure)
+        # self.plot()
+        self.figure.tight_layout()
+        plt.close(plt.figure(1))
 
     def plot(self):
-        ''' plot some random stuff '''
-        # random data
+        self.ax.cla()
         data = [random.random() for i in range(10)]
 
-        # create an axis
-        ax = self.figure.add_subplot(111)
-
-        # discards the old graph
-        ax.hold(False)
 
         # plot data
-        ax.plot(data, '*-')
-
+        self.ax.plot(data, '*-')
         # refresh canvas
         self.canvas.draw()

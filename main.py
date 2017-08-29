@@ -52,7 +52,7 @@ class MainWindow(QtGui.QWidget):
         # self.layout.addWidget(self.mayavi_widget, 0, 0)
         self.show()
         self.window = QtGui.QMainWindow()
-        self.window.setWindowTitle("Embedding Mayavi in a PyQt4 Application")
+        self.window.setWindowTitle("OpenDFT")
         self.window.setGeometry(50, 50, 1000, 1000)
         self.window.setCentralWidget(self)
         self.window.show()
