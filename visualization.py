@@ -5,6 +5,10 @@ from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
 
 import numpy as np
 
+bohr = 0.52917721
+
+cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
+
 colors = {1: (0.8, 0.8, 0.8), 6:(0,1,1), 8: (1, 0, 0)}
 
 
@@ -36,7 +40,10 @@ class StructureVisualization(HasTraits):
         # We can do normal mlab calls on the embedded scene.
         self.scene.mlab.clf()
         repeat = [self.n_x,self.n_y,self.n_z]
+
         self.plot_atoms(repeat=repeat)
+        self.plot_bonds(repeat=repeat)
+
         if self.show_unitcell:
             self.plot_unit_cell(repeat=repeat)
 
@@ -69,12 +76,24 @@ class StructureVisualization(HasTraits):
 
         for i in range(n_atoms):
             species_number = int(abs_coord_atoms[i, 3])
+            cov_radius = cov_radii[species_number]
             try:
                 atomic_color = colors[species_number]
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(*abs_coord_atoms[i, :],
-                                     scale_factor=1,
+                                     scale_factor=cov_radius,
                                      resolution=10,
                                      color=atomic_color,
                                      scale_mode='none')
+
+    def plot_bonds(self,repeat=[1,1,1]):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
+
+        for bond in bonds:
+            i1 = bond[0]
+            i2 = bond[1]
+            p1 = abs_coord_atoms[i1,:3]
+            p2 = abs_coord_atoms[i2,:3]
+            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.2)

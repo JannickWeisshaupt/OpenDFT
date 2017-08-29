@@ -1,5 +1,6 @@
 import numpy as np
 
+from visualization import cov_radii
 
 class CrystalStructure:
 
@@ -23,6 +24,23 @@ class CrystalStructure:
                 abs_coord_out = abs_coord.reshape((n_repeat*self.n_atoms,4))
         return abs_coord_out
 
+
+    def find_bonds(self,abs_coords):
+        n_atoms = abs_coords.shape[0]
+        abs_coords_pure = abs_coords[:,:3]
+
+        dist_mat = np.zeros((n_atoms,n_atoms))
+        bonds = []
+        for j1 in range(n_atoms):
+            for j2 in range(j1+1,n_atoms):
+
+                dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
+                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.05:
+                    dist_mat[j1, j2] = dist
+                    bonds.append([j1,j2]);
+        print(dist_mat)
+        return bonds
+
 class BandStructure:
     def __init__(self):
         pass
@@ -30,8 +48,9 @@ class BandStructure:
 
 if __name__ == "__main__":
 
-    atoms = np.array([[0,0,0,0],[0.5,0.5,0.5,8]])
-    unit_cell = 10*np.array([[1,1,0],[1,0,1],[0,1,1]])
+    atoms = np.array([[0,0,0,6],[0.25,0.25,0.25,6]])
+    unit_cell = 6.719*np.array([[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]])
 
     crystal_structure = CrystalStructure(unit_cell,atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
+    print(crystal_structure.find_bonds(coords))
