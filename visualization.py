@@ -142,6 +142,7 @@ class BandStructureVisualization(QtGui.QDialog):
 
         # a figure instance to plot on
         self.figure = plt.figure(1)
+        plt.close(plt.figure(1))
         self.ax = self.figure.add_subplot(111)
         # this is the Canvas Widget that displays the `figure`
         # it takes the `figure` instance as a parameter to __init__
@@ -163,7 +164,6 @@ class BandStructureVisualization(QtGui.QDialog):
         self.setLayout(layout)
         # self.plot()
         self.figure.tight_layout()
-        plt.close(plt.figure(1))
 
     def plot(self):
         self.ax.cla()
