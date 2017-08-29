@@ -23,7 +23,7 @@ class StructureVisualization(HasTraits):
     scene = Instance(MlabSceneModel, ())
 
     def __init__(self, crystal_structure):
-        super().__init__()
+        super(StructureVisualization,self).__init__()
 
         self.crystal_structure = crystal_structure
 

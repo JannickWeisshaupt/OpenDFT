@@ -30,7 +30,7 @@ class MayaviQWidget(QtGui.QWidget):
 
 class MainWindow(QtGui.QWidget):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(MainWindow,self).__init__(*args, **kwargs)
         self.layout = QtGui.QGridLayout(self)
         self.crystal_structure = None
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
@@ -50,9 +50,15 @@ class MainWindow(QtGui.QWidget):
         self.mayavi_widget.update_plot()
 
     def load_crystal_structure(self):
+        file_dialog = QtGui.QFileDialog()
+        file_dialog.setFileMode(file_dialog.AnyFile)
+        file_dialog.setFilter("Text files (*.txt)")
+        file_dialog.setFilter("Exciting (*.xml)")
 
-
-        self.crystal_structure = esc_handler.parse_input_file('testfiles/exciting_test.xml')
+        file_name = file_dialog.getOpenFileName(self, 'OpenFile')[0]
+        if len(file_name) == 0:
+            return
+        self.crystal_structure = esc_handler.parse_input_file(file_name)
         self.update_structure_plot()
 
     def make_menu_bar(self):
