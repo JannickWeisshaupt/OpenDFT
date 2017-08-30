@@ -147,6 +147,7 @@ class CentralWindow(QtGui.QWidget):
                 self.project_directory = r'D:\OpenDFT_projects\test\\'
             os.chdir(self.project_directory)
             self.load_saved_results()
+            self.project_loaded = True
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent = self)
@@ -155,6 +156,7 @@ class CentralWindow(QtGui.QWidget):
                 self.save_results()
                 self.reset_results_and_plots()
             self.project_directory = folder_name
+            esc_handler.project_directory = self.project_directory
             self.initialize_project()
 
     def initialize_project(self):
@@ -172,20 +174,25 @@ class CentralWindow(QtGui.QWidget):
     def load_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent = self)
         if len(folder_name)>1:
-            os.chdir(self.project_directory)
+            self.reset_results_and_plots()
             self.project_directory = folder_name
+            os.chdir(self.project_directory)
+            esc_handler.project_directory = self.project_directory
             self.load_saved_results()
             self.project_loaded = True
 
     def save_results(self):
-        a = {'crystal structure': self.crystal_structure,'band structure':self.band_structure,'properties':self.project_properties}
-        with open(self.project_directory+'save.pkl', 'wb') as handle:
-            pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        try:
+            a = {'crystal structure': self.crystal_structure,'band structure':self.band_structure,'properties':self.project_properties}
+            with open(self.project_directory+'/save.pkl', 'wb') as handle:
+                pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as e:
+            print(e)
 
     def load_saved_results(self):
         esc_handler.project_directory = self.project_directory
         try:
-            with open('save.pkl', 'rb') as handle:
+            with open(self.project_directory+'/save.pkl', 'rb') as handle:
                 b = pickle.load(handle)
                 self.crystal_structure = b['crystal structure']
                 if self.crystal_structure is not None:
@@ -231,13 +238,19 @@ class CentralWindow(QtGui.QWidget):
         self.file_menu.addAction(new_project_action)
 
         load_project_action = QtGui.QAction("Load project", self.window)
-        # load_project_action.setShortcut("Ctrl+n")
+        load_project_action.setShortcut("Ctrl+o")
         load_project_action.setStatusTip('Load project')
         load_project_action.triggered.connect(self.load_project)
         self.file_menu.addAction(load_project_action)
 
+        save_project_action = QtGui.QAction("Save project", self.window)
+        save_project_action.setShortcut("Ctrl+s")
+        save_project_action.setStatusTip('Save project')
+        save_project_action.triggered.connect(self.save_results)
+        self.file_menu.addAction(save_project_action)
+
         open_structure_action = QtGui.QAction("Load structure", self.window)
-        open_structure_action.setShortcut("Ctrl+O")
+        # open_structure_action.setShortcut("Ctrl+O")
         open_structure_action.setStatusTip('Load crystal structure')
         open_structure_action.triggered.connect(self.load_crystal_structure)
         self.file_menu.addAction(open_structure_action)
@@ -275,7 +288,7 @@ class CentralWindow(QtGui.QWidget):
             self.band_structure_window.bs_widget.plot(self.band_structure)
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
     # Don't create a new QApplication, it would unhook the Events
     # set by Traits on the existing QApplication. Simply use the
     # '.instance()' method to retrieve the existing one.

@@ -193,6 +193,7 @@ class BandStructureVisualization(QtGui.QDialog):
 
     def clear_plot(self):
         self.ax.cla()
+        self.canvas.draw()
 
     def plot(self,band_structure):
         self.ax.cla()
@@ -258,6 +259,7 @@ class ScfVisualization(QtGui.QDialog):
 
     def clear_plot(self):
         self.ax.cla()
+        self.canvas.draw()
 
     def plot(self,scf_data):
         self.ax.cla()

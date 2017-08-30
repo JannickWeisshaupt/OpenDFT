@@ -137,6 +137,8 @@ class Handler:
 
 
     def write_input_file(self,tree):
+        if not os.path.isdir(self.project_directory+self.working_dirctory):
+            os.mkdir(self.project_directory+self.working_dirctory)
         xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
         with open(self.project_directory+self.working_dirctory+self.input_filename, "w") as f:
             f.write(xmlstr)
@@ -144,9 +146,6 @@ class Handler:
         # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
 
     def start_engine(self):
-        if not os.path.isdir(self.project_directory+self.working_dirctory):
-            os.mkdir(self.project_directory+self.working_dirctory)
-
         os.chdir(self.project_directory+self.working_dirctory)
         command = self.engine_command
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
