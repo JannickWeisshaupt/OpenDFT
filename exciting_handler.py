@@ -82,6 +82,9 @@ class Handler:
         return crystal_structure
 
     def start_engine(self):
+        if not os.path.isdir(self.project_directory+self.working_dirctory):
+            os.mkdir(self.project_directory+self.working_dirctory)
+
         os.chdir(self.project_directory+self.working_dirctory)
         command = self.engine_command
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

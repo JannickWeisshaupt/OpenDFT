@@ -37,9 +37,16 @@ class DftEngineWindow(QtGui.QWidget):
         self.layout = QtGui.QGridLayout(self)
         self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation', self)
         self.start_ground_state_calculation_button.clicked.connect(self.start_ground_state_calculation)
+        self.execute_error_dialog = QtGui.QErrorMessage(parent=self)
+        self.execute_error_dialog.resize(500,200)
 
     def start_ground_state_calculation(self):
-        esc_handler.start_engine()
+        try:
+            esc_handler.start_engine()
+        except Exception as e:
+            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>'+repr(e)+'<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+             '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+            self.execute_error_dialog.showMessage(error_message)
 
 class BandStructureWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -73,8 +80,6 @@ class MainWindow(QtGui.QWidget):
         self.tabWidget.addTab(self.band_structure_window ,'Bandstructure')
         self.tabWidget.addTab(QtGui.QWidget(), 'Optical properties')
 
-
-        # self.layout.addWidget(self.mayavi_widget, 0, 0)
         self.show()
         self.window = QtGui.QMainWindow()
         self.window.setWindowTitle("OpenDFT")
@@ -83,6 +88,10 @@ class MainWindow(QtGui.QWidget):
         self.window.show()
 
         self.make_menu_bar()
+
+        if DEBUG:
+            self.project_directory = r'D:\OpenDFT_projects\test'
+            self.load_saved_results()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent = self)
@@ -154,6 +163,7 @@ class MainWindow(QtGui.QWidget):
 
 
 if __name__ == "__main__":
+    DEBUG = True
     # Don't create a new QApplication, it would unhook the Events
     # set by Traits on the existing QApplication. Simply use the
     # '.instance()' method to retrieve the existing one.
