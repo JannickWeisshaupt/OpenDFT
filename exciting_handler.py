@@ -32,9 +32,10 @@ class Handler:
     def __init__(self):
         self.default_extension = '.xml'
         self.engine_command = ["excitingser"]
-        self.working_dirctory = '/home/jannick/solid_state_control/test/'
+        self.working_dirctory = '/exciting_files/'
         self.engine_process = None
         self.info_file = 'INFO.OUT'
+        self.project_directory = None
 
     def parse_input_file(self,filename):
         tree = ET.parse(filename)
@@ -81,9 +82,11 @@ class Handler:
         return crystal_structure
 
     def start_engine(self):
-        os.chdir(self.working_dirctory)
+        os.chdir(self.project_directory+self.working_dirctory)
         command = self.engine_command
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.chdir(self.project_directory)
+
 
     def read_engine_status(self):
         if not self.is_engine_running():
@@ -126,7 +129,7 @@ class Handler:
 
     def read_scf_status(self):
         try:
-            f = open(self.working_dirctory + self.info_file,'r')
+            f = open(self.project_directory+self.working_dirctory + self.info_file,'r')
         except IOError:
             return None
         info_text = f.read()
@@ -148,7 +151,7 @@ class Handler:
         return res
 
     def read_bandstructure(self):
-        e = xml.etree.ElementTree.parse('bandstructure.xml').getroot()
+        e = xml.etree.ElementTree.parse(self.project_directory+self.working_dirctory+'bandstructure.xml').getroot()
         titlestring = e.find('title').itertext().next()
 
         bands = []
