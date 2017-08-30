@@ -10,26 +10,26 @@ import os
 import time
 import matplotlib.pyplot as plt
 import re
+
 plt.ion()
 
-p_table = {i:el.__repr__() for i,el in enumerate(pt.elements)}
-p_table_rev = {el.__repr__():i for i,el in enumerate(pt.elements)}
+p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
+p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 
 hartree = 27.211
 
 
 def convert_greek(input):
-  result = []
-  for el in input:
-    if el.lower() == 'gamma':
-      result.append(r'$\Gamma$')
-    else:
-      result.append(el)
-  return result
+    result = []
+    for el in input:
+        if el.lower() == 'gamma':
+            result.append(r'$\Gamma$')
+        else:
+            result.append(el)
+    return result
 
 
 class Handler:
-
     def __init__(self):
         self.default_extension = '.xml'
         self.engine_command = ["excitingser"]
@@ -39,25 +39,23 @@ class Handler:
         self.project_directory = None
         self.input_filename = 'input.xml'
         self.exciting_folder = self.find_exciting_folder()
-        self.scf_options = {'do':'fromscratch','nempty':'15','gmaxvr':'15','rgkmax': '5.0', 'ngridk': '5 5 5'}
-        self.general_options = {'title':'title'}
-        self.bs_options = {'steps':'300'}
+        self.scf_options = {'do': 'fromscratch', 'nempty': '15', 'gmaxvr': '15', 'rgkmax': '5.0', 'ngridk': '5 5 5'}
+        self.general_options = {'title': 'title'}
+        self.bs_options = {'steps': '300'}
 
     def find_exciting_folder(self):
-        p = subprocess.Popen(['which','excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        res,err = p.communicate()
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res, err = p.communicate()
         res = res.split('bin')[0]
         return res.strip()
 
-
-    def parse_input_file(self,filename):
+    def parse_input_file(self, filename):
         tree = ET.parse(filename)
         root = tree.getroot()
 
         structure = root.find('structure')
         crystal = structure.find('crystal')
         species_list = structure.findall('species')
-
 
         cart_bool = structure.get('cartesian')
         if cart_bool is None:
@@ -74,79 +72,77 @@ class Handler:
 
         for i, basevec in enumerate(basevecs):
             coords = np.array(self.split_and_remove_whitespace(basevec.text))
-            crystal_base[i, :] = coords*scale
+            crystal_base[i, :] = coords * scale
 
         atomic_cord_list = []
         for species in species_list:
             species_name = species.get('speciesfile').split('.')[0]
             species_number = p_table_rev[species_name]
             for j1, atom in enumerate(species):
-                pos_vec=np.zeros(4)
+                pos_vec = np.zeros(4)
                 rel_coords = np.array(self.split_and_remove_whitespace(atom.get('coord')))
                 if cart_bool:
-                    pos_vec[:3] = np.dot(np.linalg.inv(crystal_base.T),rel_coords)
+                    pos_vec[:3] = np.dot(np.linalg.inv(crystal_base.T), rel_coords)
                 else:
                     pos_vec[:3] = rel_coords
                 pos_vec[3] = species_number
                 atomic_cord_list.append(pos_vec)
 
         atom_array = np.array(atomic_cord_list)
-        crystal_structure = sst.CrystalStructure(crystal_base,atom_array)
+        crystal_structure = sst.CrystalStructure(crystal_base, atom_array)
         return crystal_structure
 
     def make_tree(self):
         root = ET.Element("input")
         tree = ET.ElementTree(root)
-        ET.SubElement(root, "title").text=self.general_options['title']
+        ET.SubElement(root, "title").text = self.general_options['title']
         return tree
 
-    def add_scf_to_tree(self,tree,crystal_structure):
+    def add_scf_to_tree(self, tree, crystal_structure):
         root = tree.getroot()
-        structure = ET.SubElement(root, "structure",speciespath=self.exciting_folder+'species')
-        crystal = ET.SubElement(structure,"crystal")
+        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species')
+        crystal = ET.SubElement(structure, "crystal")
         for i in range(3):
-            lattice_vector = crystal_structure.lattice_vectors[i,:]
+            lattice_vector = crystal_structure.lattice_vectors[i, :]
             ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
 
         abs_coord_atoms = crystal_structure.atoms
-        species = set(abs_coord_atoms[:,3].astype(np.int))
+        species = set(abs_coord_atoms[:, 3].astype(np.int))
         n_species = len(species)
         n_atoms = abs_coord_atoms.shape[0]
 
         for specie in species:
-            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
-            sub_coords = abs_coord_atoms[species_mask,:]
-            specie_xml_el = ET.SubElement(structure, "species",speciesfile=p_table[specie]+'.xml')
+            species_mask = abs_coord_atoms[:, 3].astype(np.int) == specie
+            sub_coords = abs_coord_atoms[species_mask, :]
+            specie_xml_el = ET.SubElement(structure, "species", speciesfile=p_table[specie] + '.xml')
             n_atoms_specie = sub_coords.shape[0]
             for i in range(n_atoms_specie):
-                ET.SubElement(specie_xml_el, "atom",coord = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i,:]))
+                ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
 
         groundstate = ET.SubElement(root, "groundstate", **self.scf_options)
 
-
-    def add_bs_to_tree(self,tree,points):
+    def add_bs_to_tree(self, tree, points):
         root = tree.getroot()
         properties = ET.SubElement(root, "properties")
         bandstructure = ET.SubElement(properties, "bandstructure")
         plot1d = ET.SubElement(bandstructure, "plot1d")
-        path = ET.SubElement(plot1d, "path",**self.bs_options)
+        path = ET.SubElement(plot1d, "path", **self.bs_options)
         for point in points:
             cords = point[0]
             label = point[1]
-            ET.SubElement(path, "point", coord = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
 
-
-    def write_input_file(self,tree):
-        if not os.path.isdir(self.project_directory+self.working_dirctory):
-            os.mkdir(self.project_directory+self.working_dirctory)
+    def write_input_file(self, tree):
+        if not os.path.isdir(self.project_directory + self.working_dirctory):
+            os.mkdir(self.project_directory + self.working_dirctory)
         xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
-        with open(self.project_directory+self.working_dirctory+self.input_filename, "w") as f:
+        with open(self.project_directory + self.working_dirctory + self.input_filename, "w") as f:
             f.write(xmlstr)
 
-        # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
+            # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
 
     def start_engine(self):
-        os.chdir(self.project_directory+self.working_dirctory)
+        os.chdir(self.project_directory + self.working_dirctory)
         command = self.engine_command
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(self.project_directory)
@@ -157,7 +153,7 @@ class Handler:
     def read_engine_status(self):
         if not self.is_engine_running():
             output, error = self.engine_process.communicate()
-            return output,error
+            return output, error
         else:
             return None
 
@@ -169,9 +165,9 @@ class Handler:
         else:
             return False
 
-    def split_and_remove_whitespace(self,string):
+    def split_and_remove_whitespace(self, string):
         l1 = string.split()
-        l2 = [float(x) for x in l1 if len(x)>0]
+        l2 = [float(x) for x in l1 if len(x) > 0]
         return l2
 
     def find_bandgap(self, bands):
@@ -188,14 +184,14 @@ class Handler:
         bandgap = np.min(band_diff)
         k_bandgap = valence_band[bandgap_index, 0]
         # Indirect bandgap
-        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))  - bandgap) > 0.01:
+        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1])) - bandgap) > 0.01:
             bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
             k_bandgap = None
         return bandgap, k_bandgap
 
     def read_scf_status(self):
         try:
-            f = open(self.project_directory+self.working_dirctory + self.info_file,'r')
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
             return None
         info_text = f.read()
@@ -212,13 +208,13 @@ class Handler:
             ms = match.split(':')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(scf_list,scf_energy_list))
-        if len(res)<2:
+        res = np.array(zip(scf_list, scf_energy_list))
+        if len(res) < 2:
             return None
         return res
 
     def read_bandstructure(self):
-        e = xml.etree.ElementTree.parse(self.project_directory+self.working_dirctory+'bandstructure.xml').getroot()
+        e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         titlestring = e.find('title').itertext().next()
 
         bands = []
@@ -240,16 +236,17 @@ class Handler:
         empirical_correction = 0
 
         for band in bands:
-            band[:,1] = band[:,1]*hartree
+            band[:, 1] = band[:, 1] * hartree
             if empirical_correction != 0:
                 if (band[:, 1] > 0).any():
-                    band[:, 1] = band[:, 1] + empirical_correction  / 2
+                    band[:, 1] = band[:, 1] + empirical_correction / 2
                 else:
-                    band[:, 1] = band[:, 1] - empirical_correction  / 2
+                    band[:, 1] = band[:, 1] - empirical_correction / 2
 
         bandgap, k_bandgap = self.find_bandgap(bands)
-        special_k_points_together = zip(special_k_points,special_k_points_label)
-        return sst.BandStructure(bands,bandgap,k_bandgap,special_k_points=special_k_points_together)
+        special_k_points_together = zip(special_k_points, special_k_points_label)
+        return sst.BandStructure(bands, bandgap, k_bandgap, special_k_points=special_k_points_together)
+
 
 if __name__ == '__main__':
     os.chdir("/home/jannick/OpenDFT_projects/test/exciting_files")
@@ -259,12 +256,12 @@ if __name__ == '__main__':
     print(handler.exciting_folder)
     tree = handler.make_tree()
 
-    atoms = np.array([[0,0,0,6],[0.25,0.25,0.25,6]])
-    unit_cell = 6.719*np.array([[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]])
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    crystal_structure = sst.CrystalStructure(unit_cell,atoms)
-    handler.add_scf_to_tree(tree,crystal_structure)
-    handler.add_bs_to_tree(tree,[[np.array([0,0,0]),"GAMMA"]])
+    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    handler.add_scf_to_tree(tree, crystal_structure)
+    handler.add_bs_to_tree(tree, [[np.array([0, 0, 0]), "GAMMA"]])
 
     handler.write_input_file(tree)
     # plt.figure(2)

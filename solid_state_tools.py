@@ -48,10 +48,9 @@ class BandStructure:
         self.k_bandgap = k_bandgap
 
 if __name__ == "__main__":
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    atoms = np.array([[0,0,0,6],[0.25,0.25,0.25,6]])
-    unit_cell = 6.719*np.array([[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]])
-
-    crystal_structure = CrystalStructure(unit_cell,atoms)
+    crystal_structure = CrystalStructure(unit_cell, atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
     print(crystal_structure.find_bonds(coords))

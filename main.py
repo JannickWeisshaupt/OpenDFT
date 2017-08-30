@@ -2,9 +2,10 @@ from __future__ import division
 import sys
 import os
 import numpy as np
+
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization,BandStructureVisualization,ScfVisualization
+from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization
 import solid_state_tools as sst
 from exciting_handler import Handler as Handler
 import pickle
@@ -37,6 +38,7 @@ class MayaviQWidget(QtGui.QWidget):
     def update_crystal_structure(self, crystal_structure):
         self.visualization.crystal_structure = crystal_structure
 
+
 class DftEngineWindow(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -48,26 +50,29 @@ class DftEngineWindow(QtGui.QWidget):
 
         self.start_ground_state_calculation_button.clicked.connect(self.start_ground_state_calculation)
         self.execute_error_dialog = QtGui.QErrorMessage(parent=self)
-        self.execute_error_dialog.resize(500,200)
+        self.execute_error_dialog.resize(500, 200)
 
-        trash_bs_points = np.array([[0,0,0],[0.750,0.500,0.250],[0.500,0.500,0.500]
-                    ,[0.000,0.000,0.000],[0.500,0.500,0.000],[0.750,0.500,0.250],[0.750,0.375,0.375],[0.000,0.000,0.000]])
-        trash_bs_labels = ['GAMMA','W','L','GAMMA','X','W','K','GAMMA']
-        self.band_structure_points = zip(trash_bs_points,trash_bs_labels)
+        trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
+                                       , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
+                                    [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
+        trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
+        self.band_structure_points = zip(trash_bs_points, trash_bs_labels)
 
     def start_ground_state_calculation(self):
         try:
             tree = esc_handler.make_tree()
-            esc_handler.add_scf_to_tree(tree,self.parent.crystal_structure)
-            esc_handler.add_bs_to_tree(tree,self.band_structure_points)
+            esc_handler.add_scf_to_tree(tree, self.parent.crystal_structure)
+            esc_handler.add_bs_to_tree(tree, self.band_structure_points)
             esc_handler.write_input_file(tree)
             time.sleep(0.1)
             esc_handler.start_ground_state_calculation()
             QtCore.QTimer.singleShot(1000, self.parent.check_engine)
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>'+repr(e)+'<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-             '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
+                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
             self.execute_error_dialog.showMessage(error_message)
+
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -88,14 +93,16 @@ class BandStructureWindow(QtGui.QWidget):
         self.bs_widget = BandStructureVisualization(parent=self)
         layout.addWidget(self.bs_widget)
 
+
 class MainWindow(QtGui.QMainWindow):
-    def __init__(self,central_window, *args, **kwargs):
+    def __init__(self, central_window, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.central_window = central_window
 
     def closeEvent(self, event):
         self.central_window.close_application()
         event.ignore()
+
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self, *args, **kwargs):
@@ -105,10 +112,10 @@ class CentralWindow(QtGui.QWidget):
         self.crystal_structure = None
         self.band_structure = None
         self.saved_results = {}
-        self.project_properties = {'title':''}
+        self.project_properties = {'title': ''}
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
-        self.error_dialog.resize(700,400)
+        self.error_dialog.resize(700, 400)
 
         self.layout = QtGui.QGridLayout(self)
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
@@ -117,19 +124,17 @@ class CentralWindow(QtGui.QWidget):
         self.dft_engine_window = DftEngineWindow(self)
         self.scf_window = ScfWindow(parent=self)
 
-
         self.tabWidget = QtGui.QTabWidget()
         self.layout.addWidget(self.tabWidget)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
 
-        self.tabWidget.addTab(self.mayavi_widget,'Structure')
-        self.tabWidget.addTab(self.dft_engine_window,'DFT-Engine')
-        self.tabWidget.addTab(self.band_structure_window ,'Bandstructure')
+        self.tabWidget.addTab(self.mayavi_widget, 'Structure')
+        self.tabWidget.addTab(self.dft_engine_window, 'DFT-Engine')
+        self.tabWidget.addTab(self.band_structure_window, 'Bandstructure')
         self.tabWidget.addTab(QtGui.QWidget(), 'Optical properties')
         self.tabWidget.addTab(self.scf_window, 'Scf')
-
 
         self.show()
         self.window = MainWindow(self)
@@ -141,7 +146,7 @@ class CentralWindow(QtGui.QWidget):
         self.window.show()
 
         if DEBUG:
-            if sys.platform in ['linux','linux2']:
+            if sys.platform in ['linux', 'linux2']:
                 self.project_directory = r"/home/jannick/OpenDFT_projects/test/"
             else:
                 self.project_directory = r'D:\OpenDFT_projects\test\\'
@@ -150,8 +155,8 @@ class CentralWindow(QtGui.QWidget):
             self.project_loaded = True
 
     def make_new_project(self):
-        folder_name = QtGui.QFileDialog().getExistingDirectory(parent = self)
-        if len(folder_name)>1:
+        folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
+        if len(folder_name) > 1:
             if self.project_loaded:
                 self.save_results()
                 self.reset_results_and_plots()
@@ -170,10 +175,9 @@ class CentralWindow(QtGui.QWidget):
         self.band_structure_window.bs_widget.clear_plot()
         self.scf_window.scf_widget.clear_plot()
 
-
     def load_project(self):
-        folder_name = QtGui.QFileDialog().getExistingDirectory(parent = self)
-        if len(folder_name)>1:
+        folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
+        if len(folder_name) > 1:
             self.reset_results_and_plots()
             self.project_directory = folder_name
             os.chdir(self.project_directory)
@@ -183,8 +187,9 @@ class CentralWindow(QtGui.QWidget):
 
     def save_results(self):
         try:
-            a = {'crystal structure': self.crystal_structure,'band structure':self.band_structure,'properties':self.project_properties}
-            with open(self.project_directory+'/save.pkl', 'wb') as handle:
+            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structure,
+                 'properties': self.project_properties}
+            with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
             print(e)
@@ -192,7 +197,7 @@ class CentralWindow(QtGui.QWidget):
     def load_saved_results(self):
         esc_handler.project_directory = self.project_directory
         try:
-            with open(self.project_directory+'/save.pkl', 'rb') as handle:
+            with open(self.project_directory + '/save.pkl', 'rb') as handle:
                 b = pickle.load(handle)
                 self.crystal_structure = b['crystal structure']
                 if self.crystal_structure is not None:
@@ -207,7 +212,6 @@ class CentralWindow(QtGui.QWidget):
 
         except Exception as e:
             print(e)
-
 
     def update_structure_plot(self):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
@@ -264,7 +268,7 @@ class CentralWindow(QtGui.QWidget):
     def close_application(self):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
-                "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                                               "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
 
         if DEBUG or reply == QtGui.QMessageBox.Yes:
             self.save_results()
@@ -277,15 +281,16 @@ class CentralWindow(QtGui.QWidget):
                 self.scf_window.scf_widget.plot(self.scf_data)
             QtCore.QTimer.singleShot(500, self.check_engine)
         else:
-            message,err = esc_handler.engine_process.communicate()
+            message, err = esc_handler.engine_process.communicate()
             if 'error' in message.lower():
                 error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + message \
                                 + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-                         '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+                                  '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)
 
             self.band_structure = esc_handler.read_bandstructure()
             self.band_structure_window.bs_widget.plot(self.band_structure)
+
 
 if __name__ == "__main__":
     DEBUG = False
