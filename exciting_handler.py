@@ -2,6 +2,7 @@ import numpy as np
 import solid_state_tools as sst
 import xml.etree.ElementTree as ET
 import xml
+from xml.dom import minidom
 import subprocess
 import periodictable as pt
 import subprocess
@@ -36,6 +37,18 @@ class Handler:
         self.engine_process = None
         self.info_file = 'INFO.OUT'
         self.project_directory = None
+        self.input_filename = 'input.xml'
+        self.exciting_folder = self.find_exciting_folder()
+        self.scf_options = {'do':'fromscratch','nempty':'15','gmaxvr':'15','rgkmax': '5.0', 'ngridk': '5 5 5'}
+        self.general_options = {'title':'title'}
+        self.bs_options = {'steps':'300'}
+
+    def find_exciting_folder(self):
+        p = subprocess.Popen(['which','excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res,err = p.communicate()
+        res = res.split('bin')[0]
+        return res.strip()
+
 
     def parse_input_file(self,filename):
         tree = ET.parse(filename)
@@ -81,6 +94,55 @@ class Handler:
         crystal_structure = sst.CrystalStructure(crystal_base,atom_array)
         return crystal_structure
 
+    def make_tree(self):
+        root = ET.Element("input")
+        tree = ET.ElementTree(root)
+        ET.SubElement(root, "title").text=self.general_options['title']
+        return tree
+
+    def add_scf_to_tree(self,tree,crystal_structure):
+        root = tree.getroot()
+        structure = ET.SubElement(root, "structure",speciespath=self.exciting_folder+'species')
+        crystal = ET.SubElement(structure,"crystal")
+        for i in range(3):
+            lattice_vector = crystal_structure.lattice_vectors[i,:]
+            ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
+
+        abs_coord_atoms = crystal_structure.atoms
+        species = set(abs_coord_atoms[:,3].astype(np.int))
+        n_species = len(species)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        for specie in species:
+            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
+            sub_coords = abs_coord_atoms[species_mask,:]
+            specie_xml_el = ET.SubElement(structure, "species",speciesfile=p_table[specie]+'.xml')
+            n_atoms_specie = sub_coords.shape[0]
+            for i in range(n_atoms_specie):
+                ET.SubElement(specie_xml_el, "atom",coord = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i,:]))
+
+        groundstate = ET.SubElement(root, "groundstate", **self.scf_options)
+
+
+    def add_bs_to_tree(self,tree,points):
+        root = tree.getroot()
+        properties = ET.SubElement(root, "properties")
+        bandstructure = ET.SubElement(properties, "bandstructure")
+        plot1d = ET.SubElement(bandstructure, "plot1d")
+        path = ET.SubElement(plot1d, "path",**self.bs_options)
+        for point in points:
+            cords = point[0]
+            label = point[1]
+            ET.SubElement(path, "point", coord = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+
+
+    def write_input_file(self,tree):
+        xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
+        with open(self.project_directory+self.working_dirctory+self.input_filename, "w") as f:
+            f.write(xmlstr)
+
+        # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
+
     def start_engine(self):
         if not os.path.isdir(self.project_directory+self.working_dirctory):
             os.mkdir(self.project_directory+self.working_dirctory)
@@ -90,6 +152,8 @@ class Handler:
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(self.project_directory)
 
+    def start_ground_state_calculation(self):
+        self.start_engine()
 
     def read_engine_status(self):
         if not self.is_engine_running():
@@ -146,11 +210,12 @@ class Handler:
         scf_energy_list = []
         matches = re.findall(r"Total energy [\s\t]*:[\s\t]*[-+]?\d*\.\d+", info_text)
         for match in matches:
-            print(match)
             ms = match.split(':')
             scf_energy_list.append(float(ms[1]))
 
         res = np.array(zip(scf_list,scf_energy_list))
+        if len(res)<2:
+            return None
         return res
 
     def read_bandstructure(self):
@@ -185,29 +250,43 @@ class Handler:
 
         bandgap, k_bandgap = self.find_bandgap(bands)
         special_k_points_together = zip(special_k_points,special_k_points_label)
-        return sst.BandStructure(bands,bandgap,special_k_points=special_k_points_together)
+        return sst.BandStructure(bands,bandgap,k_bandgap,special_k_points=special_k_points_together)
 
 if __name__ == '__main__':
+    os.chdir("/home/jannick/OpenDFT_projects/test/exciting_files")
     handler = Handler()
-    plt.figure(2)
+    handler.project_directory = "/home/jannick/OpenDFT_projects/test"
 
-    handler.start_engine()
-    while handler.is_engine_running():
-        time.sleep(1)
-        res = handler.read_scf_status()
-        if res is not None and len(res) >1:
-            print('updating plot')
-            plt.clf()
-            plt.plot(res[:,0],res[:,1])
-            plt.pause(0.01)
-            plt.draw()
-    print('finished')
-    band_structure = handler.read_bandstructure()
-    plt.figure(1)
-    for band in band_structure.bands:
-        plt.plot(band[:,0],band[:,1],color='b',linewidth=2)
-    for xc,xl in band_structure.special_k_points:
-        plt.axvline(x=xc, color='k', linewidth=1.5)
+    print(handler.exciting_folder)
+    tree = handler.make_tree()
 
-    unzipped_k = zip(*band_structure.special_k_points)
-    plt.xticks(unzipped_k[0], unzipped_k[1], rotation='horizontal')
+    atoms = np.array([[0,0,0,6],[0.25,0.25,0.25,6]])
+    unit_cell = 6.719*np.array([[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]])
+
+    crystal_structure = sst.CrystalStructure(unit_cell,atoms)
+    handler.add_scf_to_tree(tree,crystal_structure)
+    handler.add_bs_to_tree(tree,[[np.array([0,0,0]),"GAMMA"]])
+
+    handler.write_input_file(tree)
+    # plt.figure(2)
+    #
+    # handler.start_engine()
+    # while handler.is_engine_running():
+    #     time.sleep(1)
+    #     res = handler.read_scf_status()
+    #     if res is not None and len(res) >1:
+    #         print('updating plot')
+    #         plt.clf()
+    #         plt.plot(res[:,0],res[:,1])
+    #         plt.pause(0.01)
+    #         plt.draw()
+    # print('finished')
+    # band_structure = handler.read_bandstructure()
+    # plt.figure(1)
+    # for band in band_structure.bands:
+    #     plt.plot(band[:,0],band[:,1],color='b',linewidth=2)
+    # for xc,xl in band_structure.special_k_points:
+    #     plt.axvline(x=xc, color='k', linewidth=1.5)
+    #
+    # unzipped_k = zip(*band_structure.special_k_points)
+    # plt.xticks(unzipped_k[0], unzipped_k[1], rotation='horizontal')

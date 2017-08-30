@@ -35,17 +35,17 @@ class CrystalStructure:
             for j2 in range(j1+1,n_atoms):
 
                 dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
-                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.1:
+                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.3:
                     dist_mat[j1, j2] = dist
                     bonds.append([j1,j2]);
         return bonds
 
 class BandStructure:
-    def __init__(self,bands,bandgap,special_k_points=None):
+    def __init__(self,bands,bandgap,k_bandgap,special_k_points=None):
         self.bands = bands
         self.bandgap = bandgap
         self.special_k_points = special_k_points
-
+        self.k_bandgap = k_bandgap
 
 if __name__ == "__main__":
 
