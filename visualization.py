@@ -267,7 +267,7 @@ class BandStructureVisualization(QtGui.QDialog):
         layout.addWidget(self.canvas)
         # layout.addWidget(self.button)
         self.setLayout(layout)
-        # self.plot()
+        self.show()
 
     def clear_plot(self):
         if not self.first_plot_bool:
@@ -290,6 +290,7 @@ class BandStructureVisualization(QtGui.QDialog):
         special_k_points_label = unzipped_k[1]
 
         self.ax.set_xlim(band[:,0].min(),band[:,0].max())
+        self.ax.plot([band[:,0].min(),band[:,0].max()], [0, 0], 'k--')
 
         self.ax.set_xticks(special_k_points)
         self.ax.set_xticklabels(special_k_points_label,rotation='horizontal',horizontalalignment='center')
@@ -347,6 +348,7 @@ class ScfVisualization(QtGui.QDialog):
     def plot(self,scf_data):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
+        self.ax.cla()
         self.ax.plot(scf_data[:,0], scf_data[:,1],'o-',linewidth=2)
         self.ax.set_xlim(1,scf_data[:,0].max())
         self.ax.set_xlabel('Scf iteration')

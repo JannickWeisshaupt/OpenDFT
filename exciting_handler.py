@@ -31,6 +31,7 @@ def convert_greek(input):
 
 class Handler:
     def __init__(self):
+        self.engine_name = 'exciting'
         self.default_extension = '.xml'
         self.engine_command = ["excitingser"]
         self.working_dirctory = '/exciting_files/'
@@ -39,15 +40,70 @@ class Handler:
         self.project_directory = None
         self.input_filename = 'input.xml'
         self.exciting_folder = self.find_exciting_folder()
-        self.scf_options = {'do': 'fromscratch', 'nempty': '15', 'gmaxvr': '15', 'rgkmax': '5.0', 'ngridk': '5 5 5'}
+        self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
+        self.scf_options_tooltip = {'do':r'Decides if the ground state is calculated starting from scratch, '
+                                         'using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.'}
+
+        self.scf_options_tooltip['rgkmax'] = """The parameter rgkmax implicitly determines the number of basis functions and is one of the crucial parameters for the accuracy of the calculation. 
+        It represents the product of two quantities: RMT,Min, the smallest of all muffin-tin radii, and |G+k|max, the maximum length for the G+k vectors. 
+        Because each G+k vector represents one basis function, rgkmax gives the number of basis functions used for solving the Kohn-Sham equations. 
+        Typical values of rgkmax are between 6 and 9. However, for systems with very short bond-lengths, significantly smaller values may be sufficient. 
+        This may especially be the case for materials containing carbon, where rgkmax may be 4.5-5, or hydrogen, where even values between 3 and 4 may be sufficient. 
+        In any case, a convergence check is indispensible for a proper choice of this parameter for your system!"""
+
+        self.scf_options_tooltip['gmaxvr'] = r'Maximum length of G for expanding the interstitial density and potential.'
+        self.scf_options_tooltip['xctype'] = """Type of exchange-correlation functional to be used
+
+    No exchange-correlation funtional ( Exc=0 )
+    LDA, Perdew-Zunger/Ceperley-Alder, Phys. Rev. B 23, 5048 (1981)
+    LSDA, Perdew-Wang/Ceperley-Alder, Phys. Rev. B 45, 13244 (1992)
+    LDA, X-alpha approximation, J. C. Slater, Phys. Rev. 81, 385 (1951)
+    LSDA, von Barth-Hedin, J. Phys. C 5, 1629 (1972)
+    GGA, Perdew-Burke-Ernzerhof (PBE), Phys. Rev. Lett. 77, 3865 (1996)
+    GGA, Revised PBE, Zhang-Yang, Phys. Rev. Lett. 80, 890 (1998)
+    GGA, PBEsol, arXiv:0707.2088v1 (2007)
+    GGA, asymptotically corrected PBE (acPBE), arXiv:1409.4834 (2014)
+    GGA, Wu-Cohen exchange (WC06) with PBE correlation, Phys. Rev. B 73, 235116 (2006)
+    GGA, Armiento-Mattsson (AM05) spin-unpolarised functional, Phys. Rev. B 72, 085108 (2005)
+    EXX, Exact Exchange, Phys. Rev. Lett. 95, 136402 (2005)
+    Hybrid, PBE0, J. Chem. Phys. 110, 5029 (1999)
+
+Type: 	choose from:
+LDA_PZ
+LDA_PW
+LDA_XALPHA
+LDA_vBH
+GGA_PBE
+GGA_PBE_R
+GGA_PBE_SOL
+GGA_WC
+GGA_AM05
+GGA_AC_PBE
+HYB_PBE0
+HYB_LDA0
+EXX
+none
+Default: 	GGA_PBE"""
+
+        self.scf_options_tooltip['ngridk'] = """Number of k grid points along the basis vector directions. 
+        Alternatively give autokpt and radkpt, or nktot. In the latter cases any value given for ngridk is not used. 
+        
+        Notes: Phonon calculations using supercells adjust the k-grid according to the supercell size; if the element xs is given, 
+        the present attribute is overwritten by the value in xs for xs-related groundstate calculations; 
+        the values of the present attribute are also relevant for calculations related to the element gw."""
+
+        self.scf_options_tooltip['nempty'] = """Defines the number of eigenstates beyond that required for charge neutrality. 
+        When running metals it is not known a priori how many states will be below the Fermi energy for each k-point. 
+        Setting nempty greater than zero allows the additional states to act as a buffer in such cases. 
+        Furthermore, magnetic calculations use the first-variational eigenstates as a basis for setting up the second-variational Hamiltonian, 
+        and thus nempty will determine the size of this basis set. Convergence with respect to this quantity should be checked."""
+
         self.general_options = {'title': 'title'}
         self.bs_options = {'steps': '300'}
 
     def find_exciting_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
-        if err:
-            return None
         res = res.split('bin')[0]
         return res.strip()
 
