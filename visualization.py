@@ -339,6 +339,7 @@ class ScfVisualization(QtGui.QDialog):
         layout.addWidget(self.canvas)
         # layout.addWidget(self.button)
         self.setLayout(layout)
+        self.show()
 
     def clear_plot(self):
         if not self.first_plot_bool:
