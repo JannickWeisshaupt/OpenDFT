@@ -1,4 +1,6 @@
 from __future__ import division
+from __future__ import generators
+
 import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
@@ -39,6 +41,40 @@ for i in range(39,49):
 
 for i in range(71,80):
     colors[i] = (0,1,1)
+
+
+
+def KnuthMorrisPratt(text, pattern):
+
+    '''Yields all starting positions of copies of the pattern in the text.
+Calling conventions are similar to string.find, but its arguments can be
+lists or iterators, not just strings, it returns all matches, not just
+the first one, and it does not need the whole text in memory at once.
+Whenever it yields, it will have read the text exactly up to and including
+the match that caused the yield.'''
+
+    # allow indexing into pattern and protect against change during yield
+    pattern = list(pattern)
+
+    # build table of shift amounts
+    shifts = [1] * (len(pattern) + 1)
+    shift = 1
+    for pos in range(len(pattern)):
+        while shift <= pos and pattern[pos] != pattern[pos-shift]:
+            shift += shifts[pos-shift]
+        shifts[pos+1] = shift
+
+    # do the actual search
+    startPos = 0
+    matchLen = 0
+    for c in text:
+        while matchLen == len(pattern) or \
+              matchLen >= 0 and pattern[matchLen] != c:
+            startPos += shifts[matchLen]
+            matchLen -= shifts[matchLen]
+        matchLen += 1
+        if matchLen == len(pattern):
+            yield startPos
 
 class StructureVisualization(HasTraits):
     n_x    = Range(1, 10, 1, mode='spinner')#)
@@ -150,6 +186,48 @@ class StructureVisualization(HasTraits):
                                      resolution=30,
                                      color=atomic_color)
 
+    # def bonds_to_paths(self,bonds):
+    # """See here my failed attempt on graph theory. Seems there is a reason that there is a mathematical field to it. Who would have thought?"""
+    #     def is_bond_in_path(path,bond):
+    #         a = KnuthMorrisPratt(path,bond)
+    #         b = KnuthMorrisPratt(path,bond[::-1])
+    #         try:
+    #             next(a)
+    #             return True
+    #         except StopIteration:
+    #             pass
+    #
+    #         try:
+    #             next(b)
+    #             return True
+    #         except StopIteration:
+    #             pass
+    #         return False
+    #
+    #     def find_all_connection(bonds, point):
+    #         connections = []
+    #         for bond in bonds:
+    #             if point in bond:
+    #                 if point == bond[0]:
+    #                     connections.append(bond[1])
+    #                 else:
+    #                     connections.append(bond[0])
+    #         return connections
+    #
+    #     paths = []
+    #     for bond in bonds:
+    #         path = bond
+    #         p1 = bond[0]
+    #         while True:
+    #             p1_con = find_all_connection(bonds,p1)
+    #             if len(p1_con) == 1:
+    #                 break
+    #             for connection in p1_con:
+    #                 if not is_bond_in_path(path,[p1,connection]):
+    #                     path.append[p1_con[0]]
+
+
+
 
 
     def plot_bonds(self,repeat=[1,1,1]):
@@ -170,7 +248,8 @@ class BandStructureVisualization(QtGui.QDialog):
         # a figure instance to plot on
         self.figure = plt.figure(1)
         plt.close(plt.figure(1))
-        self.ax = self.figure.add_subplot(111)
+        self.ax = None
+
         self.canvas = FigureCanvas(self.figure)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -178,24 +257,26 @@ class BandStructureVisualization(QtGui.QDialog):
         color = self.palette().color(QtGui.QPalette.Base)
         self.figure.patch.set_facecolor([color.red()/256,color.green()/256,color.blue()/256])
 
-        # Just some button connected to `plot` method
-        self.button = QtGui.QPushButton('Plot')
-        self.button.clicked.connect(self.plot)
+        # # Just some button connected to `plot` method
+        # self.button = QtGui.QPushButton('Plot')
+        # self.button.clicked.connect(self.plot)
 
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
-        layout.addWidget(self.button)
+        # layout.addWidget(self.button)
         self.setLayout(layout)
         # self.plot()
-        self.figure.tight_layout()
 
     def clear_plot(self):
-        self.ax.cla()
-        self.canvas.draw()
+        if not self.first_plot_bool:
+            self.ax.cla()
+            self.canvas.draw()
 
     def plot(self,band_structure):
+        if self.first_plot_bool:
+            self.ax = self.figure.add_subplot(111)
         self.ax.cla()
         for band in band_structure.bands:
             self.ax.plot(band[:,0],band[:,1],color='b',linewidth=2)
@@ -230,6 +311,7 @@ class BandStructureVisualization(QtGui.QDialog):
             self.figure.tight_layout()
         self.canvas.draw()
 
+
 class ScfVisualization(QtGui.QDialog):
     def __init__(self, parent=None):
         super(ScfVisualization, self).__init__()
@@ -237,7 +319,8 @@ class ScfVisualization(QtGui.QDialog):
         # a figure instance to plot on
         self.figure = plt.figure(2)
         plt.close(plt.figure(2))
-        self.ax = self.figure.add_subplot(111)
+        self.ax = None
+        self.first_plot_bool = True
         self.canvas = FigureCanvas(self.figure)
 
         color = self.palette().color(QtGui.QPalette.Base)
@@ -246,25 +329,33 @@ class ScfVisualization(QtGui.QDialog):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         # Just some button connected to `plot` method
-        self.button = QtGui.QPushButton('Plot')
-        self.button.clicked.connect(self.plot)
+        # self.button = QtGui.QPushButton('Plot')
+        # self.button.clicked.connect(self.plot)
 
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
-        layout.addWidget(self.button)
+        # layout.addWidget(self.button)
         self.setLayout(layout)
-        self.figure.tight_layout()
 
     def clear_plot(self):
-        self.ax.cla()
-        self.canvas.draw()
+        if not self.first_plot_bool:
+            self.ax.cla()
+            self.canvas.draw()
 
     def plot(self,scf_data):
-        self.ax.cla()
+        if self.first_plot_bool:
+            self.ax = self.figure.add_subplot(111)
         self.ax.plot(scf_data[:,0], scf_data[:,1],'o-',linewidth=2)
         self.ax.set_xlim(1,scf_data[:,0].max())
         self.ax.set_xlabel('Scf iteration')
         self.ax.set_ylabel('Total Energy')
+        if self.first_plot_bool:
+            self.first_plot_bool = False
+            self.figure.tight_layout()
         self.canvas.draw()
+
+
+if __name__ == "__main__":
+    vis = StructureVisualization(None)
