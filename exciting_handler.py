@@ -100,6 +100,11 @@ Default: 	GGA_PBE"""
 
         self.general_options = {'title': 'title'}
         self.bs_options = {'steps': '300'}
+        self.relax_options = {'method':'bfgs'}
+
+        self.gw_options = {}
+        self.relax_file_timestamp = None
+
 
     def find_exciting_folder(self):
         p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -158,7 +163,7 @@ Default: 	GGA_PBE"""
 
     def add_scf_to_tree(self, tree, crystal_structure):
         root = tree.getroot()
-        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species')
+        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
         crystal = ET.SubElement(structure, "crystal")
         for i in range(3):
             lattice_vector = crystal_structure.lattice_vectors[i, :]
@@ -190,6 +195,29 @@ Default: 	GGA_PBE"""
             label = point[1]
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
 
+    def add_relax_to_tree(self,tree):
+        root = tree.getroot()
+        relax = ET.SubElement(root, "relax",**self.relax_options)
+
+    def start_relax(self,crystal_structure):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure)
+        self.add_relax_to_tree(tree)
+        self.write_input_file(tree)
+        time.sleep(0.05)
+        self.start_engine()
+
+    def load_relax_structure(self):
+        file = self.project_directory+self.working_dirctory+'geometry_opt.xml'
+        if not os.path.isfile(file):
+            return None
+        if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
+            return None
+        struc = self.parse_input_file(file)
+        self.relax_file_timestamp = os.path.getmtime(file)
+        return struc
+
+
     def write_input_file(self, tree):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
@@ -205,8 +233,18 @@ Default: 	GGA_PBE"""
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(self.project_directory)
 
-    def start_ground_state_calculation(self):
+    def start_ground_state_calculation(self,crystal_structure,band_structure_points=None):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure)
+        if band_structure_points is not None:
+            self.add_bs_to_tree(tree, band_structure_points)
+        self.write_input_file(tree)
+        time.sleep(0.05)
         self.start_engine()
+
+    def kill_engine(self):
+        if self.is_engine_running():
+            self.engine_process.kill()
 
     def read_engine_status(self):
         if not self.is_engine_running():
@@ -272,7 +310,10 @@ Default: 	GGA_PBE"""
         return res
 
     def read_bandstructure(self):
-        e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
+        try:
+            e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
+        except IOError as e:
+            return None
         titlestring = e.find('title').itertext().next()
 
         bands = []

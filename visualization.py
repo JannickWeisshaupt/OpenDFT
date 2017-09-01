@@ -98,7 +98,7 @@ class StructureVisualization(HasTraits):
     def clear_plot(self):
         self.scene.mlab.clf()
 
-    @on_trait_change('scene.activated,show_unitcell,show_bonds')
+    @on_trait_change('scene.activated,show_unitcell,show_bonds,n_x,n_y,n_z')
     def update_plot(self):
         if self.crystal_structure is None:
             return
@@ -289,7 +289,8 @@ class BandStructureVisualization(QtGui.QDialog):
         special_k_points = unzipped_k[0]
         special_k_points_label = unzipped_k[1]
 
-        self.ax.set_xlim(band[:,0].min(),band[:,0].max())
+        xlength = band[:,0].max()-band[:,0].min()
+        self.ax.set_xlim(band[:,0].min()-xlength/800,band[:,0].max())
         self.ax.plot([band[:,0].min(),band[:,0].max()], [0, 0], 'k--')
 
         self.ax.set_xticks(special_k_points)

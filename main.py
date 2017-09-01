@@ -49,7 +49,7 @@ class EntryWithLabel(QtGui.QWidget):
         self.textbox = QtGui.QLineEdit(self)
         self.textbox.setMaximumWidth(200)
         self.label_widget = QtGui.QLabel(label,parent=self)
-        self.label_widget.setMaximumWidth(50)
+        self.label_widget.setMaximumWidth(70)
         self.layout.setAlignment(QtCore.Qt.AlignLeft)
         self.layout.addWidget(self.label_widget)
         self.layout.addWidget(self.textbox)
@@ -64,23 +64,28 @@ class EntryWithLabel(QtGui.QWidget):
         self.textbox.setText(text)
 
 class OptionFrame(QtGui.QGroupBox):
-    def __init__(self, parent,options,title='',tooltips={}):
+    def __init__(self, parent,options,title='',tooltips={},checkbuttons=[]):
         QtGui.QGroupBox.__init__(self, parent)
         self.widgets_per_line = 4
         self.setTitle(title)
         self.tooltips = tooltips
         self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
-
         self.parent = parent
         self.options = options
         self.layout = QtGui.QGridLayout(self)
         # self.layout.setAlignment(QtCore.Qt.AlignTop)
         self.entry_dict = {}
+        self.checkbuttons = []
+        for text,state in checkbuttons:
+            cb = QtGui.QCheckBox(text,parent=self)
+            if state:
+                cb.nextCheckState()
+            self.checkbuttons.append(cb)
+            self.layout.addWidget(cb)
         self.make_option_entries()
 
     def make_option_entries(self):
-
-        counter = 0
+        counter = len(self.checkbuttons)//self.widgets_per_line+self.widgets_per_line
         for option_key,option_value in self.options.items():
             entry = EntryWithLabel(self,option_key,option_value)
             if option_key in self.tooltips.keys():
@@ -98,6 +103,12 @@ class OptionFrame(QtGui.QGroupBox):
         for key,value in self.options.items():
             self.entry_dict[key].set_text(value)
 
+    def read_checkbuttons(self):
+        res = {}
+        for cb in self.checkbuttons:
+            res[cb.text()] = cb.checkState()
+        return res
+
 class DftEngineWindow(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
@@ -112,23 +123,45 @@ class DftEngineWindow(QtGui.QWidget):
         self.scf_option_widget = OptionFrame(self,esc_handler.scf_options,title='Groundstate options',tooltips=esc_handler.scf_options_tooltip)
         self.layout.addWidget(self.scf_option_widget)
 
-        self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options')
+        self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]])
         self.layout.addWidget(self.bs_option_widget)
 
-        self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation', self)
+        self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options')
+        self.layout.addWidget(self.relax_option_widget)
+
+        self.button_widget = QtGui.QWidget(self)
+        self.button_layout = QtGui.QHBoxLayout(self.button_widget)
+        self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
+
+        self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation', self.button_widget)
         self.start_ground_state_calculation_button.setFixedWidth(150)
         self.start_ground_state_calculation_button.setFixedHeight(50)
-
         self.start_ground_state_calculation_button.clicked.connect(self.start_ground_state_calculation)
+        self.button_layout.addWidget(self.start_ground_state_calculation_button)
+
+        self.start_relax_button = QtGui.QPushButton('Start Structure\nRelaxation', self.button_widget)
+        self.start_relax_button.setFixedWidth(150)
+        self.start_relax_button.setFixedHeight(50)
+        self.start_relax_button.clicked.connect(self.start_relax)
+        self.button_layout.addWidget(self.start_relax_button)
+
+        self.abort_calculation_button = QtGui.QPushButton('Abort Calculation', self.button_widget)
+        self.abort_calculation_button.setFixedWidth(150)
+        self.abort_calculation_button.setFixedHeight(50)
+        self.abort_calculation_button.clicked.connect(self.parent.abort_calculation)
+        self.button_layout.addWidget(self.abort_calculation_button)
+
         self.execute_error_dialog = QtGui.QErrorMessage(parent=self)
         self.execute_error_dialog.resize(500, 200)
-        self.layout.addWidget(self.start_ground_state_calculation_button)
+
+        self.layout.addWidget(self.button_widget)
 
         trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
                                        , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
                                     [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
         trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
         self.band_structure_points = zip(trash_bs_points, trash_bs_labels)
+        self.show()
 
     def update_all(self):
         self.scf_option_widget.set_all_entries()
@@ -138,18 +171,27 @@ class DftEngineWindow(QtGui.QWidget):
     def do_select_event(self):
         pass
 
-    def start_ground_state_calculation(self):
+    def check_if_engine_is_running_and_warn_if_so(self):
+        pass
+
+    def read_all_option_widgets(self):
         self.scf_option_widget.read_all_entries()
         self.general_option_widget.read_all_entries()
         self.bs_option_widget.read_all_entries()
+
+    def start_ground_state_calculation(self):
+        self.check_if_engine_is_running_and_warn_if_so()
+        tasks = []
+        self.read_all_option_widgets()
+        bs_checkers = self.bs_option_widget.read_checkbuttons()
+        if bs_checkers['Calculate']:
+            bs_points = self.band_structure_points
+            tasks.append('bandstructure')
+        else:
+            bs_points = None
         try:
-            tree = esc_handler.make_tree()
-            esc_handler.add_scf_to_tree(tree, self.parent.crystal_structure)
-            esc_handler.add_bs_to_tree(tree, self.band_structure_points)
-            esc_handler.write_input_file(tree)
-            time.sleep(0.1)
-            esc_handler.start_ground_state_calculation()
-            QtCore.QTimer.singleShot(1000, self.parent.check_engine)
+            esc_handler.start_ground_state_calculation(self.parent.crystal_structure, band_structure_points=bs_points)
+            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
                 e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
@@ -158,6 +200,20 @@ class DftEngineWindow(QtGui.QWidget):
         else:
             self.parent.status_bar.set_engine_status(True)
 
+    def start_relax(self):
+        self.check_if_engine_is_running_and_warn_if_so()
+        tasks = ['relax']
+        self.read_all_option_widgets()
+        try:
+            esc_handler.start_relax(self.parent.crystal_structure)
+            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+        except Exception as e:
+            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
+                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+            self.execute_error_dialog.showMessage(error_message)
+        else:
+            self.parent.status_bar.set_engine_status(True)
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -315,7 +371,8 @@ class CentralWindow(QtGui.QWidget):
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
-            self.load_project(folder_name=project_directory)
+            QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
+
 
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
@@ -450,6 +507,8 @@ class CentralWindow(QtGui.QWidget):
         close_app_action.triggered.connect(self.close_application)
         self.file_menu.addAction(close_app_action)
 
+    def abort_calculation(self):
+        esc_handler.kill_engine()
 
     def close_application(self):
         if not DEBUG:
@@ -460,13 +519,23 @@ class CentralWindow(QtGui.QWidget):
             self.save_results()
             sys.exit()
 
-    def check_engine(self):
+    def check_engine(self,tasks):
+
+        def check_relax():
+            new_struc = esc_handler.load_relax_structure()
+            if new_struc is not None:
+                self.crystal_structure = new_struc
+                self.update_structure_plot()
+
+        tasks = [x.lower() for x in tasks]
         if esc_handler.is_engine_running():
             self.scf_data = esc_handler.read_scf_status()
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
-            QtCore.QTimer.singleShot(500, self.check_engine)
+            QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True)
+            if 'relax' in tasks:
+                check_relax()
         else:
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
@@ -476,9 +545,15 @@ class CentralWindow(QtGui.QWidget):
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)
 
-            self.band_structure[esc_handler.general_options['title']] = esc_handler.read_bandstructure()
-            self.band_structure_window.bs_widget.plot(self.band_structure[esc_handler.general_options['title']])
-            self.band_structure_window.update_tree()
+            if 'bandstructure' in tasks:
+                read_bandstructure = esc_handler.read_bandstructure()
+                if read_bandstructure is not None:
+                    self.band_structure[esc_handler.general_options['title']] = read_bandstructure
+                    self.band_structure_window.bs_widget.plot(self.band_structure[esc_handler.general_options['title']])
+                    self.band_structure_window.update_tree()
+            elif 'relax' in tasks:
+                check_relax()
+
 
 if __name__ == "__main__":
     DEBUG = True
