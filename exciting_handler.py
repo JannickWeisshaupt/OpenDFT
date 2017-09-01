@@ -10,6 +10,7 @@ import os
 import time
 import matplotlib.pyplot as plt
 import re
+import threading
 
 plt.ion()
 
@@ -102,7 +103,15 @@ Default: 	GGA_PBE"""
         self.bs_options = {'steps': '300'}
         self.relax_options = {'method':'bfgs'}
 
-        self.gw_options = {}
+        self.gw_options = {'nempty':'0','ngridq':"2 2 2",'ibgw':'1','nbgw':'0'}
+
+        self.gw_options_tooltip = {'nempty':'Number of empty states (cutoff parameter) used in GW.\n'
+                                            'If not specified, the same number as for the groundstate calculations is used.'}
+        self.gw_options_tooltip['ngridq'] = 'k/q-point grid size to be used in GW calculations'
+        self.gw_options_tooltip['ibgw'] = 'Lower band index for GW output.'
+        self.gw_options_tooltip['nbgw'] = 'Upper band index for GW output.'
+
+
         self.relax_file_timestamp = None
 
 
@@ -198,6 +207,32 @@ Default: 	GGA_PBE"""
     def add_relax_to_tree(self,tree):
         root = tree.getroot()
         relax = ET.SubElement(root, "relax",**self.relax_options)
+
+    def add_gw_to_tree(self,tree,taskname='g0w0'):
+        root = tree.getroot()
+        relax = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
+
+    def start_gw(self,crystal_structure,band_structure_points=None):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure)
+        self.add_gw_to_tree(tree,taskname='g0w0')
+        self.write_input_file(tree)
+
+        def first_round():
+            self.start_engine()
+            self.engine_process.wait()
+            if band_structure_points is not None:
+                tree = self.make_tree()
+                self.add_scf_to_tree(tree, crystal_structure)
+                self.add_gw_to_tree(tree, taskname='band')
+                self.add_bs_to_tree(tree,band_structure_points)
+                self.write_input_file(tree)
+                self.start_engine()
+
+        t = threading.Thread(target=first_round)
+        t.start()
+
+
 
     def start_relax(self,crystal_structure):
         tree = self.make_tree()
@@ -345,6 +380,24 @@ Default: 	GGA_PBE"""
         bandgap, k_bandgap = self.find_bandgap(bands)
         special_k_points_together = zip(special_k_points, special_k_points_label)
         return sst.BandStructure(bands, bandgap, k_bandgap, special_k_points=special_k_points_together)
+
+    def read_gw_bandstructure(self):
+        band_structure = self.read_bandstructure()
+        band_qp = np.loadtxt(self.project_directory+self.working_dirctory+'BAND-QP.OUT')
+        k_qp = band_qp[:, 0]
+        E_qp = band_qp[:, 1]*hartree
+
+        band_sep = np.where(k_qp == 0)[0]
+        N_k = band_sep[1]
+        N_bands = len(band_sep)
+        k_qp = np.resize(k_qp, [N_bands, N_k]).T
+        E_qp = np.resize(E_qp, [N_bands, N_k]).T
+        bands_qp = []
+        for i in range(N_bands):
+            bands_qp.append(np.array([k_qp[:,i],E_qp[:,i]]).T )
+
+        bandgap,k_bandgap = self.find_bandgap(bands_qp)
+        return sst.BandStructure(bands_qp,bandgap,k_bandgap,special_k_points=band_structure.special_k_points)
 
 
 if __name__ == '__main__':

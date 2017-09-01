@@ -1,6 +1,8 @@
 import numpy as np
-
+import re
 from visualization import cov_radii
+
+from CifFile import ReadCif
 
 class CrystalStructure:
 
@@ -47,6 +49,15 @@ class BandStructure:
         self.special_k_points = special_k_points
         self.k_bandgap = k_bandgap
 
+
+
+class StructureParser:
+    def __init__(self):
+        pass
+
+    def parse_cif_file(self,filename):
+        cf = ReadCif(filename)
+
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
@@ -54,3 +65,6 @@ if __name__ == "__main__":
     crystal_structure = CrystalStructure(unit_cell, atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
     print(crystal_structure.find_bonds(coords))
+
+    parser = StructureParser()
+    out = parser.parse_cif_file('./data/2101845.cif')
