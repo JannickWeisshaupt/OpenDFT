@@ -2,7 +2,7 @@ import numpy as np
 import re
 from visualization import cov_radii
 
-from CifFile import ReadCif
+# from CifFile import ReadCif
 
 class CrystalStructure:
 
@@ -43,12 +43,12 @@ class CrystalStructure:
         return bonds
 
 class BandStructure:
-    def __init__(self,bands,bandgap,k_bandgap,special_k_points=None):
+    def __init__(self,bands,bandgap,k_bandgap,special_k_points=None,bs_type='electronic'):
         self.bands = bands
         self.bandgap = bandgap
         self.special_k_points = special_k_points
         self.k_bandgap = k_bandgap
-
+        self.bs_type = bs_type
 
 
 class StructureParser:

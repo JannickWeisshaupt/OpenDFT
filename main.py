@@ -133,6 +133,9 @@ class DftEngineWindow(QtGui.QWidget):
         self.gw_option_widget = OptionFrame(self,esc_handler.gw_options,title='GW options',tooltips=esc_handler.gw_options_tooltip)
         self.layout.addWidget(self.gw_option_widget)
 
+        self.phonons_option_widget = OptionFrame(self,esc_handler.phonons_options,title='Phonon options')
+        self.layout.addWidget(self.phonons_option_widget)
+
         self.button_widget = QtGui.QWidget(self)
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -154,6 +157,12 @@ class DftEngineWindow(QtGui.QWidget):
         self.start_gw_button.setFixedHeight(50)
         self.start_gw_button.clicked.connect(self.start_gw)
         self.button_layout.addWidget(self.start_gw_button)
+
+        self.start_phonon_button = QtGui.QPushButton('Start Phonon\nBandstructure', self.button_widget)
+        self.start_phonon_button.setFixedWidth(150)
+        self.start_phonon_button.setFixedHeight(50)
+        self.start_phonon_button.clicked.connect(self.start_phonons)
+        self.button_layout.addWidget(self.start_phonon_button)
 
         self.abort_calculation_button = QtGui.QPushButton('Abort Calculation', self.button_widget)
         self.abort_calculation_button.setFixedWidth(150)
@@ -236,6 +245,21 @@ class DftEngineWindow(QtGui.QWidget):
         self.read_all_option_widgets()
         try:
             esc_handler.start_gw(self.parent.crystal_structure,self.band_structure_points)
+            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+        except Exception as e:
+            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
+                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+            self.execute_error_dialog.showMessage(error_message)
+        else:
+            self.parent.status_bar.set_engine_status(True)
+
+    def start_phonons(self):
+        self.check_if_engine_is_running_and_warn_if_so()
+        tasks = ['phonons']
+        self.read_all_option_widgets()
+        try:
+            esc_handler.start_phonon_calculation(self.parent.crystal_structure,self.band_structure_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
@@ -400,7 +424,8 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                project_directory = r"/home/jannick/dft_calcs/diamond"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -554,7 +579,7 @@ class CentralWindow(QtGui.QWidget):
             sys.exit()
 
     def check_engine(self,tasks):
-
+        """TODO somehow the phonon file was tried to be read although the process was still running. At the end it was also read though """
         def check_relax():
             new_struc = esc_handler.load_relax_structure()
             if new_struc is not None:
@@ -589,19 +614,21 @@ class CentralWindow(QtGui.QWidget):
                 if 'bandstructure' in tasks and 'g0w0' in tasks:
                     titles.append(esc_handler.general_options['title']+'_gw')
 
+
                 for read_bandstructure,title in zip(read_bandstructures,titles):
                     self.band_structure[title] = read_bandstructure
                     self.band_structure_window.update_tree()
                 if len(read_bandstructures)!=0 and self.band_structure_window.bs_widget.first_plot_bool:
                     self.band_structure_window.bs_widget.plot(self.band_structure[esc_handler.general_options['title']])
-
-
-            elif 'relax' in tasks:
+            if 'relax' in tasks:
                 check_relax()
-
+            if 'phonons' in tasks:
+                read_bandstructure = esc_handler.read_phonon_bandstructure()
+                self.band_structure[esc_handler.general_options['title']+'_phonon'] = read_bandstructure
+                self.band_structure_window.update_tree()
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)

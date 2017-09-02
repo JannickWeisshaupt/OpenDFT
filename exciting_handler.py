@@ -111,6 +111,7 @@ Default: 	GGA_PBE"""
         self.gw_options_tooltip['ibgw'] = 'Lower band index for GW output.'
         self.gw_options_tooltip['nbgw'] = 'Upper band index for GW output.'
 
+        self.phonons_options = {'do':'fromscratch','ngridq':'2 2 2'}
 
         self.relax_file_timestamp = None
 
@@ -118,6 +119,7 @@ Default: 	GGA_PBE"""
     def find_exciting_folder(self):
         p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
+        res = res.decode()
         res = res.split('bin')[0]
         return res.strip()
 
@@ -173,7 +175,7 @@ Default: 	GGA_PBE"""
     def add_scf_to_tree(self, tree, crystal_structure):
         root = tree.getroot()
         structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
-        crystal = ET.SubElement(structure, "crystal")
+        crystal = ET.SubElement(structure, "crystal",scale='1.0')
         for i in range(3):
             lattice_vector = crystal_structure.lattice_vectors[i, :]
             ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
@@ -232,6 +234,24 @@ Default: 	GGA_PBE"""
         t = threading.Thread(target=first_round)
         t.start()
 
+    def add_phonon_to_tree(self,tree,points):
+        root = tree.getroot()
+        phonon = ET.SubElement(root, "phonons",**self.phonons_options)
+        disp = ET.SubElement(phonon, "phonondispplot")
+        plot1d = ET.SubElement(disp, "plot1d")
+        path = ET.SubElement(plot1d,'path', steps=self.bs_options['steps'])
+        for point in points:
+            cords = point[0]
+            label = point[1]
+            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+
+    def start_phonon_calculation(self,crystal_structure,band_structure_points):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure)
+        self.add_phonon_to_tree(tree,band_structure_points)
+        self.write_input_file(tree)
+        time.sleep(0.05)
+        self.start_engine()
 
 
     def start_relax(self,crystal_structure):
@@ -381,9 +401,9 @@ Default: 	GGA_PBE"""
         special_k_points_together = zip(special_k_points, special_k_points_label)
         return sst.BandStructure(bands, bandgap, k_bandgap, special_k_points=special_k_points_together)
 
-    def read_gw_bandstructure(self):
+    def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
         band_structure = self.read_bandstructure()
-        band_qp = np.loadtxt(self.project_directory+self.working_dirctory+'BAND-QP.OUT')
+        band_qp = np.loadtxt(self.project_directory+self.working_dirctory+filename)
         k_qp = band_qp[:, 0]
         E_qp = band_qp[:, 1]*hartree
 
@@ -397,8 +417,14 @@ Default: 	GGA_PBE"""
             bands_qp.append(np.array([k_qp[:,i],E_qp[:,i]]).T )
 
         bandgap,k_bandgap = self.find_bandgap(bands_qp)
+        if filename == 'PHDISP.OUT':
+            bs_type = 'phonon'
+        else:
+            bs_type = 'gw'
         return sst.BandStructure(bands_qp,bandgap,k_bandgap,special_k_points=band_structure.special_k_points)
 
+    def read_phonon_bandstructure(self):
+        return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
 if __name__ == '__main__':
     os.chdir("/home/jannick/OpenDFT_projects/test/exciting_files")

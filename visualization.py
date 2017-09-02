@@ -255,13 +255,9 @@ class BandStructureVisualization(QtGui.QDialog):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         color = self.palette().color(QtGui.QPalette.Base)
-        self.figure.patch.set_facecolor([color.red()/256,color.green()/256,color.blue()/256])
+        self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
 
-        # # Just some button connected to `plot` method
-        # self.button = QtGui.QPushButton('Plot')
-        # self.button.clicked.connect(self.plot)
 
-        # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
