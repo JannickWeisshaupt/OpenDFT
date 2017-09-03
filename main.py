@@ -113,6 +113,8 @@ class OptionFrame(QtGui.QGroupBox):
 class DftEngineWindow(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
+        self.abort_bool = False
+
         QtGui.QWidget.__init__(self, parent)
         # self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
         self.layout = QtGui.QGridLayout(self)
@@ -167,7 +169,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.abort_calculation_button = QtGui.QPushButton('Abort Calculation', self.button_widget)
         self.abort_calculation_button.setFixedWidth(150)
         self.abort_calculation_button.setFixedHeight(50)
-        self.abort_calculation_button.clicked.connect(self.parent.abort_calculation)
+        self.abort_calculation_button.clicked.connect(self.abort_calculation)
         self.button_layout.addWidget(self.abort_calculation_button)
 
         self.execute_error_dialog = QtGui.QErrorMessage(parent=self)
@@ -260,7 +262,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.read_all_option_widgets()
         try:
             esc_handler.start_phonon_calculation(self.parent.crystal_structure,self.band_structure_points)
-            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+            QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
                 e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
@@ -268,6 +270,10 @@ class DftEngineWindow(QtGui.QWidget):
             self.execute_error_dialog.showMessage(error_message)
         else:
             self.parent.status_bar.set_engine_status(True)
+
+    def abort_calculation(self):
+        self.abort_bool = True
+        esc_handler.kill_engine()
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -565,9 +571,6 @@ class CentralWindow(QtGui.QWidget):
         close_app_action.triggered.connect(self.close_application)
         self.file_menu.addAction(close_app_action)
 
-    def abort_calculation(self):
-        esc_handler.kill_engine()
-
     def close_application(self):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
@@ -579,7 +582,6 @@ class CentralWindow(QtGui.QWidget):
             sys.exit()
 
     def check_engine(self,tasks):
-        """TODO somehow the phonon file was tried to be read although the process was still running. At the end it was also read though """
         def check_relax():
             new_struc = esc_handler.load_relax_structure()
             if new_struc is not None:
@@ -597,6 +599,9 @@ class CentralWindow(QtGui.QWidget):
                 check_relax()
         else:
             self.status_bar.set_engine_status(False)
+            if self.dft_engine_window.abort_bool:
+                self.dft_engine_window.abort_bool = False
+                return
             message, err = esc_handler.engine_process.communicate()
             if ('error' in message.lower() or len(err)>0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message+'<br>Error:<br>'+err \
