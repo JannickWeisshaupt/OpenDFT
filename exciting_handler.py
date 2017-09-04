@@ -176,7 +176,7 @@ Default: 	GGA_PBE"""
         ET.SubElement(root, "title").text = self.general_options['title']
         return tree
 
-    def add_scf_to_tree(self, tree, crystal_structure):
+    def add_scf_to_tree(self, tree, crystal_structure,skip=False):
         root = tree.getroot()
         structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
         crystal = ET.SubElement(structure, "crystal",scale='1.0')
@@ -197,7 +197,10 @@ Default: 	GGA_PBE"""
             for i in range(n_atoms_specie):
                 ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
 
-        groundstate = ET.SubElement(root, "groundstate", **self.scf_options)
+        if skip:
+            groundstate = ET.SubElement(root, "groundstate",do='skip')
+        else:
+            groundstate = ET.SubElement(root, "groundstate",**self.scf_options)
 
     def add_bs_to_tree(self, tree,points):
         root = tree.getroot()
@@ -479,14 +482,56 @@ Default: 	GGA_PBE"""
     def load_ks_state(self):
         "TODO check order"
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
-        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
+        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='F')
         return sst.KohnShamDensity(data)
+
+    def add_ks_density_to_tree(self,tree,bs_point,grid):
+        root = tree.getroot()
+        properties = ET.SubElement(root, "properties")
+        wfplot = ET.SubElement(properties, "wfplot")
+        kstlist = ET.SubElement(wfplot, "kstlist").text='{0} {1}'.format(*bs_point)
+
+
+        plot3d = ET.SubElement(wfplot, "plot3d")
+        box = ET.SubElement(plot3d, "box",grid=grid)
+
+        p0 = np.array([0.0,0.0,0.0])
+        p1 = np.array([1.0,0.0,0.0])
+        p2 = np.array([0.0,1.0,0.0])
+        p3 = np.array([0.0,0.0,1.0])
+
+
+        origin = ET.SubElement(box, "origin",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p0))
+        p1 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p1))
+        p2 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
+        p3 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
+
+
+
+    def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure,skip=True)
+        self.add_ks_density_to_tree(tree,bs_point,grid)
+        self.start_engine()
+
 
 if __name__ == '__main__':
     handler = Handler()
+
+
+    print(handler.exciting_folder)
+    tree = handler.make_tree()
+
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+
+    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
     handler.project_directory = "/home/jannick/OpenDFT_projects/visualize"
+    handler.calculate_ks_density(crystal_structure,[1,1])
+    handler.engine_process.wait()
     handler.convert_3d_plot()
     KS_dens = handler.load_ks_state()
+
     from mayavi import mlab
 
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
@@ -511,42 +556,9 @@ if __name__ == '__main__':
     # Transform the points to the unit cell:
     polydata.points = np.dot(pts, unit_cell / np.array(KS_dens.density.shape)[:, np.newaxis])
 
-    # Apparently we need this to redraw the figure, maybe it can be done in
-    # another way?
+
     mlab.view(azimuth=155, elevation=70, distance='auto')
-    # Show the 3d plot:
+
     mlab.show()
 
-    # print(handler.exciting_folder)
-    # tree = handler.make_tree()
-    #
-    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-    #
-    # crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-    # handler.add_scf_to_tree(tree, crystal_structure)
-    # handler.add_bs_to_tree(tree, [[np.array([0, 0, 0]), "GAMMA"]])
 
-    # handler.write_input_file(tree)
-    # plt.figure(2)
-    #
-    # handler.start_engine()
-    # while handler.is_engine_running():
-    #     time.sleep(1)
-    #     res = handler.read_scf_status()
-    #     if res is not None and len(res) >1:
-    #         print('updating plot')
-    #         plt.clf()
-    #         plt.plot(res[:,0],res[:,1])
-    #         plt.pause(0.01)
-    #         plt.draw()
-    # print('finished')
-    # band_structure = handler.read_bandstructure()
-    # plt.figure(1)
-    # for band in band_structure.bands:
-    #     plt.plot(band[:,0],band[:,1],color='b',linewidth=2)
-    # for xc,xl in band_structure.special_k_points:
-    #     plt.axvline(x=xc, color='k', linewidth=1.5)
-    #
-    # unzipped_k = zip(*band_structure.special_k_points)
-    # plt.xticks(unzipped_k[0], unzipped_k[1], rotation='horizontal')

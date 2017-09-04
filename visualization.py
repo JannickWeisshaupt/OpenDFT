@@ -9,6 +9,7 @@ from traitsui.api import View, Item, Group
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
     SceneEditor
 
+import copy
 import numpy as np
 import matplotlib as mpl
 mpl.use('Qt4Agg')
@@ -187,26 +188,26 @@ class StructureVisualization(HasTraits):
                                      color=atomic_color)
 
     def plot_density(self,ks_density):
-        cam, foc = self.scene.mlab.move()
-        print(cam,foc)
+        repeat = [self.n_x, self.n_y, self.n_z]
+
+        dens = ks_density.density
+        dens_plot = np.tile(dens,repeat)
         unit_cell = self.crystal_structure.lattice_vectors
-        cp = self.scene.mlab.contour3d(ks_density.density, contours=10, transparent=True,
+        cp = self.scene.mlab.contour3d(dens_plot, contours=10, transparent=True,
                             opacity=0.5, colormap='hot')
         # Do some tvtk magic in order to allow for non-orthogonal unit cells:
         polydata = cp.actor.actors[0].mapper.input
         pts = np.array(polydata.points) - 1
         # Transform the points to the unit cell:
-        polydata.points = np.dot(pts, unit_cell / np.array(ks_density.density.shape)[:, np.newaxis])
-        cam_new, foc_new = self.scene.mlab.move()
-        print(cam_new,foc_new)
-        dist = (foc - foc_new)
-        self.scene.mlab.move()
-        self.scene.mlab.move(-dist[2],dist[1],dist[0])
-        cam, foc = self.scene.mlab.move()
+        larger_cell= np.zeros((3,3))
+        larger_cell[0,:]=unit_cell[0,:]*repeat[0]
+        larger_cell[1,:]=unit_cell[1,:]*repeat[1]
+        larger_cell[2,:]=unit_cell[2,:]*repeat[2]
 
-        print(cam,foc)
 
-        self.scene.mlab.show()
+        polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
+        self.scene.mlab.view(distance='auto')
+
 
 
     # def bonds_to_paths(self,bonds):

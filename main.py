@@ -731,6 +731,7 @@ class CentralWindow(QtGui.QWidget):
                 self.optical_spectra_window.update_tree()
 
     def open_state_vis_window(self):
+        esc_handler.convert_3d_plot()
         ks_dens = esc_handler.load_ks_state()
         self.mayavi_widget.visualization.plot_density(ks_dens)
 
