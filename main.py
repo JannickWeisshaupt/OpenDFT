@@ -156,6 +156,7 @@ class DftEngineWindow(QtGui.QWidget):
         mygroupbox.setLayout(myform)
 
         self.button_widget = QtGui.QWidget(self)
+        self.button_widget.show()
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
@@ -336,7 +337,7 @@ class PlotWithTreeview(QtGui.QWidget):
         self.parent = parent
         self.data_dictionary = data_dictionary
         self.layout = QtGui.QHBoxLayout(self)
-        self.bs_widget = Visualizer(parent=self)
+        self.plot_widget = Visualizer(parent=self)
         self.treeview = QtGui.QTreeWidget(parent=self)
         self.treeview.setMaximumWidth(200)
         self.treeview.setHeaderHidden(True)
@@ -345,7 +346,7 @@ class PlotWithTreeview(QtGui.QWidget):
         self.treeview.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.treeview.customContextMenuRequested.connect(self.openMenu)
 
-        self.layout.addWidget(self.bs_widget)
+        self.layout.addWidget(self.plot_widget)
         self.layout.addWidget(self.treeview)
 
         self.show()
@@ -377,11 +378,14 @@ class PlotWithTreeview(QtGui.QWidget):
             return
         item = self.treeview.itemFromIndex(indexes[0])
         bs_name = item.text(0)
-        self.bs_widget.plot(self.data_dictionary[bs_name])
+        self.plot_widget.plot(self.data_dictionary[bs_name])
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
         return item
+
+    def clear_treeview(self):
+        self.treeview.clear()
 
     def update_tree(self):
         self.treeview.clear()
@@ -474,7 +478,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/OpenDFT_projects/LiF"
+                project_directory = r"/home/jannick/OpenDFT_projects/visualize"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -483,6 +487,18 @@ class CentralWindow(QtGui.QWidget):
 
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
+
+    def overwrite_handler(self):
+        esc_handler_new = Handler()
+        for method in dir(esc_handler_new):
+            command = 'type(esc_handler_new.'+method+')'
+            new_type = eval(command)
+            if new_type == dict:
+                eval('esc_handler.'+method+'.clear()')
+                eval('esc_handler.'+method+'.update(esc_handler_new.'+method+')')
+            else:
+                pass
+                # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
@@ -496,17 +512,23 @@ class CentralWindow(QtGui.QWidget):
 
     def initialize_project(self):
         self.project_properties = {'title': ''}
+        self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
 
     def reset_results_and_plots(self):
         self.crystal_structure = None
+        self.overwrite_handler()
         for key, value in self.band_structures.items():
             del self.band_structures[key]
         for key, value in self.optical_spectra.items():
             del self.optical_spectra[key]
         self.mayavi_widget.visualization.clear_plot()
-        self.band_structure_window.bs_widget.clear_plot()
+        self.band_structure_window.plot_widget.clear_plot()
+        self.band_structure_window.clear_treeview()
+        self.dft_engine_window.update_all()
         self.scf_window.scf_widget.clear_plot()
+        self.optical_spectra_window.plot_widget.clear_plot()
+        self.optical_spectra_window.clear_treeview()
 
     def load_project(self,folder_name=None):
         if folder_name is None:
@@ -518,6 +540,7 @@ class CentralWindow(QtGui.QWidget):
             esc_handler.project_directory = self.project_directory
             self.load_saved_results()
             self.dft_engine_window.update_all()
+            self.window.setWindowTitle("OpenDFT - "+self.project_directory)
             self.project_loaded = True
 
     def save_results(self):
@@ -534,53 +557,54 @@ class CentralWindow(QtGui.QWidget):
 
     def load_saved_results(self):
         esc_handler.project_directory = self.project_directory
+        try:
+            with open(self.project_directory + '/save.pkl', 'rb') as handle:
+                b = pickle.load(handle)
+                b = no_error_dictionary(b)
+                self.crystal_structure = b['crystal structure']
+                if self.crystal_structure is not None:
+                    self.mayavi_widget.update_crystal_structure(self.crystal_structure)
+                    self.mayavi_widget.update_plot()
 
-        with open(self.project_directory + '/save.pkl', 'rb') as handle:
-            b = pickle.load(handle)
-            b = no_error_dictionary(b)
-            self.crystal_structure = b['crystal structure']
-            if self.crystal_structure is not None:
-                self.mayavi_widget.update_crystal_structure(self.crystal_structure)
-                self.mayavi_widget.update_plot()
+                loaded_bandstructure_dict = b['band structure']
+                if type(loaded_bandstructure_dict) == dict:
+                    for key,value in loaded_bandstructure_dict.items():
+                        self.band_structures[key] = value
 
-            loaded_bandstructure_dict = b['band structure']
-            if type(loaded_bandstructure_dict) == dict:
-                for key,value in loaded_bandstructure_dict.items():
-                    self.band_structures[key] = value
+                loaded_optical_spectra_dict = b['optical spectra']
+                if type(loaded_optical_spectra_dict) == dict:
+                    for key,value in loaded_optical_spectra_dict.items():
+                        self.optical_spectra[key] = value
+                # if len(self.band_structure) !
+                #     self.band_structure_window.bs_widget.plot(self.band_structure)
+                load_scf_options = b['scf_options']
+                if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_scf_options.items():
+                        esc_handler.scf_options[key] = value
 
-            loaded_optical_spectra_dict = b['optical spectra']
-            if type(loaded_optical_spectra_dict) == dict:
-                for key,value in loaded_optical_spectra_dict.items():
-                    self.optical_spectra[key] = value
-            # if len(self.band_structure) !
-            #     self.band_structure_window.bs_widget.plot(self.band_structure)
-            load_scf_options = b['scf_options']
-            if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
-                for key,value in load_scf_options.items():
-                    esc_handler.scf_options[key] = value
+                load_general_options = b['general options']
+                if load_general_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_general_options.items():
+                        esc_handler.general_options[key] = value
 
-            load_general_options = b['general options']
-            if load_general_options is not None and b['dft engine'] == esc_handler.engine_name:
-                for key,value in load_general_options.items():
-                    esc_handler.general_options[key] = value
+                load_bs_options = b['bs options']
+                if load_bs_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_bs_options.items():
+                        esc_handler.bs_options[key] = value
 
-            load_bs_options = b['bs options']
-            if load_bs_options is not None and b['dft engine'] == esc_handler.engine_name:
-                for key,value in load_bs_options.items():
-                    esc_handler.bs_options[key] = value
+                load_phonon_options = b['phonon options']
+                if load_phonon_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_phonon_options.items():
+                        esc_handler.phonons_options[key] = value
 
-            load_phonon_options = b['phonon options']
-            if load_phonon_options is not None and b['dft engine'] == esc_handler.engine_name:
-                for key,value in load_phonon_options.items():
-                    esc_handler.phonons_options[key] = value
+                load_optical_spectrum_options = b['optical spectrum options']
+                if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_optical_spectrum_options.items():
+                        esc_handler.optical_spectrum_options[key] = value
 
-            load_optical_spectrum_options = b['optical spectrum options']
-            if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
-                for key,value in load_optical_spectrum_options.items():
-                    esc_handler.optical_spectrum_options[key] = value
-
-            self.project_properties = b['properties']
-
+                self.project_properties = b['properties']
+        except IOError:
+            print('file not found')
 
     def update_structure_plot(self):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
@@ -634,6 +658,13 @@ class CentralWindow(QtGui.QWidget):
         close_app_action.triggered.connect(self.close_application)
         self.file_menu.addAction(close_app_action)
 
+        self.vis_menu = self.menu_bar.addMenu('&Visualize')
+
+        ks_vis_action = QtGui.QAction("Visualize KS state", self.window)
+        ks_vis_action.setStatusTip('Visualize a Kohn-Sham state in the structure window')
+        ks_vis_action.triggered.connect(self.open_state_vis_window)
+        self.vis_menu.addAction(ks_vis_action)
+
     def close_application(self):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
@@ -686,8 +717,8 @@ class CentralWindow(QtGui.QWidget):
                 for read_bandstructure,title in zip(read_bandstructures,titles):
                     self.band_structures[title] = read_bandstructure
                     self.band_structure_window.update_tree()
-                if len(read_bandstructures)!=0 and self.band_structure_window.bs_widget.first_plot_bool:
-                    self.band_structure_window.bs_widget.plot(self.band_structures[esc_handler.general_options['title']])
+                if len(read_bandstructures)!=0 and self.band_structure_window.plot_widget.first_plot_bool:
+                    self.band_structure_window.plot_widget.plot(self.band_structures[esc_handler.general_options['title']])
             if 'relax' in tasks:
                 check_relax()
             if 'phonons' in tasks:
@@ -699,9 +730,14 @@ class CentralWindow(QtGui.QWidget):
                 self.optical_spectra[esc_handler.general_options['title']] = read_spectrum
                 self.optical_spectra_window.update_tree()
 
+    def open_state_vis_window(self):
+        ks_dens = esc_handler.load_ks_state()
+        self.mayavi_widget.visualization.plot_density(ks_dens)
+
 if __name__ == "__main__":
     DEBUG = True
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
+
     app.exec_()

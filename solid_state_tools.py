@@ -77,6 +77,11 @@ class StructureParser:
     def parse_cif_file(self,filename):
         cf = ReadCif(filename)
 
+class KohnShamDensity:
+    def __init__(self,density):
+        self.density = density
+
+
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])

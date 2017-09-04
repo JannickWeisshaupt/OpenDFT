@@ -471,23 +471,63 @@ Default: 	GGA_PBE"""
 
         return sst.OpticalSpectrum(eps_11[:,0]*hartree,list_of_eps2,epsilon1=list_of_eps1)
 
+    def convert_3d_plot(self):
+        os.chdir(self.project_directory + self.working_dirctory)
+        command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
+        self.helper_process = subprocess.call(command,shell=True)
+
+    def load_ks_state(self):
+        "TODO check order"
+        l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
+        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
+        return sst.KohnShamDensity(data)
 
 if __name__ == '__main__':
-    os.chdir("/home/jannick/OpenDFT_projects/test/exciting_files")
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/test"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/visualize"
+    handler.convert_3d_plot()
+    KS_dens = handler.load_ks_state()
+    from mayavi import mlab
 
-    print(handler.exciting_folder)
-    tree = handler.make_tree()
-
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-    handler.add_scf_to_tree(tree, crystal_structure)
-    handler.add_bs_to_tree(tree, [[np.array([0, 0, 0]), "GAMMA"]])
+    for i1, a in enumerate(unit_cell):
+        i2 = (i1 + 1) % 3
+        i3 = (i1 + 2) % 3
+        for b in [np.zeros(3), unit_cell[i2]]:
+            for c in [np.zeros(3), unit_cell[i3]]:
+                p1 = b + c
+                p2 = p1 + a
+                mlab.plot3d([p1[0], p2[0]],
+                            [p1[1], p2[1]],
+                            [p1[2], p2[2]],
+                            tube_radius=0.1)
 
-    handler.write_input_file(tree)
+    cp = mlab.contour3d(KS_dens.density, contours=10, transparent=True,
+                        opacity=0.5, colormap='hot')
+    # Do some tvtk magic in order to allow for non-orthogonal unit cells:
+    polydata = cp.actor.actors[0].mapper.input
+    pts = np.array(polydata.points) - 1
+    # Transform the points to the unit cell:
+    polydata.points = np.dot(pts, unit_cell / np.array(KS_dens.density.shape)[:, np.newaxis])
+
+    # Apparently we need this to redraw the figure, maybe it can be done in
+    # another way?
+    mlab.view(azimuth=155, elevation=70, distance='auto')
+    # Show the 3d plot:
+    mlab.show()
+
+    # print(handler.exciting_folder)
+    # tree = handler.make_tree()
+    #
+    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    #
+    # crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    # handler.add_scf_to_tree(tree, crystal_structure)
+    # handler.add_bs_to_tree(tree, [[np.array([0, 0, 0]), "GAMMA"]])
+
+    # handler.write_input_file(tree)
     # plt.figure(2)
     #
     # handler.start_engine()
