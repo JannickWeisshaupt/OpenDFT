@@ -50,6 +50,25 @@ class BandStructure:
         self.k_bandgap = k_bandgap
         self.bs_type = bs_type
 
+class OpticalSpectrum:
+    def __init__(self,energy,epsilon2,epsilon1=None):
+        self.energy = energy # energy in eV
+
+        if type(epsilon2) == list or type(epsilon2)== tuple:
+            self.epsilon2_11 = epsilon2[0]
+            self.epsilon2_22 = epsilon2[1]
+            self.epsilon2_33 = epsilon2[2]
+            self.epsilon2 = (self.epsilon2_11+self.epsilon2_22+self.epsilon2_33)/3
+        else:
+            self.epsilon2 = epsilon2
+
+        if epsilon1 is not None and (type(epsilon1) == list or type(epsilon1)== tuple):
+            self.epsilon1_11 = epsilon1[0]
+            self.epsilon1_22 = epsilon1[1]
+            self.epsilon1_33 = epsilon1[2]
+            self.epsilon1 = (self.epsilon1_11 + self.epsilon1_22 + self.epsilon1_33) / 3
+        else:
+            self.epsilon1 = epsilon1
 
 class StructureParser:
     def __init__(self):

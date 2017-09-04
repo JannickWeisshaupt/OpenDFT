@@ -113,6 +113,10 @@ Default: 	GGA_PBE"""
 
         self.phonons_options = {'do':'fromscratch','ngridq':'2 2 2'}
 
+        self.optical_spectrum_options = {'xstype':'BSE','intv':'-0.5 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
+                                         ,'nempty_screeing':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.01',
+                                         'gqmax':"0.0",'vkloff':"0.0 0.0 0.0"}
+
         self.relax_file_timestamp = None
 
 
@@ -195,7 +199,7 @@ Default: 	GGA_PBE"""
 
         groundstate = ET.SubElement(root, "groundstate", **self.scf_options)
 
-    def add_bs_to_tree(self, tree, points):
+    def add_bs_to_tree(self, tree,points):
         root = tree.getroot()
         properties = ET.SubElement(root, "properties")
         bandstructure = ET.SubElement(properties, "bandstructure")
@@ -212,7 +216,37 @@ Default: 	GGA_PBE"""
 
     def add_gw_to_tree(self,tree,taskname='g0w0'):
         root = tree.getroot()
-        relax = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
+        gw = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
+
+
+    def add_optical_spectrum_to_tree(self,tree):
+        root = tree.getroot()
+        if self.optical_spectrum_options['use gw'].lower() == 'true':
+            gw = ET.SubElement(root, "gw", taskname='skip')
+        elif self.optical_spectrum_options['use gw'].lower() == 'false':
+            pass
+        else:
+            raise Exception('Bad option for use gw')
+
+        xs = ET.SubElement(root, "xs", xstype = self.optical_spectrum_options['xstype'],nempty = self.optical_spectrum_options['nempty'],
+                           ngridk=self.optical_spectrum_options['ngridk'],ngridq = self.optical_spectrum_options['ngridq']
+                           ,broad=self.optical_spectrum_options['broad'],gqmax=self.optical_spectrum_options['gqmax'],
+                           vkloff=self.optical_spectrum_options['vkloff'])
+        ewindow = ET.SubElement(xs, "energywindow",intv = self.optical_spectrum_options['intv'],points = self.optical_spectrum_options['points'])
+        screening = ET.SubElement(xs, "screening",screentype = self.optical_spectrum_options['screentype'],
+                                  nempty=self.optical_spectrum_options['nempty_screeing'])
+        BSE = ET.SubElement(xs, "BSE", bsetype = self.optical_spectrum_options['bsetype'],nstlbse = self.optical_spectrum_options['nstlbse'])
+        qpointset = ET.SubElement(xs,'qpointset')
+        qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
+
+
+    def start_optical_spectrum(self,crystal_structure):
+        tree = self.make_tree()
+        self.add_scf_to_tree(tree, crystal_structure)
+        self.add_optical_spectrum_to_tree(tree)
+        self.write_input_file(tree)
+        time.sleep(0.05)
+        self.start_engine()
 
     def start_gw(self,crystal_structure,band_structure_points=None):
         tree = self.make_tree()
@@ -425,6 +459,18 @@ Default: 	GGA_PBE"""
 
     def read_phonon_bandstructure(self):
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
+
+    def read_optical_spectrum(self):
+        eps_11 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
+        eps_22 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
+        eps_33 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
+
+        list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
+        list_of_eps1 = [eps_11[:,1],eps_22[:,1],eps_33[:,1]]
+
+
+        return sst.OpticalSpectrum(eps_11[:,0]*hartree,list_of_eps2,epsilon1=list_of_eps1)
+
 
 if __name__ == '__main__':
     os.chdir("/home/jannick/OpenDFT_projects/test/exciting_files")

@@ -241,7 +241,50 @@ class StructureVisualization(HasTraits):
             p2 = abs_coord_atoms[i2,:3]
             self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125)
 
-class BandStructureVisualization(QtGui.QDialog):
+class OpticalSpectrumVisualization(QtGui.QWidget):
+    def __init__(self, parent=None):
+        super(OpticalSpectrumVisualization, self).__init__()
+        self.first_plot_bool = True
+        # a figure instance to plot on
+        self.figure = plt.figure(1)
+        plt.close(plt.figure(1))
+        self.ax = None
+
+        self.canvas = FigureCanvas(self.figure)
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        color = self.palette().color(QtGui.QPalette.Base)
+        self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
+        # self.figure.patch.set_alpha(1.0)
+        # self.figure.patch.set_facecolor('blue')
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas)
+        # layout.addWidget(self.button)
+        self.setLayout(layout)
+        self.show()
+
+    def clear_plot(self):
+        if not self.first_plot_bool:
+            self.ax.cla()
+            self.canvas.draw()
+
+    def plot(self,optical_spectrum):
+        if self.first_plot_bool:
+            self.ax = self.figure.add_subplot(111)
+        self.ax.cla()
+
+        self.ax.plot(optical_spectrum.energy,optical_spectrum.epsilon2,linewidth=2,color='k')
+
+        if self.first_plot_bool:
+            self.first_plot_bool = False
+            self.figure.tight_layout()
+        self.canvas.draw()
+
+
+class BandStructureVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
         super(BandStructureVisualization, self).__init__()
         self.first_plot_bool = True
@@ -256,7 +299,8 @@ class BandStructureVisualization(QtGui.QDialog):
 
         color = self.palette().color(QtGui.QPalette.Base)
         self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
-
+        # self.figure.patch.set_alpha(1.0)
+        # self.figure.patch.set_facecolor('blue')
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -310,7 +354,7 @@ class BandStructureVisualization(QtGui.QDialog):
         self.canvas.draw()
 
 
-class ScfVisualization(QtGui.QDialog):
+class ScfVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
         super(ScfVisualization, self).__init__()
 
@@ -323,6 +367,7 @@ class ScfVisualization(QtGui.QDialog):
 
         color = self.palette().color(QtGui.QPalette.Base)
         self.figure.patch.set_facecolor([color.red()/256,color.green()/256,color.blue()/256])
+        # self.figure.patch.set_alpha(0.0)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
 

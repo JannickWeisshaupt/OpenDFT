@@ -6,9 +6,10 @@ import numpy as np
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization
+from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization
 import solid_state_tools as sst
 from exciting_handler import Handler as Handler
+from little_helpers import no_error_dictionary
 import pickle
 import time
 
@@ -19,6 +20,7 @@ except:
 
 esc_handler = Handler()
 event_queue = queue.Queue()
+
 
 
 class MayaviQWidget(QtGui.QWidget):
@@ -120,23 +122,38 @@ class DftEngineWindow(QtGui.QWidget):
         self.layout = QtGui.QGridLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignTop)
 
+        mygroupbox = QtGui.QWidget()
+        myform = QtGui.QFormLayout()
+
+        self.scroll_area = QtGui.QScrollArea(parent=self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFixedHeight(800)
+        self.scroll_area.setWidget(mygroupbox)
+
+        self.layout.addWidget(self.scroll_area)
+
         self.general_option_widget = OptionFrame(self,esc_handler.general_options,title='General options')
-        self.layout.addWidget(self.general_option_widget)
+        myform.addRow(self.general_option_widget)
 
         self.scf_option_widget = OptionFrame(self,esc_handler.scf_options,title='Groundstate options',tooltips=esc_handler.scf_options_tooltip)
-        self.layout.addWidget(self.scf_option_widget)
+        myform.addRow(self.scf_option_widget)
 
         self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]])
-        self.layout.addWidget(self.bs_option_widget)
+        myform.addRow(self.bs_option_widget)
 
         self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options')
-        self.layout.addWidget(self.relax_option_widget)
+        myform.addRow(self.relax_option_widget)
 
         self.gw_option_widget = OptionFrame(self,esc_handler.gw_options,title='GW options',tooltips=esc_handler.gw_options_tooltip)
-        self.layout.addWidget(self.gw_option_widget)
+        myform.addRow(self.gw_option_widget)
 
         self.phonons_option_widget = OptionFrame(self,esc_handler.phonons_options,title='Phonon options')
-        self.layout.addWidget(self.phonons_option_widget)
+        myform.addRow(self.phonons_option_widget)
+
+        self.optical_spectrum_option_widget = OptionFrame(self,esc_handler.optical_spectrum_options,title='Excited states options')
+        myform.addRow(self.optical_spectrum_option_widget)
+
+        mygroupbox.setLayout(myform)
 
         self.button_widget = QtGui.QWidget(self)
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
@@ -166,6 +183,12 @@ class DftEngineWindow(QtGui.QWidget):
         self.start_phonon_button.clicked.connect(self.start_phonons)
         self.button_layout.addWidget(self.start_phonon_button)
 
+        self.start_optical_spectrum_button = QtGui.QPushButton('Calculate optical\nspectrum', self.button_widget)
+        self.start_optical_spectrum_button.setFixedWidth(150)
+        self.start_optical_spectrum_button.setFixedHeight(50)
+        self.start_optical_spectrum_button.clicked.connect(self.start_optical_spectrum_calculation)
+        self.button_layout.addWidget(self.start_optical_spectrum_button)
+
         self.abort_calculation_button = QtGui.QPushButton('Abort Calculation', self.button_widget)
         self.abort_calculation_button.setFixedWidth(150)
         self.abort_calculation_button.setFixedHeight(50)
@@ -187,7 +210,9 @@ class DftEngineWindow(QtGui.QWidget):
     def update_all(self):
         self.scf_option_widget.set_all_entries()
         self.general_option_widget.set_all_entries()
+        self.gw_option_widget.set_all_entries()
         self.bs_option_widget.set_all_entries()
+        self.optical_spectrum_option_widget.set_all_entries()
 
     def do_select_event(self):
         pass
@@ -200,7 +225,10 @@ class DftEngineWindow(QtGui.QWidget):
     def read_all_option_widgets(self):
         self.scf_option_widget.read_all_entries()
         self.general_option_widget.read_all_entries()
+        self.gw_option_widget.read_all_entries()
         self.bs_option_widget.read_all_entries()
+        self.optical_spectrum_option_widget.read_all_entries()
+
 
     def start_ground_state_calculation(self):
         self.check_if_engine_is_running_and_warn_if_so()
@@ -271,6 +299,21 @@ class DftEngineWindow(QtGui.QWidget):
         else:
             self.parent.status_bar.set_engine_status(True)
 
+    def start_optical_spectrum_calculation(self):
+        self.check_if_engine_is_running_and_warn_if_so()
+        tasks = ['optical spectrum']
+        self.read_all_option_widgets()
+        try:
+            esc_handler.start_optical_spectrum(self.parent.crystal_structure)
+            QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
+        except Exception as e:
+            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
+                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+            self.execute_error_dialog.showMessage(error_message)
+        else:
+            self.parent.status_bar.set_engine_status(True)
+
     def abort_calculation(self):
         self.abort_bool = True
         esc_handler.kill_engine()
@@ -287,12 +330,13 @@ class ScfWindow(QtGui.QWidget):
     def do_select_event(self):
         pass
 
-class BandStructureWindow(QtGui.QWidget):
-    def __init__(self, parent=None):
+class PlotWithTreeview(QtGui.QWidget):
+    def __init__(self,Visualizer,data_dictionary,parent=None):
         QtGui.QWidget.__init__(self)
         self.parent = parent
+        self.data_dictionary = data_dictionary
         self.layout = QtGui.QHBoxLayout(self)
-        self.bs_widget = BandStructureVisualization(parent=self)
+        self.bs_widget = Visualizer(parent=self)
         self.treeview = QtGui.QTreeWidget(parent=self)
         self.treeview.setMaximumWidth(200)
         self.treeview.setHeaderHidden(True)
@@ -310,7 +354,7 @@ class BandStructureWindow(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        del self.parent.band_structure[bs_name]
+        del self.data_dictionary[bs_name]
         self.update_tree()
 
     def openMenu(self, position):
@@ -333,20 +377,19 @@ class BandStructureWindow(QtGui.QWidget):
             return
         item = self.treeview.itemFromIndex(indexes[0])
         bs_name = item.text(0)
-        self.bs_widget.plot(self.parent.band_structure[bs_name])
+        self.bs_widget.plot(self.data_dictionary[bs_name])
 
-    def add_bandstructure_key(self, title):
+    def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
         return item
 
     def update_tree(self):
         self.treeview.clear()
-        for key,value in self.parent.band_structure.items():
-            self.add_bandstructure_key(key)
+        for key,value in self.data_dictionary.items():
+            self.add_result_key(key)
 
     def do_select_event(self):
         self.update_tree()
-
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -377,15 +420,14 @@ class MainWindow(QtGui.QMainWindow):
         self.central_window.close_application()
         event.ignore()
 
-
 class CentralWindow(QtGui.QWidget):
     def __init__(self,parent=None, *args, **kwargs):
         super(CentralWindow, self).__init__(*args, **kwargs)
         self.project_loaded = False
         self.parent=parent
         self.crystal_structure = None
-        self.band_structure = {}
-        self.saved_results = {}
+        self.band_structures = {}
+        self.optical_spectra = {}
         self.project_properties = {'title': ''}
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
@@ -394,7 +436,8 @@ class CentralWindow(QtGui.QWidget):
         self.layout = QtGui.QGridLayout(self)
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
 
-        self.band_structure_window = BandStructureWindow(parent=self)
+        self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization, data_dictionary=self.band_structures, parent=self)
+        self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization, data_dictionary=self.optical_spectra, parent=self)
         self.dft_engine_window = DftEngineWindow(self)
         self.scf_window = ScfWindow(parent=self)
 
@@ -409,14 +452,14 @@ class CentralWindow(QtGui.QWidget):
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
 
-        self.list_of_tabs = [self.mayavi_widget,self.dft_engine_window,self.band_structure_window,self.scf_window]
+        self.list_of_tabs = [self.mayavi_widget,self.dft_engine_window,self.band_structure_window,self.optical_spectra_window,self.scf_window]
 
 
         self.tabWidget.addTab(self.list_of_tabs[0], 'Structure')
         self.tabWidget.addTab(self.list_of_tabs[1], 'DFT-Engine')
         self.tabWidget.addTab(self.list_of_tabs[2],'Bandstructure')
-        # self.tabWidget.addTab(QtGui.QWidget(), 'Optical properties')
-        self.tabWidget.addTab(self.list_of_tabs[3], 'Scf')
+        self.tabWidget.addTab(self.list_of_tabs[3],'Optical Spectrum')
+        self.tabWidget.addTab(self.list_of_tabs[4], 'Scf')
         self.tabWidget.show()
 
         self.show()
@@ -431,7 +474,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/dft_calcs/diamond"
+                project_directory = r"/home/jannick/OpenDFT_projects/LiF"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -457,7 +500,10 @@ class CentralWindow(QtGui.QWidget):
 
     def reset_results_and_plots(self):
         self.crystal_structure = None
-        self.band_structure = {}
+        for key, value in self.band_structures.items():
+            del self.band_structures[key]
+        for key, value in self.optical_spectra.items():
+            del self.optical_spectra[key]
         self.mayavi_widget.visualization.clear_plot()
         self.band_structure_window.bs_widget.clear_plot()
         self.scf_window.scf_widget.clear_plot()
@@ -476,9 +522,11 @@ class CentralWindow(QtGui.QWidget):
 
     def save_results(self):
         try:
-            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structure,
+            self.dft_engine_window.read_all_option_widgets()
+            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,
                  'properties': self.project_properties,'scf_options':esc_handler.scf_options,
-                 'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options}
+                 'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
+                 'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -486,38 +534,53 @@ class CentralWindow(QtGui.QWidget):
 
     def load_saved_results(self):
         esc_handler.project_directory = self.project_directory
-        try:
-            with open(self.project_directory + '/save.pkl', 'rb') as handle:
-                b = pickle.load(handle)
-                self.crystal_structure = b['crystal structure']
-                if self.crystal_structure is not None:
-                    self.mayavi_widget.update_crystal_structure(self.crystal_structure)
-                    self.mayavi_widget.update_plot()
-                loaded_bandstructure_dict = b['band structure']
-                if type(loaded_bandstructure_dict) == dict:
-                    self.band_structure = loaded_bandstructure_dict
-                # if len(self.band_structure) !
-                #     self.band_structure_window.bs_widget.plot(self.band_structure)
-                load_scf_options = b['scf_options']
-                if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_scf_options.items():
-                        esc_handler.scf_options[key] = value
 
-                load_general_options = b['general options']
-                if load_general_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_general_options.items():
-                        esc_handler.general_options[key] = value
+        with open(self.project_directory + '/save.pkl', 'rb') as handle:
+            b = pickle.load(handle)
+            b = no_error_dictionary(b)
+            self.crystal_structure = b['crystal structure']
+            if self.crystal_structure is not None:
+                self.mayavi_widget.update_crystal_structure(self.crystal_structure)
+                self.mayavi_widget.update_plot()
 
-                load_bs_options = b['bs options']
-                if load_bs_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_bs_options.items():
-                        esc_handler.bs_options[key] = value
+            loaded_bandstructure_dict = b['band structure']
+            if type(loaded_bandstructure_dict) == dict:
+                for key,value in loaded_bandstructure_dict.items():
+                    self.band_structures[key] = value
 
+            loaded_optical_spectra_dict = b['optical spectra']
+            if type(loaded_optical_spectra_dict) == dict:
+                for key,value in loaded_optical_spectra_dict.items():
+                    self.optical_spectra[key] = value
+            # if len(self.band_structure) !
+            #     self.band_structure_window.bs_widget.plot(self.band_structure)
+            load_scf_options = b['scf_options']
+            if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
+                for key,value in load_scf_options.items():
+                    esc_handler.scf_options[key] = value
 
-                self.project_properties = b['properties']
+            load_general_options = b['general options']
+            if load_general_options is not None and b['dft engine'] == esc_handler.engine_name:
+                for key,value in load_general_options.items():
+                    esc_handler.general_options[key] = value
 
-        except Exception as e:
-            print('Load failed with'+ repr(e))
+            load_bs_options = b['bs options']
+            if load_bs_options is not None and b['dft engine'] == esc_handler.engine_name:
+                for key,value in load_bs_options.items():
+                    esc_handler.bs_options[key] = value
+
+            load_phonon_options = b['phonon options']
+            if load_phonon_options is not None and b['dft engine'] == esc_handler.engine_name:
+                for key,value in load_phonon_options.items():
+                    esc_handler.phonons_options[key] = value
+
+            load_optical_spectrum_options = b['optical spectrum options']
+            if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
+                for key,value in load_optical_spectrum_options.items():
+                    esc_handler.optical_spectrum_options[key] = value
+
+            self.project_properties = b['properties']
+
 
     def update_structure_plot(self):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
@@ -621,16 +684,20 @@ class CentralWindow(QtGui.QWidget):
 
 
                 for read_bandstructure,title in zip(read_bandstructures,titles):
-                    self.band_structure[title] = read_bandstructure
+                    self.band_structures[title] = read_bandstructure
                     self.band_structure_window.update_tree()
                 if len(read_bandstructures)!=0 and self.band_structure_window.bs_widget.first_plot_bool:
-                    self.band_structure_window.bs_widget.plot(self.band_structure[esc_handler.general_options['title']])
+                    self.band_structure_window.bs_widget.plot(self.band_structures[esc_handler.general_options['title']])
             if 'relax' in tasks:
                 check_relax()
             if 'phonons' in tasks:
                 read_bandstructure = esc_handler.read_phonon_bandstructure()
-                self.band_structure[esc_handler.general_options['title']+'_phonon'] = read_bandstructure
+                self.band_structures[esc_handler.general_options['title'] + '_phonon'] = read_bandstructure
                 self.band_structure_window.update_tree()
+            if 'optical spectrum' in tasks:
+                read_spectrum = esc_handler.read_optical_spectrum()
+                self.optical_spectra[esc_handler.general_options['title']] = read_spectrum
+                self.optical_spectra_window.update_tree()
 
 if __name__ == "__main__":
     DEBUG = True
