@@ -40,6 +40,8 @@ class Handler:
         self.info_file = 'INFO.OUT'
         self.project_directory = None
         self.input_filename = 'input.xml'
+        self.custom_command = ''
+        self.custom_command_active = False
         self.exciting_folder = self.find_exciting_folder()
         self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
         self.scf_options_tooltip = {'do':r'Decides if the ground state is calculated starting from scratch, '
@@ -197,8 +199,12 @@ Default: 	GGA_PBE"""
             for i in range(n_atoms_specie):
                 ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
 
+
         if skip:
-            groundstate = ET.SubElement(root, "groundstate",do='skip')
+            new_scf_options = {}
+            new_scf_options.update(self.scf_options)
+            new_scf_options['do'] = 'skip'
+            groundstate = ET.SubElement(root, "groundstate",**new_scf_options)
         else:
             groundstate = ET.SubElement(root, "groundstate",**self.scf_options)
 
@@ -321,7 +327,11 @@ Default: 	GGA_PBE"""
 
     def start_engine(self):
         os.chdir(self.project_directory + self.working_dirctory)
-        command = self.engine_command
+        if self.custom_command_active:
+            command = ['bash',self.custom_command]
+        else:
+            command = self.engine_command
+
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(self.project_directory)
 
@@ -346,12 +356,19 @@ Default: 	GGA_PBE"""
             return None
 
     def is_engine_running(self):
-        if self.engine_process is None:
-            return False
-        if self.engine_process.poll() is None:
-            return True
+        "TODO improve this only works for scf now"
+        if self.custom_command_active:
+            if os.path.isfile(self.project_directory+self.working_dirctory+'/STATE.OUT'):
+                return False
+            else:
+                return True
         else:
-            return False
+            if self.engine_process is None:
+                return False
+            if self.engine_process.poll() is None:
+                return True
+            else:
+                return False
 
     def split_and_remove_whitespace(self, string):
         l1 = string.split()
@@ -481,6 +498,7 @@ Default: 	GGA_PBE"""
 
     def load_ks_state(self):
         "TODO check order"
+        self.convert_3d_plot()
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
         data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='F')
         return sst.KohnShamDensity(data)
@@ -489,8 +507,8 @@ Default: 	GGA_PBE"""
         root = tree.getroot()
         properties = ET.SubElement(root, "properties")
         wfplot = ET.SubElement(properties, "wfplot")
-        kstlist = ET.SubElement(wfplot, "kstlist").text='{0} {1}'.format(*bs_point)
-
+        kstlist = ET.SubElement(wfplot, "kstlist")
+        pointstatepair = ET.SubElement(kstlist, "pointstatepair").text = '{0} {1}'.format(*bs_point)
 
         plot3d = ET.SubElement(wfplot, "plot3d")
         box = ET.SubElement(plot3d, "box",grid=grid)
@@ -512,6 +530,7 @@ Default: 	GGA_PBE"""
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure,skip=True)
         self.add_ks_density_to_tree(tree,bs_point,grid)
+        self.write_input_file(tree)
         self.start_engine()
 
 
@@ -527,10 +546,8 @@ if __name__ == '__main__':
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
     handler.project_directory = "/home/jannick/OpenDFT_projects/visualize"
-    handler.calculate_ks_density(crystal_structure,[1,1])
-    handler.engine_process.wait()
-    handler.convert_3d_plot()
-    KS_dens = handler.load_ks_state()
+    KS_dens = handler.calculate_ks_density(crystal_structure,[1,1])
+
 
     from mayavi import mlab
 

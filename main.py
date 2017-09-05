@@ -44,6 +44,7 @@ class MayaviQWidget(QtGui.QWidget):
     def do_select_event(self):
         pass
 
+
 class EntryWithLabel(QtGui.QWidget):
     def __init__(self, parent,label,value=None):
         QtGui.QWidget.__init__(self, parent)
@@ -65,6 +66,7 @@ class EntryWithLabel(QtGui.QWidget):
 
     def set_text(self,text):
         self.textbox.setText(text)
+
 
 class OptionFrame(QtGui.QGroupBox):
     def __init__(self, parent,options,title='',tooltips={},checkbuttons=[]):
@@ -111,6 +113,7 @@ class OptionFrame(QtGui.QGroupBox):
         for cb in self.checkbuttons:
             res[cb.text()] = cb.checkState()
         return res
+
 
 class DftEngineWindow(QtGui.QWidget):
     def __init__(self, parent):
@@ -219,6 +222,8 @@ class DftEngineWindow(QtGui.QWidget):
         pass
 
     def check_if_engine_is_running_and_warn_if_so(self):
+        if esc_handler.custom_command_active:
+            return
         if esc_handler.is_engine_running():
             self.execute_error_dialog.showMessage('Engine is already running')
             raise Exception('Engine is already running')
@@ -319,6 +324,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.abort_bool = True
         esc_handler.kill_engine()
 
+
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
@@ -330,6 +336,7 @@ class ScfWindow(QtGui.QWidget):
 
     def do_select_event(self):
         pass
+
 
 class PlotWithTreeview(QtGui.QWidget):
     def __init__(self,Visualizer,data_dictionary,parent=None):
@@ -395,6 +402,7 @@ class PlotWithTreeview(QtGui.QWidget):
     def do_select_event(self):
         self.update_tree()
 
+
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self)
@@ -415,6 +423,78 @@ class StatusBar(QtGui.QWidget):
         else:
             self.status_label.setText(self.not_running_text)
 
+
+class EngineOptionsDialog(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(EngineOptionsDialog, self).__init__(parent)
+
+        self.parent = parent
+        self.command_filename = None
+
+        self.buttonBox = QtGui.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok|QtGui.QDialogButtonBox.Apply)
+
+        self.buttonBox.accepted.connect(self.accept_own)
+        self.buttonBox.rejected.connect(self.reject_own)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Apply).clicked.connect(self.apply)
+
+
+        self.grid_layout_widget =QtGui.QWidget(self)
+        self.grid_layout = QtGui.QGridLayout(self.grid_layout_widget)
+
+        self.custom_command_checkbox = QtGui.QCheckBox('Use custom command', parent=self)
+        self.custom_command_checkbox.setEnabled(False)
+        self.grid_layout.addWidget(self.custom_command_checkbox, 0, 0, 2, 1)
+
+        self.load_custom_command_button = QtGui.QPushButton('Select command file',self)
+        self.load_custom_command_button.setFixedWidth(150)
+        self.load_custom_command_button.setFixedHeight(30)
+        self.load_custom_command_button.clicked.connect(self.load_custom_command)
+        self.grid_layout.addWidget(self.load_custom_command_button,0, 1, 2, 1)
+
+        self.filename_label = QtGui.QLabel(self.grid_layout_widget)
+        self.filename_label.setText('None selected')
+        self.grid_layout.addWidget(self.filename_label, 2, 0, 1, 2)
+
+        self.species_path_entry = EntryWithLabel(self,'Dft engine path')
+        self.grid_layout.addWidget(self.species_path_entry, 3, 0, 1, 2)
+
+        self.verticalLayout = QtGui.QVBoxLayout(self)
+        self.verticalLayout.addWidget(self.grid_layout_widget)
+        self.verticalLayout.addWidget(self.buttonBox)
+
+    def apply(self):
+        self.parent.project_properties['custom command'] = self.command_filename
+        self.parent.project_properties['custom command active'] = bool(self.custom_command_checkbox.checkState())
+        esc_handler.custom_command = self.command_filename
+        esc_handler.custom_command_active = bool(self.custom_command_checkbox.checkState())
+        species_path = self.species_path_entry.get_text()
+        if len(species_path) > 0:
+            esc_handler.exciting_folder = species_path
+
+    def accept_own(self):
+        self.apply()
+        self.close()
+
+    def reject_own(self):
+        self.reject()
+
+    def load_custom_command(self):
+        self.custom_command_checkbox.setEnabled(True)
+        file_dialog = QtGui.QFileDialog()
+        file_dialog.setNameFilters(["sh script (*.sh)", "All (*.*)"])
+
+        if file_dialog.exec_():
+            file_name = file_dialog.selectedFiles()
+            if type(file_name) == list or type(file_name) is tuple:
+                file_name = file_name[0]
+            if len(file_name) == 0:
+                return
+            self.filename_label.setText(file_name)
+            self.command_filename = file_name
+
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, central_window, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
@@ -424,6 +504,7 @@ class MainWindow(QtGui.QMainWindow):
         self.central_window.close_application()
         event.ignore()
 
+
 class CentralWindow(QtGui.QWidget):
     def __init__(self,parent=None, *args, **kwargs):
         super(CentralWindow, self).__init__(*args, **kwargs)
@@ -432,7 +513,7 @@ class CentralWindow(QtGui.QWidget):
         self.crystal_structure = None
         self.band_structures = {}
         self.optical_spectra = {}
-        self.project_properties = {'title': ''}
+        self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False}
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
@@ -452,6 +533,7 @@ class CentralWindow(QtGui.QWidget):
         self.status_bar = StatusBar()
         self.layout.addWidget(self.status_bar)
 
+        self.engine_option_window = EngineOptionsDialog(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -478,7 +560,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/OpenDFT_projects/visualize"
+                project_directory = r"/home/jannick/cluster_mounts/aspirin_2"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -518,6 +600,7 @@ class CentralWindow(QtGui.QWidget):
     def reset_results_and_plots(self):
         self.crystal_structure = None
         self.overwrite_handler()
+        self.project_properties.clear()
         for key, value in self.band_structures.items():
             del self.band_structures[key]
         for key, value in self.optical_spectra.items():
@@ -602,7 +685,7 @@ class CentralWindow(QtGui.QWidget):
                     for key,value in load_optical_spectrum_options.items():
                         esc_handler.optical_spectrum_options[key] = value
 
-                self.project_properties = b['properties']
+                self.project_properties.update(b['properties'])
         except IOError:
             print('file not found')
 
@@ -664,6 +747,13 @@ class CentralWindow(QtGui.QWidget):
         ks_vis_action.setStatusTip('Visualize a Kohn-Sham state in the structure window')
         ks_vis_action.triggered.connect(self.open_state_vis_window)
         self.vis_menu.addAction(ks_vis_action)
+
+        self.dft_menu = self.menu_bar.addMenu('&DFT Engine')
+
+        dft_options_action = QtGui.QAction("Options", self.window)
+        dft_options_action.setStatusTip('Options for dft engine')
+        dft_options_action.triggered.connect(self.open_engine_option_window)
+        self.dft_menu.addAction(dft_options_action)
 
     def close_application(self):
         if not DEBUG:
@@ -730,8 +820,12 @@ class CentralWindow(QtGui.QWidget):
                 self.optical_spectra[esc_handler.general_options['title']] = read_spectrum
                 self.optical_spectra_window.update_tree()
 
+    def open_engine_option_window(self):
+        self.engine_option_window.exec_()
+
     def open_state_vis_window(self):
-        esc_handler.convert_3d_plot()
+        esc_handler.calculate_ks_density(self.crystal_structure,[1,2])
+        esc_handler.engine_process.wait()
         ks_dens = esc_handler.load_ks_state()
         self.mayavi_widget.visualization.plot_density(ks_dens)
 
@@ -740,5 +834,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-
+    # main.open_engine_option_window()
     app.exec_()
