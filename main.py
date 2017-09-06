@@ -606,6 +606,7 @@ class CentralWindow(QtGui.QWidget):
         self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
+        self.project_loaded = True
 
     def reset_results_and_plots(self):
         self.crystal_structure = None
