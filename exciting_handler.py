@@ -38,6 +38,11 @@ class Handler:
         self.working_dirctory = '/exciting_files/'
         self.engine_process = None
         self.info_file = 'INFO.OUT'
+        self.filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
+                           'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
+
+        self.timestamp_tasks = {}
+
         self.project_directory = None
         self.input_filename = 'input.xml'
         self.custom_command = ''
@@ -227,7 +232,6 @@ Default: 	GGA_PBE"""
         root = tree.getroot()
         gw = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
 
-
     def add_optical_spectrum_to_tree(self,tree):
         root = tree.getroot()
         if self.optical_spectrum_options['use gw'].lower() == 'true':
@@ -248,8 +252,8 @@ Default: 	GGA_PBE"""
         qpointset = ET.SubElement(xs,'qpointset')
         qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
 
-
     def start_optical_spectrum(self,crystal_structure):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
         self.add_optical_spectrum_to_tree(tree)
@@ -258,6 +262,7 @@ Default: 	GGA_PBE"""
         self.start_engine()
 
     def start_gw(self,crystal_structure,band_structure_points=None):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
         self.add_gw_to_tree(tree,taskname='g0w0')
@@ -265,7 +270,11 @@ Default: 	GGA_PBE"""
 
         def first_round():
             self.start_engine()
-            self.engine_process.wait()
+            if self.custom_command_active:
+                while self.is_engine_running(tasks=['g0w0']):
+                    time.sleep(1)
+            else:
+                self.engine_process.wait()
             if band_structure_points is not None:
                 tree = self.make_tree()
                 self.add_scf_to_tree(tree, crystal_structure)
@@ -289,6 +298,7 @@ Default: 	GGA_PBE"""
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
 
     def start_phonon_calculation(self,crystal_structure,band_structure_points):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
         self.add_phonon_to_tree(tree,band_structure_points)
@@ -296,8 +306,27 @@ Default: 	GGA_PBE"""
         time.sleep(0.05)
         self.start_engine()
 
+    def read_timestamps(self):
+        for task,filename in self.filenames_tasks.items():
+            if os.path.isfile(self.project_directory+self.working_dirctory+filename):
+                self.timestamp_tasks[task]=os.path.getmtime(self.project_directory+self.working_dirctory+filename)
+
+    def check_if_scf_is_finished(self):
+        try:
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
+        except IOError:
+            return None
+        info_text = f.read()
+        f.close()
+        scf_list = []
+        matches = re.findall(r"EXCITING[\s\w]*stopped", info_text)
+        if len(matches) == 0:
+            return True
+        else:
+            return False
 
     def start_relax(self,crystal_structure):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
         self.add_relax_to_tree(tree)
@@ -329,6 +358,10 @@ Default: 	GGA_PBE"""
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash',self.custom_command]
+            # if tasks is not None:
+            #     filenames = [self.filenames_tasks[task] for task in tasks if task != 'scf']
+            #     for filename in filenames:
+            #         os.remove(self.project_directory+self.working_dirctory+filename)
         else:
             command = self.engine_command
 
@@ -336,6 +369,7 @@ Default: 	GGA_PBE"""
         os.chdir(self.project_directory)
 
     def start_ground_state_calculation(self,crystal_structure,band_structure_points=None):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
         if band_structure_points is not None:
@@ -345,23 +379,51 @@ Default: 	GGA_PBE"""
         self.start_engine()
 
     def kill_engine(self):
-        if self.is_engine_running():
+        try:
             self.engine_process.kill()
+        except Exception as e:
+            print(e)
+    #
+    # def read_engine_status(self):
+    #     if not self.is_engine_running():
+    #         output, error = self.engine_process.communicate()
+    #         return output, error
+    #     else:
+    #         return None
 
-    def read_engine_status(self):
-        if not self.is_engine_running():
-            output, error = self.engine_process.communicate()
-            return output, error
+    def _is_engine_running_custom_command(self,tasks):
+        bool_list = []
+
+        for task in tasks:
+            if task == 'scf':
+                continue
+            filename = self.filenames_tasks[task]
+            # filenames[task] = filename
+            file_exists = os.path.isfile(self.project_directory + self.working_dirctory + filename)
+            # files_exists[task] = file_exists
+            if file_exists:
+                timestamp = os.path.getmtime(self.project_directory + self.working_dirctory +filename)
+                try:
+                    file_is_old_bool = timestamp == self.timestamp_tasks[task]
+                except KeyError:
+                    file_is_old_bool = False
+            file_exist_and_new = file_exists and not file_is_old_bool
+            bool_list.append(file_exist_and_new)
+
+
+        if 'scf' in tasks:
+            bool_list.append(self.check_if_scf_is_finished())
+
+        finished_bool = all(bool_list)
+        if finished_bool:
+            return False
         else:
-            return None
+            return True
 
-    def is_engine_running(self):
+    def is_engine_running(self,tasks=None):
         "TODO improve this only works for scf now"
         if self.custom_command_active:
-            if os.path.isfile(self.project_directory+self.working_dirctory+'/STATE.OUT'):
-                return False
-            else:
-                return True
+            return self._is_engine_running_custom_command(tasks)
         else:
             if self.engine_process is None:
                 return False
@@ -423,6 +485,7 @@ Default: 	GGA_PBE"""
             e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:
             return None
+
         titlestring = e.find('title').itertext().next()
 
         bands = []
@@ -453,6 +516,8 @@ Default: 	GGA_PBE"""
 
         bandgap, k_bandgap = self.find_bandgap(bands)
         special_k_points_together = zip(special_k_points, special_k_points_label)
+
+
         return sst.BandStructure(bands, bandgap, k_bandgap, special_k_points=special_k_points_together)
 
     def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
@@ -478,12 +543,14 @@ Default: 	GGA_PBE"""
         return sst.BandStructure(bands_qp,bandgap,k_bandgap,special_k_points=band_structure.special_k_points)
 
     def read_phonon_bandstructure(self):
+
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
     def read_optical_spectrum(self):
         eps_11 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
         eps_22 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
         eps_33 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
+
 
         list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
         list_of_eps1 = [eps_11[:,1],eps_22[:,1],eps_33[:,1]]
@@ -524,9 +591,8 @@ Default: 	GGA_PBE"""
         p2 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
         p3 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
 
-
-
     def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
+        self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure,skip=True)
         self.add_ks_density_to_tree(tree,bs_point,grid)
@@ -536,46 +602,52 @@ Default: 	GGA_PBE"""
 
 if __name__ == '__main__':
     handler = Handler()
-
-
-    print(handler.exciting_folder)
-    tree = handler.make_tree()
-
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-
-    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
     handler.project_directory = "/home/jannick/OpenDFT_projects/visualize"
-    KS_dens = handler.calculate_ks_density(crystal_structure,[1,1])
 
+    handler.custom_command_active = True
+    ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
+    ac_bo2 = handler.check_if_scf_is_finished()
 
-    from mayavi import mlab
+    print(ac_bo,ac_bo2)
 
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-
-    for i1, a in enumerate(unit_cell):
-        i2 = (i1 + 1) % 3
-        i3 = (i1 + 2) % 3
-        for b in [np.zeros(3), unit_cell[i2]]:
-            for c in [np.zeros(3), unit_cell[i3]]:
-                p1 = b + c
-                p2 = p1 + a
-                mlab.plot3d([p1[0], p2[0]],
-                            [p1[1], p2[1]],
-                            [p1[2], p2[2]],
-                            tube_radius=0.1)
-
-    cp = mlab.contour3d(KS_dens.density, contours=10, transparent=True,
-                        opacity=0.5, colormap='hot')
-    # Do some tvtk magic in order to allow for non-orthogonal unit cells:
-    polydata = cp.actor.actors[0].mapper.input
-    pts = np.array(polydata.points) - 1
-    # Transform the points to the unit cell:
-    polydata.points = np.dot(pts, unit_cell / np.array(KS_dens.density.shape)[:, np.newaxis])
-
-
-    mlab.view(azimuth=155, elevation=70, distance='auto')
-
-    mlab.show()
+    # print(handler.exciting_folder)
+    # tree = handler.make_tree()
+    #
+    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    #
+    # crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    # handler.calculate_ks_density(crystal_structure,[1,1])
+    # KS_dens = handler.load_ks_state()
+    #
+    #
+    # from mayavi import mlab
+    #
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    #
+    # for i1, a in enumerate(unit_cell):
+    #     i2 = (i1 + 1) % 3
+    #     i3 = (i1 + 2) % 3
+    #     for b in [np.zeros(3), unit_cell[i2]]:
+    #         for c in [np.zeros(3), unit_cell[i3]]:
+    #             p1 = b + c
+    #             p2 = p1 + a
+    #             mlab.plot3d([p1[0], p2[0]],
+    #                         [p1[1], p2[1]],
+    #                         [p1[2], p2[2]],
+    #                         tube_radius=0.1)
+    #
+    # cp = mlab.contour3d(KS_dens.density, contours=10, transparent=True,
+    #                     opacity=0.5, colormap='hot')
+    # # Do some tvtk magic in order to allow for non-orthogonal unit cells:
+    # polydata = cp.actor.actors[0].mapper.input
+    # pts = np.array(polydata.points) - 1
+    # # Transform the points to the unit cell:
+    # polydata.points = np.dot(pts, unit_cell / np.array(KS_dens.density.shape)[:, np.newaxis])
+    #
+    #
+    # mlab.view(azimuth=155, elevation=70, distance='auto')
+    #
+    # mlab.show()
 
 

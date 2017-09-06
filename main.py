@@ -274,7 +274,7 @@ class DftEngineWindow(QtGui.QWidget):
 
     def start_gw(self):
         self.check_if_engine_is_running_and_warn_if_so()
-        tasks = ['g0w0']
+        tasks = ['g0w0','g0w0 bands']
         bs_checkers = self.bs_option_widget.read_checkbuttons()
         if bs_checkers['Calculate']:
             tasks.append('bandstructure')
@@ -429,7 +429,7 @@ class EngineOptionsDialog(QtGui.QDialog):
         super(EngineOptionsDialog, self).__init__(parent)
 
         self.parent = parent
-        self.command_filename = None
+        self.command_filename = ''
 
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -444,8 +444,8 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.grid_layout = QtGui.QGridLayout(self.grid_layout_widget)
 
         self.custom_command_checkbox = QtGui.QCheckBox('Use custom command', parent=self)
-        self.custom_command_checkbox.setEnabled(False)
         self.grid_layout.addWidget(self.custom_command_checkbox, 0, 0, 2, 1)
+
 
         self.load_custom_command_button = QtGui.QPushButton('Select command file',self)
         self.load_custom_command_button.setFixedWidth(150)
@@ -454,7 +454,6 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.grid_layout.addWidget(self.load_custom_command_button,0, 1, 2, 1)
 
         self.filename_label = QtGui.QLabel(self.grid_layout_widget)
-        self.filename_label.setText('None selected')
         self.grid_layout.addWidget(self.filename_label, 2, 0, 1, 2)
 
         self.species_path_entry = EntryWithLabel(self,'Dft engine path')
@@ -465,12 +464,13 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.verticalLayout.addWidget(self.buttonBox)
 
     def apply(self):
-        self.parent.project_properties['custom command'] = self.command_filename
+        self.parent.project_properties['custom command'] = self.filename_label.text()
         self.parent.project_properties['custom command active'] = bool(self.custom_command_checkbox.checkState())
-        esc_handler.custom_command = self.command_filename
+        esc_handler.custom_command = self.filename_label.text()
         esc_handler.custom_command_active = bool(self.custom_command_checkbox.checkState())
         species_path = self.species_path_entry.get_text()
         if len(species_path) > 0:
+            self.parent.project_properties['custom dft folder'] = species_path
             esc_handler.exciting_folder = species_path
 
     def accept_own(self):
@@ -492,8 +492,16 @@ class EngineOptionsDialog(QtGui.QDialog):
             if len(file_name) == 0:
                 return
             self.filename_label.setText(file_name)
-            self.command_filename = file_name
 
+    def update_all(self):
+
+        if not self.parent.project_properties['custom command']:
+            self.custom_command_checkbox.setEnabled(False)
+        else:
+            if self.parent.project_properties['custom command active']:
+                self.custom_command_checkbox.toggle()
+        self.species_path_entry.set_text(esc_handler.exciting_folder)
+        self.filename_label.setText(self.parent.project_properties['custom command'])
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, central_window, *args, **kwargs):
@@ -509,11 +517,12 @@ class CentralWindow(QtGui.QWidget):
     def __init__(self,parent=None, *args, **kwargs):
         super(CentralWindow, self).__init__(*args, **kwargs)
         self.project_loaded = False
+        self.project_directory = None
         self.parent=parent
         self.crystal_structure = None
         self.band_structures = {}
         self.optical_spectra = {}
-        self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False}
+        self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
@@ -593,7 +602,8 @@ class CentralWindow(QtGui.QWidget):
             self.initialize_project()
 
     def initialize_project(self):
-        self.project_properties = {'title': ''}
+        self.project_properties.clear()
+        self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
 
@@ -686,6 +696,12 @@ class CentralWindow(QtGui.QWidget):
                         esc_handler.optical_spectrum_options[key] = value
 
                 self.project_properties.update(b['properties'])
+                ## Update esc_handler ! DANGER ZONE !
+                esc_handler.custom_command_active = self.project_properties['custom command active']
+                esc_handler.custom_command = self.project_properties['custom command']
+                if self.project_properties['custom dft folder']:
+                    esc_handler.exciting_folder = self.project_properties['custom dft folder']
+
         except IOError:
             print('file not found')
 
@@ -773,7 +789,11 @@ class CentralWindow(QtGui.QWidget):
                 self.update_structure_plot()
 
         tasks = [x.lower() for x in tasks]
-        if esc_handler.is_engine_running():
+        if self.dft_engine_window.abort_bool:
+            self.status_bar.set_engine_status(False)
+            self.dft_engine_window.abort_bool = False
+            return
+        elif esc_handler.is_engine_running(tasks=tasks):
             self.scf_data = esc_handler.read_scf_status()
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
@@ -783,9 +803,6 @@ class CentralWindow(QtGui.QWidget):
                 check_relax()
         else:
             self.status_bar.set_engine_status(False)
-            if self.dft_engine_window.abort_bool:
-                self.dft_engine_window.abort_bool = False
-                return
             message, err = esc_handler.engine_process.communicate()
             if ('error' in message.lower() or len(err)>0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message+'<br>Error:<br>'+err \
@@ -821,6 +838,7 @@ class CentralWindow(QtGui.QWidget):
                 self.optical_spectra_window.update_tree()
 
     def open_engine_option_window(self):
+        self.engine_option_window.update_all()
         self.engine_option_window.exec_()
 
     def open_state_vis_window(self):
@@ -830,7 +848,7 @@ class CentralWindow(QtGui.QWidget):
         self.mayavi_widget.visualization.plot_density(ks_dens)
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
