@@ -235,11 +235,15 @@ class DftEngineWindow(QtGui.QWidget):
         self.bs_option_widget.read_all_entries()
         self.optical_spectrum_option_widget.read_all_entries()
 
+    def prepare_start(self):
+        self.abort_bool = False
+        self.check_if_engine_is_running_and_warn_if_so()
+        self.read_all_option_widgets()
 
     def start_ground_state_calculation(self):
-        self.check_if_engine_is_running_and_warn_if_so()
+        self.prepare_start()
+
         tasks = []
-        self.read_all_option_widgets()
         if esc_handler.will_scf_run():
             tasks.append('scf')
 
@@ -261,9 +265,8 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_relax(self):
-        self.check_if_engine_is_running_and_warn_if_so()
+        self.prepare_start()
         tasks = ['relax']
-        self.read_all_option_widgets()
         try:
             esc_handler.start_relax(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
@@ -276,8 +279,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_gw(self):
-        self.check_if_engine_is_running_and_warn_if_so()
-        self.read_all_option_widgets()
+        self.prepare_start()
 
         tasks = []
         if esc_handler.will_scf_run():
@@ -298,8 +300,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_phonons(self):
-        self.check_if_engine_is_running_and_warn_if_so()
-        self.read_all_option_widgets()
+        self.prepare_start()
 
         tasks = ['phonons']
         try:
@@ -314,8 +315,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_optical_spectrum_calculation(self):
-        self.check_if_engine_is_running_and_warn_if_so()
-        self.read_all_option_widgets()
+        self.prepare_start()
 
         tasks = ['optical spectrum']
         try:
