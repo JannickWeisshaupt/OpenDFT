@@ -240,6 +240,9 @@ class DftEngineWindow(QtGui.QWidget):
         self.check_if_engine_is_running_and_warn_if_so()
         tasks = []
         self.read_all_option_widgets()
+        if esc_handler.will_scf_run():
+            tasks.append('scf')
+
         bs_checkers = self.bs_option_widget.read_checkbuttons()
         if bs_checkers['Calculate']:
             bs_points = self.band_structure_points
@@ -274,11 +277,15 @@ class DftEngineWindow(QtGui.QWidget):
 
     def start_gw(self):
         self.check_if_engine_is_running_and_warn_if_so()
-        tasks = ['g0w0','g0w0 bands']
+        self.read_all_option_widgets()
+
+        tasks = []
+        if esc_handler.will_scf_run():
+            tasks.append('scf')
         bs_checkers = self.bs_option_widget.read_checkbuttons()
         if bs_checkers['Calculate']:
             tasks.append('bandstructure')
-        self.read_all_option_widgets()
+        tasks.extend(['g0w0','g0w0 bands'])
         try:
             esc_handler.start_gw(self.parent.crystal_structure,self.band_structure_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
@@ -292,8 +299,9 @@ class DftEngineWindow(QtGui.QWidget):
 
     def start_phonons(self):
         self.check_if_engine_is_running_and_warn_if_so()
-        tasks = ['phonons']
         self.read_all_option_widgets()
+
+        tasks = ['phonons']
         try:
             esc_handler.start_phonon_calculation(self.parent.crystal_structure,self.band_structure_points)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
@@ -307,8 +315,9 @@ class DftEngineWindow(QtGui.QWidget):
 
     def start_optical_spectrum_calculation(self):
         self.check_if_engine_is_running_and_warn_if_so()
-        tasks = ['optical spectrum']
         self.read_all_option_widgets()
+
+        tasks = ['optical spectrum']
         try:
             esc_handler.start_optical_spectrum(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
@@ -365,6 +374,12 @@ class PlotWithTreeview(QtGui.QWidget):
         del self.data_dictionary[bs_name]
         self.update_tree()
 
+    # def rename_selected_item(self):
+    #     index = self.treeview.selectedIndexes()[0]
+    #     item = self.treeview.itemFromIndex(index)
+    #     bs_name = item.text(0)
+
+
     def openMenu(self, position):
         indexes = self.treeview.selectedIndexes()
         if len(indexes) > 0:
@@ -377,7 +392,9 @@ class PlotWithTreeview(QtGui.QWidget):
 
         menu = QtGui.QMenu()
         menu.addAction('Delete',self.delete_selected_item)
+        # menu.addAction('Rename', self.rename_selected_item)
         menu.exec_(self.treeview.viewport().mapToGlobal(position))
+
 
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
@@ -417,9 +434,14 @@ class StatusBar(QtGui.QWidget):
         self.layout.addWidget(self.status_label)
         self.show()
 
-    def set_engine_status(self,status):
+    def set_engine_status(self,status,tasks=None):
         if status:
-            self.status_label.setText(self.running_text)
+            if tasks:
+                tasks_string = ', '.join(tasks)
+                tasks_string2 = ' with Tasks: '+tasks_string
+            else:
+                tasks_string2 = ''
+            self.status_label.setText(self.running_text+tasks_string2)
         else:
             self.status_label.setText(self.not_running_text)
 
@@ -499,7 +521,8 @@ class EngineOptionsDialog(QtGui.QDialog):
             self.custom_command_checkbox.setEnabled(False)
         else:
             if self.parent.project_properties['custom command active']:
-                self.custom_command_checkbox.toggle()
+                if not self.custom_command_checkbox.checkState():
+                    self.custom_command_checkbox.toggle()
         self.species_path_entry.set_text(esc_handler.exciting_folder)
         self.filename_label.setText(self.parent.project_properties['custom command'])
 
@@ -569,7 +592,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/cluster_mounts/aspirin_2"
+                project_directory = r"/home/jannick/cluster_mounts/GaAs_open"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -580,6 +603,7 @@ class CentralWindow(QtGui.QWidget):
         self.list_of_tabs[i].do_select_event()
 
     def overwrite_handler(self):
+        "TODO this is horrible"
         esc_handler_new = Handler()
         for method in dir(esc_handler_new):
             command = 'type(esc_handler_new.'+method+')'
@@ -590,6 +614,7 @@ class CentralWindow(QtGui.QWidget):
             else:
                 pass
                 # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
+        esc_handler.exciting_folder = esc_handler.find_exciting_folder()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
@@ -602,7 +627,6 @@ class CentralWindow(QtGui.QWidget):
             self.initialize_project()
 
     def initialize_project(self):
-        self.project_properties.clear()
         self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
@@ -618,10 +642,10 @@ class CentralWindow(QtGui.QWidget):
         self.mayavi_widget.visualization.clear_plot()
         self.band_structure_window.plot_widget.clear_plot()
         self.band_structure_window.clear_treeview()
-        self.dft_engine_window.update_all()
         self.scf_window.scf_widget.clear_plot()
         self.optical_spectra_window.plot_widget.clear_plot()
         self.optical_spectra_window.clear_treeview()
+        self.dft_engine_window.update_all()
 
     def load_project(self,folder_name=None):
         if folder_name is None:
@@ -642,7 +666,8 @@ class CentralWindow(QtGui.QWidget):
             a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,
                  'properties': self.project_properties,'scf_options':esc_handler.scf_options,
                  'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
-                 'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options}
+                 'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
+                 'gw options':esc_handler.gw_options}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -690,6 +715,11 @@ class CentralWindow(QtGui.QWidget):
                     for key,value in load_phonon_options.items():
                         esc_handler.phonons_options[key] = value
 
+                load_gw_options = b['gw options']
+                if load_gw_options is not None and b['dft engine'] == esc_handler.engine_name:
+                    for key,value in load_gw_options.items():
+                        esc_handler.gw_options[key] = value
+
                 load_optical_spectrum_options = b['optical spectrum options']
                 if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
                     for key,value in load_optical_spectrum_options.items():
@@ -697,10 +727,15 @@ class CentralWindow(QtGui.QWidget):
 
                 self.project_properties.update(b['properties'])
                 ## Update esc_handler ! DANGER ZONE !
-                esc_handler.custom_command_active = self.project_properties['custom command active']
-                esc_handler.custom_command = self.project_properties['custom command']
-                if self.project_properties['custom dft folder']:
-                    esc_handler.exciting_folder = self.project_properties['custom dft folder']
+                try:
+                    esc_handler.custom_command_active = self.project_properties['custom command active']
+                    esc_handler.custom_command = self.project_properties['custom command']
+                    if self.project_properties['custom dft folder']:
+                        esc_handler.exciting_folder = self.project_properties['custom dft folder']
+                except:
+                    self.project_properties['custom command active'] = False
+                    self.project_properties['custom command'] = ''
+                    self.project_properties['custom dft folder'] = ''
 
         except IOError:
             print('file not found')
@@ -798,7 +833,7 @@ class CentralWindow(QtGui.QWidget):
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
             QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
-            self.status_bar.set_engine_status(True)
+            self.status_bar.set_engine_status(True,tasks=tasks)
             if 'relax' in tasks:
                 check_relax()
         else:
@@ -842,13 +877,14 @@ class CentralWindow(QtGui.QWidget):
         self.engine_option_window.exec_()
 
     def open_state_vis_window(self):
+        "TODO move this into an own frame"
         esc_handler.calculate_ks_density(self.crystal_structure,[1,2])
         esc_handler.engine_process.wait()
         ks_dens = esc_handler.load_ks_state()
         self.mayavi_widget.visualization.plot_density(ks_dens)
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)

@@ -253,6 +253,7 @@ Default: 	GGA_PBE"""
         qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
 
     def start_optical_spectrum(self,crystal_structure):
+        self.filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
         self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
@@ -315,15 +316,15 @@ Default: 	GGA_PBE"""
         try:
             f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
-            return None
+            return False
         info_text = f.read()
         f.close()
         scf_list = []
         matches = re.findall(r"EXCITING[\s\w]*stopped", info_text)
         if len(matches) == 0:
-            return True
-        else:
             return False
+        else:
+            return True
 
     def start_relax(self,crystal_structure):
         self.read_timestamps()
@@ -344,6 +345,11 @@ Default: 	GGA_PBE"""
         self.relax_file_timestamp = os.path.getmtime(file)
         return struc
 
+    def will_scf_run(self):
+        if self.scf_options['do'] == 'skip':
+            return False
+        else:
+            return True
 
     def write_input_file(self, tree):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
@@ -369,6 +375,10 @@ Default: 	GGA_PBE"""
         os.chdir(self.project_directory)
 
     def start_ground_state_calculation(self,crystal_structure,band_structure_points=None):
+        try:
+            os.remove(self.project_directory+self.working_dirctory+'/INFO.OUT')
+        except Exception as e:
+            print(e)
         self.read_timestamps()
         tree = self.make_tree()
         self.add_scf_to_tree(tree, crystal_structure)
@@ -407,6 +417,7 @@ Default: 	GGA_PBE"""
                     file_is_old_bool = timestamp == self.timestamp_tasks[task]
                 except KeyError:
                     file_is_old_bool = False
+
             file_exist_and_new = file_exists and not file_is_old_bool
             bool_list.append(file_exist_and_new)
 
@@ -421,7 +432,6 @@ Default: 	GGA_PBE"""
             return True
 
     def is_engine_running(self,tasks=None):
-        "TODO improve this only works for scf now"
         if self.custom_command_active:
             return self._is_engine_running_custom_command(tasks)
         else:

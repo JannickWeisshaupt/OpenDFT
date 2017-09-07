@@ -75,7 +75,7 @@ class StructureParser:
         pass
 
     def parse_cif_file(self,filename):
-        cf = ReadCif(filename)
+        pass
 
 class KohnShamDensity:
     def __init__(self,density):

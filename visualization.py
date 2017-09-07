@@ -302,7 +302,8 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         self.ax.cla()
 
         self.ax.plot(optical_spectrum.energy,optical_spectrum.epsilon2,linewidth=2,color='k')
-
+        self.ax.set_xlabel('Energy [eV]')
+        self.ax.set_ylabel(r'Dielectric function $\varepsilon(\omega)$')
         if self.first_plot_bool:
             self.first_plot_bool = False
             self.figure.tight_layout()
