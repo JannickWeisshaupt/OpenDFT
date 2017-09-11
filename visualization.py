@@ -197,7 +197,7 @@ class StructureVisualization(HasTraits):
         if self.cp is not None:
             pass
 
-    def plot_density(self,ks_density):
+    def plot_density(self,ks_density,contours=10,transparent=True,colormap='hot',opacity=0.5):
         repeat = [self.n_x, self.n_y, self.n_z]
 
         cur_view = self.scene.mlab.view()
@@ -206,8 +206,8 @@ class StructureVisualization(HasTraits):
         dens = ks_density.density
         dens_plot = np.tile(dens,repeat)
         unit_cell = self.crystal_structure.lattice_vectors
-        self.cp = self.scene.mlab.contour3d(dens_plot, contours=10, transparent=True,
-                            opacity=0.5, colormap='hot')
+        self.cp = self.scene.mlab.contour3d(dens_plot, contours=contours, transparent=transparent,
+                            opacity=opacity, colormap=colormap)
         # Do some tvtk magic in order to allow for non-orthogonal unit cells:
         polydata = self.cp.actor.actors[0].mapper.input
         pts = np.array(polydata.points) - 1

@@ -527,6 +527,7 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.species_path_entry.set_text(esc_handler.exciting_folder)
         self.filename_label.setText(self.parent.project_properties['custom command'])
 
+
 class OptionWithTreeview(PlotWithTreeview):
     def __init__(self,side_panel,data_dictionary,parent=None):
         super(OptionWithTreeview, self).__init__(side_panel,data_dictionary,parent)
@@ -551,9 +552,42 @@ class OptionWithTreeview(PlotWithTreeview):
         self.add_result_key('None')
 
 
+class SliderWithEntry(QtGui.QWidget):
+    def __init__(self,parent=None):
+        super(SliderWithEntry, self).__init__(parent)
+        # self.horizontalLayoutWidget.setGeometry(QtCore.QRect(90, 150, 160, 31))
+        self.horizontalLayout = QtGui.QGridLayout(self)
+        self.horizontalSlider = QtGui.QSlider(self)
+        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalLayout.addWidget(self.horizontalSlider,0,0)
+        self.lineEdit = QtGui.QLineEdit(self)
+        self.horizontalLayout.addWidget(self.lineEdit,0,1)
+        self.horizontalLayout.setColumnStretch(0, 3)
+        self.horizontalLayout.setColumnStretch(1, 1)
+
+
+
+class KsStatePlotOptionWidget(QtGui.QWidget):
+
+    def __init__(self,parent):
+        super(KsStatePlotOptionWidget, self).__init__(parent)
+        self.setSizePolicy(QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
+        self.verticalLayoutWidget = QtGui.QWidget(self)
+        self.verticalLayout = QtGui.QVBoxLayout(self.verticalLayoutWidget)
+
+        self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget)
+        self.verticalLayout.addWidget(self.opacity_slider)
+
+
+        # self.test_label = QtGui.QLabel('asdas')
+        # self.verticalLayout.addWidget(self.test_label)
+
+        # self.verticalLayoutWidget.show()
+
 class KsStateWindow(QtGui.QDialog):
     def __init__(self,parent):
         super(KsStateWindow, self).__init__(parent)
+        self.resize(600, 400)
         self.parent = parent
         self.main_widget = QtGui.QWidget(parent=self)
         self.layout = QtGui.QVBoxLayout(self)
@@ -561,7 +595,8 @@ class KsStateWindow(QtGui.QDialog):
         self.calc_ks_group.setTitle('Calculate KS state')
         self.layout.addWidget(self.calc_ks_group)
 
-        self.plot_widget = OptionWithTreeview(QtGui.QWidget,self.parent.ks_densities,parent=self)
+
+        self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget,self.parent.ks_densities,parent=self)
         self.layout.addWidget(self.plot_widget)
 
         self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
@@ -996,5 +1031,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-    # main.open_engine_option_window()
+    main.open_state_vis_window()
     app.exec_()
