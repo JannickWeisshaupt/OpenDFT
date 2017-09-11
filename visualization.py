@@ -43,6 +43,12 @@ for i in range(39,49):
 for i in range(71,80):
     colors[i] = (0,1,1)
 
+with open('./data/colormaps.dat') as f:
+    t = f.read()
+    t = t.replace("'",'')
+    s = t.split()
+
+colormap_list = sorted(s,key=str.lower)
 
 
 def KnuthMorrisPratt(text, pattern):
@@ -85,9 +91,10 @@ class StructureVisualization(HasTraits):
 
     show_unitcell = Bool(True)
     show_bonds = Bool(True)
+    show_atoms = Bool(True)
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
-                     height=450, width=500, show_label=False),Group('_', 'n_x', 'n_y', 'n_z','show_unitcell','show_bonds',orientation='horizontal'),
+                     height=450, width=500, show_label=False),Group('_', 'n_x', 'n_y', 'n_z','show_unitcell','show_bonds','show_atoms',orientation='horizontal'),
                 resizable=True, # We need this to resize with the parent widget
                 )
     scene = Instance(MlabSceneModel, ())
@@ -101,8 +108,12 @@ class StructureVisualization(HasTraits):
     def clear_plot(self):
         self.scene.mlab.clf()
 
-    @on_trait_change('scene.activated,show_unitcell,show_bonds,n_x,n_y,n_z')
-    def update_plot(self):
+    @on_trait_change('scene.activated,show_unitcell,show_bonds,show_atoms,n_x,n_y,n_z')
+    def update_plot(self,*args,**kwargs):
+        if 'keep_view' in kwargs.keys():
+            keep_view = kwargs['keep_view']
+        else:
+            keep_view = False
         if self.crystal_structure is None:
             return
         self.scene.anti_aliasing_frames = 20
@@ -112,7 +123,12 @@ class StructureVisualization(HasTraits):
 
         self.scene.disable_render = True
 
-        self.plot_atoms(repeat=repeat)
+        if keep_view:
+            cur_view = self.scene.mlab.view()
+            cur_roll = self.scene.mlab.roll()
+
+        if self.show_atoms:
+            self.plot_atoms(repeat=repeat)
 
         if self.show_bonds:
             self.plot_bonds(repeat=repeat)
@@ -121,6 +137,11 @@ class StructureVisualization(HasTraits):
             self.plot_unit_cell(repeat=repeat)
 
         self.scene.disable_render = False
+        if keep_view:
+            self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])
+            self.scene.mlab.roll(cur_roll)
+
+
 
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
@@ -219,7 +240,7 @@ class StructureVisualization(HasTraits):
 
         polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
         # self.scene.mlab.view(distance='auto')
-        self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2])
+        self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])
         self.scene.mlab.roll(cur_roll)
         self.density_plotted = ks_density
 

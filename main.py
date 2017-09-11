@@ -6,7 +6,7 @@ import numpy as np
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization
+from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list
 import solid_state_tools as sst
 from exciting_handler import Handler as Handler
 from little_helpers import no_error_dictionary
@@ -36,8 +36,8 @@ class MayaviQWidget(QtGui.QWidget):
         layout.addWidget(self.ui)
         self.ui.setParent(self)
 
-    def update_plot(self):
-        self.visualization.update_plot()
+    def update_plot(self,keep_view = False):
+        self.visualization.update_plot(keep_view=keep_view)
 
     def update_crystal_structure(self, crystal_structure):
         self.visualization.crystal_structure = crystal_structure
@@ -540,10 +540,12 @@ class OptionWithTreeview(PlotWithTreeview):
         item = self.treeview.itemFromIndex(indexes[0])
         bs_name = item.text(0)
 
+        plot_options = self.plot_widget.get_options()
+
         if main.mayavi_widget.visualization.cp is not None:
-            main.mayavi_widget.update_plot()
+            main.mayavi_widget.update_plot(keep_view=True)
         if bs_name != 'None':
-            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]))
+            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]),**plot_options)
 
     def update_tree(self):
         self.treeview.clear()
@@ -553,51 +555,135 @@ class OptionWithTreeview(PlotWithTreeview):
 
 
 class SliderWithEntry(QtGui.QWidget):
-    def __init__(self,parent=None):
+    def __init__(self,parent=None,label=None,limits=[0,1],value=None):
         super(SliderWithEntry, self).__init__(parent)
         # self.horizontalLayoutWidget.setGeometry(QtCore.QRect(90, 150, 160, 31))
-        self.horizontalLayout = QtGui.QGridLayout(self)
-        self.horizontalSlider = QtGui.QSlider(self)
-        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.horizontalLayout.addWidget(self.horizontalSlider,0,0)
-        self.lineEdit = QtGui.QLineEdit(self)
-        self.horizontalLayout.addWidget(self.lineEdit,0,1)
-        self.horizontalLayout.setColumnStretch(0, 3)
-        self.horizontalLayout.setColumnStretch(1, 1)
+        self.limits = limits
+        if value is None:
+            self.value = limits[0]
+        if value < limits[0] or value > limits[1]:
+            raise ValueError('Value must be within bounds')
 
+        self.value = value
+        self.horizontalLayout = QtGui.QGridLayout(self)
+
+        if label is not None:
+            self.label = QtGui.QLabel(label)
+            self.horizontalLayout.addWidget(self.label,0,0)
+            counter = 1
+        else:
+            counter = 0
+
+        limit_range = limits[1]-limits[0]
+
+        self.horizontalSlider = QtGui.QSlider(self)
+        self.horizontalSlider.setMinimumWidth(200)
+        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalSlider.setValue((self.value-limits[0])/limit_range*100)
+        QtCore.QObject.connect(self.horizontalSlider, QtCore.SIGNAL('valueChanged(int)'), self.change_text)
+
+        self.horizontalLayout.addWidget(self.horizontalSlider,0,counter)
+
+        self.lineEdit = QtGui.QLineEdit(self)
+        self.lineEdit.setText("{0:1.1f}".format(self.value))
+        self.horizontalLayout.addWidget(self.lineEdit,0,1+counter)
+        self.horizontalLayout.setColumnStretch(0+counter, 3)
+        self.horizontalLayout.setColumnStretch(1+counter, 1)
+
+
+    def change_text(self):
+        val = self.horizontalSlider.value()*(self.limits[1]-self.limits[0])/100+self.limits[0]
+        self.lineEdit.setText("{0:1.1f}".format(val))
+        self.value = val
+
+    # def change_slider(self):
+    #     try:
+    #         val = float(self.lineEdit.text())
+    #     except:
+    #         return
+    #     self.value = val
+    #     self.horizontalSlider.setValue(val)
+
+    def get_value(self):
+        try:
+            val = float(self.lineEdit.text())
+        except:
+            val = self.value
+        return val
 
 
 class KsStatePlotOptionWidget(QtGui.QWidget):
 
     def __init__(self,parent):
         super(KsStatePlotOptionWidget, self).__init__(parent)
+        self.parent = parent
         self.setSizePolicy(QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
         self.verticalLayoutWidget = QtGui.QWidget(self)
         self.verticalLayout = QtGui.QVBoxLayout(self.verticalLayoutWidget)
 
-        self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget)
+        self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget,label='Opacity',limits=[0,1],value=0.5)
         self.verticalLayout.addWidget(self.opacity_slider)
 
+        self.contours_entry = EntryWithLabel(self,'Contours:','10')
+        self.verticalLayout.addWidget(self.contours_entry)
 
+        self.transparent_checkbox = QtGui.QCheckBox('Transparent')
+        self.transparent_checkbox.toggle()
+        self.verticalLayout.addWidget(self.transparent_checkbox)
+
+
+        self.colormap_combobox = QtGui.QComboBox(self)
+        self.verticalLayout.addWidget(self.colormap_combobox)
+        for el in colormap_list:
+            self.colormap_combobox.addItem(el)
+        index = self.colormap_combobox.findText('hot', QtCore.Qt.MatchFixedString)
+        if index >= 0:
+            self.colormap_combobox.setCurrentIndex(index)
+        self.colormap_combobox.currentIndexChanged.connect(self.parent.handle_item_changed)
+
+
+        button_frame = QtGui.QWidget(self)
+        self.button_layout = QtGui.QHBoxLayout(button_frame)
+        self.verticalLayout.addWidget(button_frame)
+        self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
+
+        self.apply_button = QtGui.QPushButton('Apply')
+        self.apply_button.setFixedSize(100,50)
+        self.apply_button.clicked.connect(self.parent.handle_item_changed)
+        self.button_layout.addWidget(self.apply_button)
+
+    def get_options(self):
+        opacity = self.opacity_slider.get_value()
+
+        contour_str = self.contours_entry.get_text()
+        if ',' in contour_str or '.' in contour_str:
+            contours = contour_str.split(',')
+            contours = [float(x) for x in contours]
+        else:
+            contours = int(contour_str)
+
+        transparent = bool(self.transparent_checkbox.checkState())
+        colormap = colormap_list[self.colormap_combobox.currentIndex()]
+        out_dic = {'opacity':opacity,'contours':contours,'transparent':transparent,'colormap':colormap}
+
+
+        return out_dic
         # self.test_label = QtGui.QLabel('asdas')
         # self.verticalLayout.addWidget(self.test_label)
 
         # self.verticalLayoutWidget.show()
 
+
 class KsStateWindow(QtGui.QDialog):
     def __init__(self,parent):
         super(KsStateWindow, self).__init__(parent)
-        self.resize(600, 400)
+        self.setFixedSize(700,500)
         self.parent = parent
         self.main_widget = QtGui.QWidget(parent=self)
         self.layout = QtGui.QVBoxLayout(self)
         self.calc_ks_group = QtGui.QGroupBox(parent=self.main_widget)
         self.calc_ks_group.setTitle('Calculate KS state')
         self.layout.addWidget(self.calc_ks_group)
-
-
-        self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget,self.parent.ks_densities,parent=self)
-        self.layout.addWidget(self.plot_widget)
 
         self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
 
@@ -624,7 +710,18 @@ class KsStateWindow(QtGui.QDialog):
         self.choose_nk_button.clicked.connect(self.choose_nk)
         button_layout.addWidget(self.choose_nk_button)
 
+        self.plot_group = QtGui.QGroupBox(parent=self.main_widget)
+        self.plot_group.setTitle('Calculate KS state')
+        self.layout.addWidget(self.plot_group)
+
+        self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget,self.parent.ks_densities,parent=self)
+
+        self.sub_layout2 = QtGui.QVBoxLayout(self.plot_group)
+        self.sub_layout2.addWidget(self.plot_widget)
+
         self.plot_widget.update_tree()
+
+
 
     def calculate_ks_state(self):
         n_band = int(self.n_band_entry.get_text())
@@ -1032,4 +1129,5 @@ if __name__ == "__main__":
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
     main.open_state_vis_window()
+    QtCore.QTimer.singleShot(1500,main.ks_state_window.plot_widget.update_tree)
     app.exec_()

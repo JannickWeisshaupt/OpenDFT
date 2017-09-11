@@ -578,6 +578,7 @@ Default: 	GGA_PBE"""
         self.convert_3d_plot()
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
         data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='F')
+        data = data/data.max()
         return sst.KohnShamDensity(data)
 
     def add_ks_density_to_tree(self,tree,bs_point,grid):
