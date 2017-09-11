@@ -12,6 +12,7 @@ from exciting_handler import Handler as Handler
 from little_helpers import no_error_dictionary
 import pickle
 import time
+import threading
 
 try:
     import queue
@@ -526,6 +527,106 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.species_path_entry.set_text(esc_handler.exciting_folder)
         self.filename_label.setText(self.parent.project_properties['custom command'])
 
+class OptionWithTreeview(PlotWithTreeview):
+    def __init__(self,side_panel,data_dictionary,parent=None):
+        super(OptionWithTreeview, self).__init__(side_panel,data_dictionary,parent)
+        self.add_result_key('None')
+
+    def handle_item_changed(self):
+        indexes = self.treeview.selectedIndexes()
+        if len(indexes) == 0:
+            return
+        item = self.treeview.itemFromIndex(indexes[0])
+        bs_name = item.text(0)
+
+        if main.mayavi_widget.visualization.cp is not None:
+            main.mayavi_widget.update_plot()
+        if bs_name != 'None':
+            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]))
+
+    def update_tree(self):
+        self.treeview.clear()
+        for key,value in self.data_dictionary.items():
+            self.add_result_key(key)
+        self.add_result_key('None')
+
+
+class KsStateWindow(QtGui.QDialog):
+    def __init__(self,parent):
+        super(KsStateWindow, self).__init__(parent)
+        self.parent = parent
+        self.main_widget = QtGui.QWidget(parent=self)
+        self.layout = QtGui.QVBoxLayout(self)
+        self.calc_ks_group = QtGui.QGroupBox(parent=self.main_widget)
+        self.calc_ks_group.setTitle('Calculate KS state')
+        self.layout.addWidget(self.calc_ks_group)
+
+        self.plot_widget = OptionWithTreeview(QtGui.QWidget,self.parent.ks_densities,parent=self)
+        self.layout.addWidget(self.plot_widget)
+
+        self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
+
+        self.k_point_entry = EntryWithLabel(self.calc_ks_group,'k point')
+        self.sub_layout.addWidget(self.k_point_entry,0,0)
+
+        self.n_band_entry = EntryWithLabel(self.calc_ks_group,'Band index')
+        self.sub_layout.addWidget(self.n_band_entry,0,1)
+
+        button_frame = QtGui.QWidget(self.calc_ks_group)
+        self.sub_layout.addWidget(button_frame,2,0,1,0)
+
+        button_layout = QtGui.QHBoxLayout(button_frame)
+
+        self.calculate_button = QtGui.QPushButton('Calculate KS State',button_frame)
+        self.calculate_button.setFixedWidth(150)
+        self.calculate_button.setFixedHeight(50)
+        self.calculate_button.clicked.connect(self.calculate_ks_state)
+        button_layout.addWidget(self.calculate_button)
+
+        self.choose_nk_button = QtGui.QPushButton(button_frame)
+        self.choose_nk_button.setFixedWidth(150)
+        self.choose_nk_button.setFixedHeight(50)
+        self.choose_nk_button.clicked.connect(self.choose_nk)
+        button_layout.addWidget(self.choose_nk_button)
+
+        self.plot_widget.update_tree()
+
+    def calculate_ks_state(self):
+        n_band = int(self.n_band_entry.get_text())
+        k = int(self.k_point_entry.get_text())
+
+
+        esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
+
+        QtCore.QTimer.singleShot(500, self.check_engine)
+
+    def choose_nk(self):
+        pass
+
+
+    def check_engine(self):
+        tasks=['ks density']
+        if esc_handler.is_engine_running(tasks=tasks):
+            self.parent.status_bar.set_engine_status(True,tasks=tasks)
+            QtCore.QTimer.singleShot(500, self.check_engine)
+        else:
+            self.parent.status_bar.set_engine_status(False)
+            message, err = esc_handler.engine_process.communicate()
+            if ('error' in message.lower() or len(err)>0):
+                error_message = 'DFT calculation finished with an error:<br><br>' + message+'<br>Error:<br>'+err \
+                                + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
+                                  '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+                self.parent.error_dialog.showMessage(error_message)
+
+            ks_dens = esc_handler.load_ks_state()
+            n_band = int(self.n_band_entry.get_text())
+            k = int(self.k_point_entry.get_text())
+            key = "k{} n{}".format(k,n_band)
+            if ks_dens is not None:
+                self.parent.ks_densities[key] = ks_dens
+                self.plot_widget.update_tree()
+
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, central_window, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
@@ -545,6 +646,7 @@ class CentralWindow(QtGui.QWidget):
         self.crystal_structure = None
         self.band_structures = {}
         self.optical_spectra = {}
+        self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
@@ -566,6 +668,7 @@ class CentralWindow(QtGui.QWidget):
         self.layout.addWidget(self.status_bar)
 
         self.engine_option_window = EngineOptionsDialog(self)
+        self.ks_state_window = KsStateWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -592,7 +695,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/cluster_mounts/GaAs_open"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond"
             else:
                 project_directory = r'D:\OpenDFT_projects\test\\'
             # self.load_saved_results()
@@ -640,6 +743,8 @@ class CentralWindow(QtGui.QWidget):
             del self.band_structures[key]
         for key, value in self.optical_spectra.items():
             del self.optical_spectra[key]
+        for key, value in self.ks_densities.items():
+            del self.ks_densities[key]
         self.mayavi_widget.visualization.clear_plot()
         self.band_structure_window.plot_widget.clear_plot()
         self.band_structure_window.clear_treeview()
@@ -668,7 +773,7 @@ class CentralWindow(QtGui.QWidget):
                  'properties': self.project_properties,'scf_options':esc_handler.scf_options,
                  'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
                  'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options}
+                 'gw options':esc_handler.gw_options,'ks densities':self.ks_densities}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -694,8 +799,12 @@ class CentralWindow(QtGui.QWidget):
                 if type(loaded_optical_spectra_dict) == dict:
                     for key,value in loaded_optical_spectra_dict.items():
                         self.optical_spectra[key] = value
-                # if len(self.band_structure) !
-                #     self.band_structure_window.bs_widget.plot(self.band_structure)
+
+                loaded_ksdens_dict = b['ks densities']
+                if type(loaded_ksdens_dict ) == dict:
+                    for key,value in loaded_ksdens_dict.items():
+                        self.ks_densities[key] = value
+
                 load_scf_options = b['scf_options']
                 if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
                     for key,value in load_scf_options.items():
@@ -875,14 +984,12 @@ class CentralWindow(QtGui.QWidget):
 
     def open_engine_option_window(self):
         self.engine_option_window.update_all()
-        self.engine_option_window.exec_()
+        self.engine_option_window.show()
 
     def open_state_vis_window(self):
-        "TODO move this into an own frame"
-        esc_handler.calculate_ks_density(self.crystal_structure,[1,2])
-        esc_handler.engine_process.wait()
-        ks_dens = esc_handler.load_ks_state()
-        self.mayavi_widget.visualization.plot_density(ks_dens)
+        self.ks_state_window.plot_widget.update_tree()
+        self.ks_state_window.show( )
+
 
 if __name__ == "__main__":
     DEBUG = True

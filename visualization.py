@@ -95,6 +95,8 @@ class StructureVisualization(HasTraits):
     def __init__(self, crystal_structure):
         super(StructureVisualization,self).__init__()
         self.crystal_structure = crystal_structure
+        self.density_plotted = None
+        self.cp = None
 
     def clear_plot(self):
         self.scene.mlab.clf()
@@ -108,6 +110,8 @@ class StructureVisualization(HasTraits):
         self.scene.mlab.clf()
         repeat = [self.n_x,self.n_y,self.n_z]
 
+        self.scene.disable_render = True
+
         self.plot_atoms(repeat=repeat)
 
         if self.show_bonds:
@@ -115,6 +119,8 @@ class StructureVisualization(HasTraits):
 
         if self.show_unitcell:
             self.plot_unit_cell(repeat=repeat)
+
+        self.scene.disable_render = False
 
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
@@ -187,16 +193,23 @@ class StructureVisualization(HasTraits):
                                      resolution=30,
                                      color=atomic_color)
 
+    def clear_density_plot(self):
+        if self.cp is not None:
+            pass
+
     def plot_density(self,ks_density):
         repeat = [self.n_x, self.n_y, self.n_z]
+
+        cur_view = self.scene.mlab.view()
+        cur_roll = self.scene.mlab.roll()
 
         dens = ks_density.density
         dens_plot = np.tile(dens,repeat)
         unit_cell = self.crystal_structure.lattice_vectors
-        cp = self.scene.mlab.contour3d(dens_plot, contours=10, transparent=True,
+        self.cp = self.scene.mlab.contour3d(dens_plot, contours=10, transparent=True,
                             opacity=0.5, colormap='hot')
         # Do some tvtk magic in order to allow for non-orthogonal unit cells:
-        polydata = cp.actor.actors[0].mapper.input
+        polydata = self.cp.actor.actors[0].mapper.input
         pts = np.array(polydata.points) - 1
         # Transform the points to the unit cell:
         larger_cell= np.zeros((3,3))
@@ -204,10 +217,11 @@ class StructureVisualization(HasTraits):
         larger_cell[1,:]=unit_cell[1,:]*repeat[1]
         larger_cell[2,:]=unit_cell[2,:]*repeat[2]
 
-
         polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
-        self.scene.mlab.view(distance='auto')
-
+        # self.scene.mlab.view(distance='auto')
+        self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2])
+        self.scene.mlab.roll(cur_roll)
+        self.density_plotted = ks_density
 
 
     # def bonds_to_paths(self,bonds):
