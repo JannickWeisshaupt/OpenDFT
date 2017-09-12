@@ -769,6 +769,87 @@ class MainWindow(QtGui.QMainWindow):
         event.ignore()
 
 
+class EditStructureWindow(QtGui.QDialog):
+    def __init__(self,parent):
+        super(EditStructureWindow, self).__init__(parent)
+        self.setFixedSize(650, 800)
+        self.parent = parent
+        self.crystal_structure = None
+
+        self.main_layout = QtGui.QHBoxLayout(self)
+        # self.structure_plot = MayaviQWidget(self.crystal_structure,parent=self)
+        # self.structure_plot.setFixedSize(650,750)
+        # self.main_layout.addWidget(self.structure_plot)
+
+        self.structure_widget = QtGui.QWidget(self)
+        self.main_layout.addWidget(self.structure_widget)
+
+        self.verticalLayout = QtGui.QVBoxLayout(self.structure_widget)
+        self.unit_cell_box = QtGui.QGroupBox(self.structure_widget)
+        self.unit_cell_box.setTitle('Unit Cell')
+        self.verticalLayout.addWidget(self.unit_cell_box)
+
+        self.atom_box = QtGui.QGroupBox(self.structure_widget)
+        self.atom_box.setTitle('Atoms')
+        self.verticalLayout.addWidget(self.atom_box)
+
+        self.atom_layout = QtGui.QVBoxLayout(self.atom_box)
+
+        self.atom_table = QtGui.QTableWidget(self.atom_box)
+        self.atom_table.setColumnCount(4)
+        self.atom_table.setRowCount(1)
+
+        item = QtGui.QTableWidgetItem()
+        self.atom_table.setHorizontalHeaderItem(0, item)
+        item = QtGui.QTableWidgetItem()
+        self.atom_table.setHorizontalHeaderItem(1, item)
+        item = QtGui.QTableWidgetItem()
+        self.atom_table.setHorizontalHeaderItem(2, item)
+        item = QtGui.QTableWidgetItem()
+        self.atom_table.setHorizontalHeaderItem(3, item)
+        # item = QtGui.QTableWidgetItem()
+
+        item = self.atom_table.horizontalHeaderItem(0)
+        item.setText("Species")
+        item = self.atom_table.horizontalHeaderItem(1)
+        item.setText("x")
+        item = self.atom_table.horizontalHeaderItem(2)
+        item.setText("y")
+        item = self.atom_table.horizontalHeaderItem(3)
+        item.setText("z")
+
+
+        self.atom_layout.addWidget(self.atom_table)
+        self.row_count = 1
+
+        item = self.atom_table.item(0,0)
+        self.add_row_button = QtGui.QPushButton(self.atom_table)
+        self.add_row_button.setText('+')
+        self.add_row_button.clicked.connect(self.add_row)
+
+        self.atom_table.setCellWidget(0, 0, self.add_row_button)
+
+
+    def set_structure(self,structure):
+        self.crystal_structure = structure
+
+
+    def update_fields(self):
+        pass
+
+    def add_row(self):
+        self.row_count += 1
+        self.atom_table.setRowCount(self.row_count)
+
+        self.add_row_button = QtGui.QPushButton(self.atom_table)
+        self.add_row_button.setText('+')
+        self.add_row_button.clicked.connect(self.add_row)
+        self.atom_table.setCellWidget(self.row_count-1,0,self.add_row_button)
+        item = QtGui.QTableWidget()
+        self.atom_table.setCellWidget(self.row_count-2,0,item)
+        item = self.atom_table.item(0, 0)
+        item.setText('5')
+
 class CentralWindow(QtGui.QWidget):
     def __init__(self,parent=None, *args, **kwargs):
         super(CentralWindow, self).__init__(*args, **kwargs)
@@ -801,6 +882,7 @@ class CentralWindow(QtGui.QWidget):
 
         self.engine_option_window = EngineOptionsDialog(self)
         self.ks_state_window = KsStateWindow(self)
+        self.structure_window = EditStructureWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -1022,6 +1104,16 @@ class CentralWindow(QtGui.QWidget):
         save_project_action.triggered.connect(self.save_results)
         self.file_menu.addAction(save_project_action)
 
+        new_structure_action = QtGui.QAction("New structure", self.window)
+        new_structure_action.setStatusTip('Make new structure by hand')
+        new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
+        self.file_menu.addAction(new_structure_action)
+
+        edit_structure_action = QtGui.QAction("Edit structure", self.window)
+        edit_structure_action.setStatusTip('Edit existing structure by hand')
+        edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
+        self.file_menu.addAction(edit_structure_action)
+
         open_structure_action = QtGui.QAction("Load structure", self.window)
         # open_structure_action.setShortcut("Ctrl+O")
         open_structure_action.setStatusTip('Load crystal structure')
@@ -1122,12 +1214,19 @@ class CentralWindow(QtGui.QWidget):
         self.ks_state_window.plot_widget.update_tree()
         self.ks_state_window.show( )
 
+    def open_structure_window(self,new=False):
+        if new:
+            self.structure_window.set_structure(None)
+        else:
+            self.structure_window.set_structure(self.crystal_structure)
+
+        self.structure_window.update_fields()
+        self.structure_window.show()
 
 if __name__ == "__main__":
     DEBUG = True
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-    main.open_state_vis_window()
-    QtCore.QTimer.singleShot(1500,main.ks_state_window.plot_widget.update_tree)
+    main.open_structure_window(new=True)
     app.exec_()
