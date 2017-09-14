@@ -1,8 +1,13 @@
 import numpy as np
 import re
 from visualization import cov_radii
+import periodictable as pt
 
 # from CifFile import ReadCif
+
+p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
+p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
+
 
 class CrystalStructure:
 

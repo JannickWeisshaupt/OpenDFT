@@ -8,11 +8,13 @@ os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list
 import solid_state_tools as sst
+from solid_state_tools import p_table,p_table_rev
 from exciting_handler import Handler as Handler
-from little_helpers import no_error_dictionary
+from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
 import pickle
 import time
 import threading
+
 
 try:
     import queue
@@ -21,6 +23,7 @@ except:
 
 esc_handler = Handler()
 event_queue = queue.Queue()
+
 
 
 
@@ -772,14 +775,12 @@ class MainWindow(QtGui.QMainWindow):
 class EditStructureWindow(QtGui.QDialog):
     def __init__(self,parent):
         super(EditStructureWindow, self).__init__(parent)
-        self.setFixedSize(650, 800)
+        self.setFixedSize(650, 700)
         self.parent = parent
         self.crystal_structure = None
+        self.number_of_atoms = 1
 
         self.main_layout = QtGui.QHBoxLayout(self)
-        # self.structure_plot = MayaviQWidget(self.crystal_structure,parent=self)
-        # self.structure_plot.setFixedSize(650,750)
-        # self.main_layout.addWidget(self.structure_plot)
 
         self.structure_widget = QtGui.QWidget(self)
         self.main_layout.addWidget(self.structure_widget)
@@ -789,6 +790,48 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_box.setTitle('Unit Cell')
         self.verticalLayout.addWidget(self.unit_cell_box)
 
+
+        self.unit_cell_layout = QtGui.QVBoxLayout(self.unit_cell_box)
+        self.unit_cell_layout.setAlignment(QtCore.Qt.AlignTop)
+
+        unit_cell_option_widget = QtGui.QWidget()
+        unit_cell_option_widget.setFixedHeight(50)
+        self.unit_cell_option_layout = QtGui.QHBoxLayout(unit_cell_option_widget)
+        self.unit_cell_layout.addWidget(unit_cell_option_widget)
+
+        self.scale_entry = EntryWithLabel(self,'Scale')
+        self.scale_entry.setFixedHeight(50)
+        self.unit_cell_layout.addWidget(self.scale_entry)
+        self.scale_entry.set_text('1.0')
+
+        self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
+        self.unit_cell_table.setColumnCount(3)
+        self.unit_cell_table.setRowCount(3)
+        self.unit_cell_table.setFixedWidth(318)
+        self.unit_cell_table.setFixedHeight(118)
+
+        copy_action_unit = CopySelectedCellsAction(self.unit_cell_table)
+        self.unit_cell_table.addAction(copy_action_unit)
+
+        self.unit_cell_layout.addWidget(self.unit_cell_table)
+
+        item = QtGui.QTableWidgetItem()
+        self.unit_cell_table.setHorizontalHeaderItem(0, item)
+        item.setText('x')
+
+        item = QtGui.QTableWidgetItem()
+        self.unit_cell_table.setHorizontalHeaderItem(1, item)
+        item.setText('y')
+
+        item = QtGui.QTableWidgetItem()
+        self.unit_cell_table.setHorizontalHeaderItem(2, item)
+        item.setText('z')
+
+        for i in range(3):
+            for j in range(3):
+                item = QtGui.QTableWidgetItem()
+                self.unit_cell_table.setItem(i,j,item)
+
         self.atom_box = QtGui.QGroupBox(self.structure_widget)
         self.atom_box.setTitle('Atoms')
         self.verticalLayout.addWidget(self.atom_box)
@@ -796,9 +839,39 @@ class EditStructureWindow(QtGui.QDialog):
         self.atom_layout = QtGui.QVBoxLayout(self.atom_box)
 
         self.atom_table = QtGui.QTableWidget(self.atom_box)
+        copy_action_atoms = CopySelectedCellsAction(self.atom_table)
+        self.atom_table.addAction(copy_action_atoms)
+        paste_action = PasteIntoTable(self.atom_table,self)
+        self.atom_table.addAction(paste_action)
+
         self.atom_table.setColumnCount(4)
         self.atom_table.setRowCount(1)
+        self.atom_table.setFixedWidth(418)
+        self.atom_table.setFixedHeight(300)
+        self.make_header()
+        self.atom_layout.addWidget(self.atom_table)
 
+        self.atom_table_buttons_widget = QtGui.QWidget(self)
+        self.atom_layout.addWidget(self.atom_table_buttons_widget)
+
+        self.atom_table_buttons_layout = QtGui.QHBoxLayout(self.atom_table_buttons_widget)
+        self.atom_table_buttons_layout.setAlignment(QtCore.Qt.AlignLeft)
+
+        self.add_atom_button = QtGui.QPushButton('Add atom',self)
+        self.add_atom_button.setFixedWidth(150)
+        self.add_atom_button.clicked.connect(self.add_atom)
+        self.atom_table_buttons_layout.addWidget(self.add_atom_button)
+
+        self.remove_atom_button = QtGui.QPushButton('Reomve atoms',self)
+        self.remove_atom_button.setFixedWidth(150)
+        self.remove_atom_button.clicked.connect(self.remove_atoms)
+        self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
+
+        self.atom_table.itemChanged.connect(self.handle_change)
+        self.unit_cell_table.itemChanged.connect(self.handle_change)
+
+
+    def make_header(self):
         item = QtGui.QTableWidgetItem()
         self.atom_table.setHorizontalHeaderItem(0, item)
         item = QtGui.QTableWidgetItem()
@@ -807,8 +880,6 @@ class EditStructureWindow(QtGui.QDialog):
         self.atom_table.setHorizontalHeaderItem(2, item)
         item = QtGui.QTableWidgetItem()
         self.atom_table.setHorizontalHeaderItem(3, item)
-        # item = QtGui.QTableWidgetItem()
-
         item = self.atom_table.horizontalHeaderItem(0)
         item.setText("Species")
         item = self.atom_table.horizontalHeaderItem(1)
@@ -818,37 +889,121 @@ class EditStructureWindow(QtGui.QDialog):
         item = self.atom_table.horizontalHeaderItem(3)
         item.setText("z")
 
-
-        self.atom_layout.addWidget(self.atom_table)
-        self.row_count = 1
-
-        item = self.atom_table.item(0,0)
-        self.add_row_button = QtGui.QPushButton(self.atom_table)
-        self.add_row_button.setText('+')
-        self.add_row_button.clicked.connect(self.add_row)
-
-        self.atom_table.setCellWidget(0, 0, self.add_row_button)
-
-
     def set_structure(self,structure):
         self.crystal_structure = structure
 
+    def clear_atom_table(self):
+        self.atom_table.clear()
+        self.make_header()
+
+    def disconnect_tables(self):
+        self.unit_cell_table.itemChanged.disconnect()
+        self.atom_table.itemChanged.disconnect()
+
+    def connect_tables(self):
+        self.unit_cell_table.itemChanged.connect(self.handle_change)
+        self.atom_table.itemChanged.connect(self.handle_change)
+
+    def add_atom(self):
+        self.disconnect_tables()
+
+        n_rows = self.atom_table.rowCount()
+        self.atom_table.setRowCount(n_rows+1)
+        for j in range(4):
+            item = QtGui.QTableWidgetItem()
+            self.atom_table.setItem(n_rows,j,item)
+        self.connect_tables()
+
+    def remove_atoms(self,atoms=None):
+        self.disconnect_tables()
+        if atoms is None:
+           atoms = sorted(set(index.row() for index in self.atom_table.selectedIndexes()))
+        for atom in atoms[::-1]:
+            self.atom_table.removeRow(atom)
+        self.connect_tables()
+        self.handle_change()
+
 
     def update_fields(self):
-        pass
+        self.disconnect_tables()
 
-    def add_row(self):
-        self.row_count += 1
-        self.atom_table.setRowCount(self.row_count)
+        try:
+            if self.crystal_structure is None:
+                self.set_number_of_atoms(6)
+                self.clear_atom_table()
+            else:
+                unit_cell = self.crystal_structure.lattice_vectors
+                for i in range(3):
+                    for j in range(3):
+                        self.unit_cell_table.item(i,j).setText("{0:1.5}".format(unit_cell[i,j]))
 
-        self.add_row_button = QtGui.QPushButton(self.atom_table)
-        self.add_row_button.setText('+')
-        self.add_row_button.clicked.connect(self.add_row)
-        self.atom_table.setCellWidget(self.row_count-1,0,self.add_row_button)
-        item = QtGui.QTableWidget()
-        self.atom_table.setCellWidget(self.row_count-2,0,item)
-        item = self.atom_table.item(0, 0)
-        item.setText('5')
+                n_atoms = self.crystal_structure.atoms.shape[0]
+                self.set_number_of_atoms(n_atoms)
+                for i,atom in enumerate(self.crystal_structure.atoms):
+                    coords = atom[0:3]
+                    for j,coord in enumerate(coords):
+                        item = self.atom_table.item(i,j+1)
+                        item.setText('{0:1.3f}'.format(coord))
+                    item = self.atom_table.item(i, 0)
+                    item.setText(p_table[atom[3]])
+        except Exception as e:
+            print(e)
+
+        self.connect_tables()
+
+
+    def set_number_of_atoms(self,N):
+        self.atom_table.setRowCount(N)
+        self.number_of_atoms = N
+        for i in range(N):
+            for j in range(4):
+                item = QtGui.QTableWidgetItem()
+                self.atom_table.setItem(i,j,item)
+
+    def read_tables(self):
+        unit_cell = np.zeros((3,3))
+        for i in range(3):
+            for j in range(3):
+                item = self.unit_cell_table.item(i,j)
+                unit_cell[i,j] = float(item.text())
+
+        try:
+            scale_string = self.scale_entry.get_text()
+            scale = float(scale_string)
+        except:
+            scale = 1.0
+        unit_cell = unit_cell*scale
+
+        n_rows = self.atom_table.rowCount()
+        atoms = np.zeros((n_rows,4))
+        for i in range(n_rows):
+            a_type = self.atom_table.item(i,0).text()
+            try:
+                a_type = int(a_type)
+                a_type_is_number = True
+            except:
+                a_type_is_number = False
+            if a_type not in p_table_rev.keys():
+                continue
+            coord = np.zeros((1,3))
+            for j in range(1,4):
+                try:
+                    coord[0,j-1] = float(self.atom_table.item(i,j).text())
+                except:
+                    continue
+            atoms[i,:3] = coord
+            if not a_type_is_number:
+                a_type = p_table_rev[a_type]
+            atoms[i,3] = a_type
+
+        atoms_clean = atoms[atoms[:,3]!=0,:]
+        return sst.CrystalStructure(unit_cell,atoms_clean)
+
+    def handle_change(self):
+        crystal_structure = self.read_tables()
+        main.mayavi_widget.update_crystal_structure(crystal_structure)
+        main.mayavi_widget.update_plot()
+
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self,parent=None, *args, **kwargs):
@@ -1228,5 +1383,7 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-    main.open_structure_window(new=True)
+
+    QtCore.QTimer.singleShot(1000,lambda: main.open_structure_window(new=False))
+
     app.exec_()
