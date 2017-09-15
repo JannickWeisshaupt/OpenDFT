@@ -43,10 +43,13 @@ for i in range(39,49):
 for i in range(71,80):
     colors[i] = (0,1,1)
 
-with open('./data/colormaps.dat') as f:
-    t = f.read()
-    t = t.replace("'",'')
-    s = t.split()
+try:
+    with open('./data/colormaps.dat') as f:
+        t = f.read()
+        t = t.replace("'",'')
+        s = t.split()
+except IOError:
+    s = ['hot','viridis','jet']
 
 colormap_list = sorted(s,key=str.lower)
 

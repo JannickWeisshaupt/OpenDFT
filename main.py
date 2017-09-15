@@ -810,8 +810,8 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_table.setFixedWidth(318)
         self.unit_cell_table.setFixedHeight(118)
 
-        copy_action_unit = CopySelectedCellsAction(self.unit_cell_table)
-        self.unit_cell_table.addAction(copy_action_unit)
+        # copy_action_unit = CopySelectedCellsAction(self.unit_cell_table)
+        # self.unit_cell_table.addAction(copy_action_unit)
 
         self.unit_cell_layout.addWidget(self.unit_cell_table)
 
