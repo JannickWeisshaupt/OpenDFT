@@ -773,10 +773,14 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class EditStructureWindow(QtGui.QDialog):
+    "TODO: Clean unit cell correctly for new structure. Make the buttons to really set the structure"
     def __init__(self,parent):
         super(EditStructureWindow, self).__init__(parent)
+        self.setWindowTitle('Edit Structure')
         self.setFixedSize(650, 700)
         self.parent = parent
+
+
         self.crystal_structure = None
         self.number_of_atoms = 1
 
@@ -794,14 +798,14 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_layout = QtGui.QVBoxLayout(self.unit_cell_box)
         self.unit_cell_layout.setAlignment(QtCore.Qt.AlignTop)
 
-        unit_cell_option_widget = QtGui.QWidget()
+        unit_cell_option_widget = QtGui.QWidget(self.unit_cell_box)
         unit_cell_option_widget.setFixedHeight(50)
         self.unit_cell_option_layout = QtGui.QHBoxLayout(unit_cell_option_widget)
         self.unit_cell_layout.addWidget(unit_cell_option_widget)
 
         self.scale_entry = EntryWithLabel(self,'Scale')
         self.scale_entry.setFixedHeight(50)
-        self.unit_cell_layout.addWidget(self.scale_entry)
+        self.unit_cell_option_layout.addWidget(self.scale_entry)
         self.scale_entry.set_text('1.0')
 
         self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
@@ -867,9 +871,31 @@ class EditStructureWindow(QtGui.QDialog):
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
 
+        self.buttonBox = QtGui.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok|QtGui.QDialogButtonBox.Apply)
+        self.verticalLayout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Apply).clicked.connect(self.apply)
+
         self.atom_table.itemChanged.connect(self.handle_change)
         self.unit_cell_table.itemChanged.connect(self.handle_change)
 
+    def apply(self):
+        crystal_structure = self.read_tables()
+        main.crystal_structure = crystal_structure
+        self.handle_change()
+
+    def accept(self):
+        self.apply()
+        super(EditStructureWindow, self).accept()
+
+    def reject(self):
+        main.mayavi_widget.update_crystal_structure(main.crystal_structure)
+        main.mayavi_widget.update_plot()
+        super(EditStructureWindow, self).reject()
 
     def make_header(self):
         item = QtGui.QTableWidgetItem()
@@ -897,8 +923,11 @@ class EditStructureWindow(QtGui.QDialog):
         self.make_header()
 
     def disconnect_tables(self):
-        self.unit_cell_table.itemChanged.disconnect()
-        self.atom_table.itemChanged.disconnect()
+        try:
+            self.unit_cell_table.itemChanged.disconnect()
+            self.atom_table.itemChanged.disconnect()
+        except Exception as e:
+            print(e)
 
     def connect_tables(self):
         self.unit_cell_table.itemChanged.connect(self.handle_change)
@@ -926,11 +955,11 @@ class EditStructureWindow(QtGui.QDialog):
 
     def update_fields(self):
         self.disconnect_tables()
-
+        self.scale_entry.set_text('1.0')
         try:
             if self.crystal_structure is None:
-                self.set_number_of_atoms(6)
                 self.clear_atom_table()
+                self.set_number_of_atoms(6)
             else:
                 unit_cell = self.crystal_structure.lattice_vectors
                 for i in range(3):
@@ -950,7 +979,6 @@ class EditStructureWindow(QtGui.QDialog):
             print(e)
 
         self.connect_tables()
-
 
     def set_number_of_atoms(self,N):
         self.atom_table.setRowCount(N)
@@ -986,11 +1014,15 @@ class EditStructureWindow(QtGui.QDialog):
             if a_type not in p_table_rev.keys():
                 continue
             coord = np.zeros((1,3))
+            skip_bool = False
             for j in range(1,4):
                 try:
                     coord[0,j-1] = float(self.atom_table.item(i,j).text())
                 except:
-                    continue
+                    skip_bool = True
+                    break
+            if skip_bool:
+                continue
             atoms[i,:3] = coord
             if not a_type_is_number:
                 a_type = p_table_rev[a_type]
@@ -1259,6 +1291,8 @@ class CentralWindow(QtGui.QWidget):
         save_project_action.triggered.connect(self.save_results)
         self.file_menu.addAction(save_project_action)
 
+        self.file_menu.addSeparator()
+
         new_structure_action = QtGui.QAction("New structure", self.window)
         new_structure_action.setStatusTip('Make new structure by hand')
         new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
@@ -1269,11 +1303,14 @@ class CentralWindow(QtGui.QWidget):
         edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
         self.file_menu.addAction(edit_structure_action)
 
-        open_structure_action = QtGui.QAction("Load structure", self.window)
-        # open_structure_action.setShortcut("Ctrl+O")
-        open_structure_action.setStatusTip('Load crystal structure')
+        import_structure_menu = self.file_menu.addMenu('Import structure from')
+
+        open_structure_action = QtGui.QAction("exciting xml", self.window)
+        open_structure_action.setStatusTip('Load crystal structure from exciting xml')
         open_structure_action.triggered.connect(self.load_crystal_structure)
-        self.file_menu.addAction(open_structure_action)
+        import_structure_menu.addAction(open_structure_action)
+
+        self.file_menu.addSeparator()
 
         close_app_action = QtGui.QAction("Exit", self.window)
         close_app_action.setShortcut("Ctrl+Q")
