@@ -964,7 +964,7 @@ class EditStructureWindow(QtGui.QDialog):
                 unit_cell = self.crystal_structure.lattice_vectors
                 for i in range(3):
                     for j in range(3):
-                        self.unit_cell_table.item(i,j).setText("{0:1.5}".format(unit_cell[i,j]))
+                        self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]))
 
                 n_atoms = self.crystal_structure.atoms.shape[0]
                 self.set_number_of_atoms(n_atoms)
@@ -972,7 +972,7 @@ class EditStructureWindow(QtGui.QDialog):
                     coords = atom[0:3]
                     for j,coord in enumerate(coords):
                         item = self.atom_table.item(i,j+1)
-                        item.setText('{0:1.3f}'.format(coord))
+                        item.setText('{0:1.6f}'.format(coord))
                     item = self.atom_table.item(i, 0)
                     item.setText(p_table[atom[3]])
         except Exception as e:
