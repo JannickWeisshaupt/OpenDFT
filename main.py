@@ -1096,9 +1096,9 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond"
+                project_directory = r"/home/jannick/OpenDFT_projects/LiBH4"
             else:
-                project_directory = r'D:\OpenDFT_projects\test\\'
+                project_directory = r'D:\OpenDFT_projects\LiBH4'
             # self.load_saved_results()
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
 
@@ -1255,9 +1255,13 @@ class CentralWindow(QtGui.QWidget):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
         self.mayavi_widget.update_plot()
 
-    def load_crystal_structure(self):
+    def load_crystal_structure(self,filetype):
         file_dialog = QtGui.QFileDialog()
-        file_dialog.setNameFilters(["Exciting (*.xml)", "All (*.*)"])
+
+        if filetype == 'exciting xml':
+            file_dialog.setNameFilters(["Exciting (*.xml)", "All (*.*)"])
+        elif filetype == 'cif':
+            file_dialog.setNameFilters(["Cif (*.cif)", "All (*.*)"])
 
         if file_dialog.exec_():
             file_name = file_dialog.selectedFiles()
@@ -1265,7 +1269,13 @@ class CentralWindow(QtGui.QWidget):
                 file_name = file_name[0]
             if len(file_name) == 0:
                 return
-            self.crystal_structure = esc_handler.parse_input_file(file_name)
+
+            if filetype == 'exciting xml':
+                self.crystal_structure = esc_handler.parse_input_file(file_name)
+            elif filetype == 'cif':
+                parser = sst.StructureParser()
+                self.crystal_structure = parser.parse_cif_file(file_name)
+
             self.update_structure_plot()
 
     def make_menu_bar(self):
@@ -1305,10 +1315,15 @@ class CentralWindow(QtGui.QWidget):
 
         import_structure_menu = self.file_menu.addMenu('Import structure from')
 
-        open_structure_action = QtGui.QAction("exciting xml", self.window)
-        open_structure_action.setStatusTip('Load crystal structure from exciting xml')
-        open_structure_action.triggered.connect(self.load_crystal_structure)
-        import_structure_menu.addAction(open_structure_action)
+        open_structure_action_exciting = QtGui.QAction("exciting xml", self.window)
+        open_structure_action_exciting.setStatusTip('Load crystal structure from exciting xml')
+        open_structure_action_exciting.triggered.connect(lambda: self.load_crystal_structure('exciting xml'))
+        import_structure_menu.addAction(open_structure_action_exciting)
+
+        open_structure_action_cif = QtGui.QAction("cif", self.window)
+        open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
+        open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
+        import_structure_menu.addAction(open_structure_action_cif)
 
         self.file_menu.addSeparator()
 
@@ -1420,7 +1435,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-
-    QtCore.QTimer.singleShot(1000,lambda: main.open_structure_window(new=False))
 
     app.exec_()
