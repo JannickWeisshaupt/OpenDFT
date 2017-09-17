@@ -811,8 +811,8 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
         self.unit_cell_table.setRowCount(3)
-        self.unit_cell_table.setFixedWidth(318)
-        self.unit_cell_table.setFixedHeight(118)
+        self.unit_cell_table.setFixedWidth(328)
+        self.unit_cell_table.setFixedHeight(128)
 
         # copy_action_unit = CopySelectedCellsAction(self.unit_cell_table)
         # self.unit_cell_table.addAction(copy_action_unit)
@@ -850,7 +850,7 @@ class EditStructureWindow(QtGui.QDialog):
 
         self.atom_table.setColumnCount(4)
         self.atom_table.setRowCount(1)
-        self.atom_table.setFixedWidth(418)
+        self.atom_table.setFixedWidth(450)
         self.atom_table.setFixedHeight(300)
         self.make_header()
         self.atom_layout.addWidget(self.atom_table)
@@ -866,7 +866,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.add_atom_button.clicked.connect(self.add_atom)
         self.atom_table_buttons_layout.addWidget(self.add_atom_button)
 
-        self.remove_atom_button = QtGui.QPushButton('Reomve atoms',self)
+        self.remove_atom_button = QtGui.QPushButton('Remove atoms',self)
         self.remove_atom_button.setFixedWidth(150)
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
@@ -879,6 +879,15 @@ class EditStructureWindow(QtGui.QDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonBox.button(QtGui.QDialogButtonBox.Apply).clicked.connect(self.apply)
+
+        header = self.atom_table.horizontalHeader()
+        header.setResizeMode(0, QtGui.QHeaderView.ResizeToContents)
+        header.setResizeMode(1, QtGui.QHeaderView.Stretch)
+        header.setResizeMode(2, QtGui.QHeaderView.Stretch)
+        header.setResizeMode(3, QtGui.QHeaderView.Stretch)
+
+        self.unit_cell_table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.unit_cell_table.verticalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
 
         self.atom_table.itemChanged.connect(self.handle_change)
         self.unit_cell_table.itemChanged.connect(self.handle_change)

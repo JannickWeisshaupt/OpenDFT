@@ -101,9 +101,8 @@ class StructureParser:
 
         unit_vectors = np.array(calculate_lattice_vectors_from_parameters(params))
 
-        atom_lines = find_lines_between(cif_text,'_atom_site_refinement_flags','loop_')
-        if len(atom_lines) == 0:
-            atom_lines = find_lines_between(cif_text, '_atom_site_U_iso_or_equiv', 'loop_')
+
+        atom_lines,start_of_frac = self.find_atom_lines(cif_text)
 
         n_atoms = len(atom_lines)
         atom_array = np.zeros((n_atoms,4))
@@ -112,18 +111,28 @@ class StructureParser:
             atom_l = atom_line.split()
             species = atom_l[0]
             species = self.remove_numbers_from_string(species)
+            species = species.title()
 
-            x = atom_l[2].split('(')[0]
-            y = atom_l[3].split('(')[0]
-            z = atom_l[4].split('(')[0]
+            x = atom_l[start_of_frac].split('(')[0]
+            y = atom_l[start_of_frac+1].split('(')[0]
+            z = atom_l[start_of_frac+2].split('(')[0]
             atom_array[i,:] = np.array([x,y,z,p_table_rev[species]])
 
+
+        atom_array = atom_array[atom_array[:,3]!=0,:]
         sym_lines = find_lines_between(cif_text,'_symmetry_equiv_pos_as_xyz','loop_')
         n_sym = len(sym_lines)
         sym_atom_array = np.zeros((n_atoms*n_sym,4))
 
         counter = 0
+        if sym_lines[0][0].isdigit():
+            sym_enumeration = True
+        else:
+            sym_enumeration = False
+
         for sym_line in sym_lines:
+            if sym_enumeration:
+                sym_line = self.remove_counter(sym_line)
             sym = sym_line.replace("'",'').split(',')
             for i in range(n_atoms):
                 pos = atom_array[i,:3]
@@ -134,7 +143,8 @@ class StructureParser:
                 counter +=1
 
         atom_array_finally = self.remove_duplicates_old(sym_atom_array)
-        return CrystalStructure(unit_vectors,atom_array_finally)
+        atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:,3]),:]
+        return CrystalStructure(unit_vectors,atom_array_finally_sorted)
 
 
     def remove_duplicates_old(self, data, treshold=0.01):
@@ -164,6 +174,34 @@ class StructureParser:
 
     def remove_numbers_from_string(self,x):
         return ''.join([i for i in x if not i.isdigit()])
+
+    def remove_counter(self,x):
+        for i,el in enumerate(x):
+            if el != ' ' and (not el.isdigit()):
+                break
+        return x[i:]
+
+    def find_atom_lines(self,text):
+        text_lines = text.split('\n')
+        for i,line in enumerate(text_lines):
+            if line == '_atom_site_fract_x':
+                line_of_x = i
+                break
+        for i in range(1,line_of_x):
+            back_line = text_lines[line_of_x-i]
+            if back_line[0] != '_':
+                start_of_block = line_of_x-i+1
+                break
+        number_of_other_lines = line_of_x - start_of_block
+        atom_lines = []
+        for line in text_lines[line_of_x:]:
+            if len(line)==0 or line == 'loop_':
+                break
+            if line[0] == '_':
+                continue
+            else:
+                atom_lines.append(line)
+        return atom_lines,number_of_other_lines
 
 class KohnShamDensity:
     def __init__(self,density):

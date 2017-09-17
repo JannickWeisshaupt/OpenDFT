@@ -1,0 +1,5 @@
+exciting: Done
+nwchem: Missing (installed)
+quantum espresso: Missing (installed)
+Siesta: Missing (not installed)
+Abinit: Missing (installed)
