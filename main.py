@@ -779,7 +779,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.setWindowTitle('Edit Structure')
         self.setFixedSize(650, 700)
         self.parent = parent
-
+        self.anything_changed = False
 
         self.crystal_structure = None
         self.number_of_atoms = 1
@@ -893,17 +893,20 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_table.itemChanged.connect(self.handle_change)
 
     def apply(self):
-        crystal_structure = self.read_tables()
-        main.crystal_structure = crystal_structure
-        self.handle_change()
+        if self.anything_changed:
+            crystal_structure = self.read_tables()
+            main.crystal_structure = crystal_structure
+            # self.handle_change() # Probably unnecessary
+            # self.handle_change() # Probably unnecessary
 
     def accept(self):
         self.apply()
         super(EditStructureWindow, self).accept()
 
     def reject(self):
-        main.mayavi_widget.update_crystal_structure(main.crystal_structure)
-        main.mayavi_widget.update_plot()
+        if self.anything_changed:
+            main.mayavi_widget.update_crystal_structure(main.crystal_structure)
+            main.mayavi_widget.update_plot()
         super(EditStructureWindow, self).reject()
 
     def make_header(self):
@@ -1041,6 +1044,7 @@ class EditStructureWindow(QtGui.QDialog):
         return sst.CrystalStructure(unit_cell,atoms_clean)
 
     def handle_change(self):
+        self.anything_changed = True
         crystal_structure = self.read_tables()
         main.mayavi_widget.update_crystal_structure(crystal_structure)
         main.mayavi_widget.update_plot()
@@ -1264,6 +1268,9 @@ class CentralWindow(QtGui.QWidget):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
         self.mayavi_widget.update_plot()
 
+        # t = MyQThread(self.mayavi_widget.update_plot)
+        # t.start()
+
     def load_crystal_structure(self,filetype):
         file_dialog = QtGui.QFileDialog()
 
@@ -1313,11 +1320,13 @@ class CentralWindow(QtGui.QWidget):
         self.file_menu.addSeparator()
 
         new_structure_action = QtGui.QAction("New structure", self.window)
+        new_structure_action.setShortcut('Ctrl+Shift+n')
         new_structure_action.setStatusTip('Make new structure by hand')
         new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
         self.file_menu.addAction(new_structure_action)
 
         edit_structure_action = QtGui.QAction("Edit structure", self.window)
+        edit_structure_action.setShortcut('Ctrl+Shift+e')
         edit_structure_action.setStatusTip('Edit existing structure by hand')
         edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
         self.file_menu.addAction(edit_structure_action)
@@ -1330,6 +1339,7 @@ class CentralWindow(QtGui.QWidget):
         import_structure_menu.addAction(open_structure_action_exciting)
 
         open_structure_action_cif = QtGui.QAction("cif", self.window)
+        open_structure_action_cif.setShortcut('Ctrl+Shift+c')
         open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
         import_structure_menu.addAction(open_structure_action_cif)
@@ -1436,6 +1446,7 @@ class CentralWindow(QtGui.QWidget):
         else:
             self.structure_window.set_structure(self.crystal_structure)
 
+        self.structure_window.anything_changed = False
         self.structure_window.update_fields()
         self.structure_window.show()
 
