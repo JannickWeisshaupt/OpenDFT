@@ -173,10 +173,13 @@ class StructureParser:
         return np.array([xn,yn,zn])
 
     def remove_numbers_from_string(self,x):
+        new_string = ''
         for i,el in enumerate(x):
             if not el.isalpha():
                 break
-        return x[:i]
+            else:
+                new_string += el
+        return new_string
 
     def remove_counter(self,x):
         for i,el in enumerate(x):

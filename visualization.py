@@ -9,6 +9,7 @@ from traitsui.api import View, Item, Group
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
     SceneEditor
 
+from mayavi.core.api import Engine
 import copy
 import numpy as np
 import matplotlib as mpl
@@ -100,6 +101,7 @@ class StructureVisualization(HasTraits):
                      height=450, width=500, show_label=False),Group('_', 'n_x', 'n_y', 'n_z','show_unitcell','show_bonds','show_atoms',orientation='horizontal'),
                 resizable=True, # We need this to resize with the parent widget
                 )
+
     scene = Instance(MlabSceneModel, ())
 
     def __init__(self, crystal_structure):
@@ -199,8 +201,6 @@ class StructureVisualization(HasTraits):
         species = set(abs_coord_atoms[:,3].astype(np.int))
         n_species = len(species)
         n_atoms = abs_coord_atoms.shape[0]
-
-
 
         for specie in species:
             species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
