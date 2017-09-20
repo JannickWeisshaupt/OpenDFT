@@ -174,7 +174,7 @@ Default: 	GGA_PBE"""
                 atomic_cord_list.append(pos_vec)
 
         atom_array = np.array(atomic_cord_list)
-        crystal_structure = sst.CrystalStructure(crystal_base, atom_array)
+        crystal_structure = sst.CrystalStructure(crystal_base, atom_array,scale=scale)
         return crystal_structure
 
     def make_tree(self):
