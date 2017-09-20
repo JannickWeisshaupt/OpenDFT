@@ -574,10 +574,16 @@ Default: 	GGA_PBE"""
         self.helper_process = subprocess.call(command,shell=True)
 
     def load_ks_state(self):
-        #todo check order of loading of wavefunction
         self.convert_3d_plot()
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
-        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
+        n_grid = l_data.shape[1]
+        # data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
+        data = np.zeros((n_grid,n_grid,n_grid))
+        for i in range(n_grid):
+            for j in range(n_grid):
+                for k in range(n_grid):
+                    data[i,k,j] = l_data[n_grid*j+k,i]
+            # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
         data = data/data.max()
         return sst.KohnShamDensity(data)
 

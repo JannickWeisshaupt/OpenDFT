@@ -230,9 +230,17 @@ class StructureVisualization(HasTraits):
         dens = ks_density.density
         dens_plot = np.tile(dens,repeat)
         unit_cell = self.crystal_structure.lattice_vectors
+
+        if type(contours) == int:
+            color = None
+        elif len(contours)>1:
+            color = None
+        else:
+            color = (1.0,1.0,0.2)
         self.cp = self.scene.mlab.contour3d(dens_plot, contours=contours, transparent=transparent,
-                            opacity=opacity, colormap=colormap)
+                            opacity=opacity, colormap=colormap,color=color)
         # Do some tvtk magic in order to allow for non-orthogonal unit cells:
+
         polydata = self.cp.actor.actors[0].mapper.input
         pts = np.array(polydata.points) - 1
         # Transform the points to the unit cell:
@@ -242,6 +250,7 @@ class StructureVisualization(HasTraits):
         larger_cell[2,:]=unit_cell[2,:]*repeat[2]
 
         polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
+
         # self.scene.mlab.view(distance='auto')
         self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])
         self.scene.mlab.roll(cur_roll)

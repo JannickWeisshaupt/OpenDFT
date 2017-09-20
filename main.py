@@ -1124,8 +1124,8 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/OpenDFT_projects/LiBH4"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                # project_directory = r"/home/jannick/OpenDFT_projects/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
