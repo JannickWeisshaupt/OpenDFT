@@ -930,9 +930,12 @@ class EditStructureWindow(QtGui.QDialog):
     def set_structure(self,structure):
         self.crystal_structure = structure
 
+    def clear_unit_cell_table(self):
+        self.unit_cell_table.clearContents()
+
     def clear_atom_table(self):
-        self.atom_table.clear()
-        self.make_header()
+        self.atom_table.clearContents()
+        # self.make_header()
 
     def disconnect_tables(self):
         try:
@@ -971,6 +974,7 @@ class EditStructureWindow(QtGui.QDialog):
         try:
             if self.crystal_structure is None:
                 self.clear_atom_table()
+                self.clear_unit_cell_table()
                 self.set_number_of_atoms(6)
             else:
                 unit_cell = self.crystal_structure.lattice_vectors

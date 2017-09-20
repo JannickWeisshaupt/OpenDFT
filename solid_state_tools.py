@@ -3,7 +3,7 @@ import numpy as np
 import re
 from visualization import cov_radii
 import periodictable as pt
-
+import sys
 
 # from CifFile import ReadCif
 
@@ -164,12 +164,21 @@ class StructureParser:
         y = pos[1]
         z = pos[2]
 
-        exec('xn = '+sym[0])
-        exec('yn = '+sym[1])
-        exec('zn = '+sym[2])
-        xn = xn%1
-        yn = yn%1
-        zn = zn%1
+        if sys.version_info[0]==2:
+            exec('xn = ' + sym[0])
+            exec('yn = ' + sym[1])
+            exec('zn = ' + sym[2])
+            xn = xn % 1
+            yn = yn % 1
+            zn = zn % 1
+        elif sys.version_info[0]>2:
+            namespace = {'x':x,'y':y,'z':z}
+            exec('xn = ' + sym[0],namespace)
+            exec('yn = ' + sym[1],namespace)
+            exec('zn = ' + sym[2],namespace)
+            xn = namespace["xn"] % 1
+            yn = namespace["yn"] % 1
+            zn = namespace["zn"] % 1
         return np.array([xn,yn,zn])
 
     def remove_numbers_from_string(self,x):
