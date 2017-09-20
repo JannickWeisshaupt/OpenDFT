@@ -3,7 +3,7 @@ import numpy as np
 import re
 from visualization import cov_radii
 import periodictable as pt
-
+import sys
 
 # from CifFile import ReadCif
 
@@ -14,10 +14,11 @@ bohr = 0.52917721067
 
 class CrystalStructure:
 
-    def __init__(self,lattice_vectors,atoms,relative_coords=True):
+    def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
         self.lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
         self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
         self.n_atoms = atoms.shape[0]
+        self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
         if relative_coords:
             self.atoms[:,:3] = np.mod(self.atoms[:,:3],1)
@@ -144,7 +145,7 @@ class StructureParser:
 
         atom_array_finally = self.remove_duplicates_old(sym_atom_array)
         atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:,3]),:]
-        return CrystalStructure(unit_vectors,atom_array_finally_sorted)
+        return CrystalStructure(unit_vectors,atom_array_finally_sorted,scale=a)
 
 
     def remove_duplicates_old(self, data, treshold=0.01):
@@ -163,13 +164,13 @@ class StructureParser:
         x = pos[0]
         y = pos[1]
         z = pos[2]
-
-        exec('xn = '+sym[0])
-        exec('yn = '+sym[1])
-        exec('zn = '+sym[2])
-        xn = xn%1
-        yn = yn%1
-        zn = zn%1
+        namespace = {'x':x,'y':y,'z':z}
+        exec('xn = ' + sym[0],namespace)
+        exec('yn = ' + sym[1],namespace)
+        exec('zn = ' + sym[2],namespace)
+        xn = namespace["xn"] % 1
+        yn = namespace["yn"] % 1
+        zn = namespace["zn"] % 1
         return np.array([xn,yn,zn])
 
     def remove_numbers_from_string(self,x):

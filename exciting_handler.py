@@ -128,7 +128,7 @@ Default: 	GGA_PBE"""
 
 
     def find_exciting_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
@@ -174,7 +174,7 @@ Default: 	GGA_PBE"""
                 atomic_cord_list.append(pos_vec)
 
         atom_array = np.array(atomic_cord_list)
-        crystal_structure = sst.CrystalStructure(crystal_base, atom_array)
+        crystal_structure = sst.CrystalStructure(crystal_base, atom_array,scale=scale)
         return crystal_structure
 
     def make_tree(self):
@@ -574,10 +574,10 @@ Default: 	GGA_PBE"""
         self.helper_process = subprocess.call(command,shell=True)
 
     def load_ks_state(self):
-        "TODO check order"
+        #todo check order of loading of wavefunction
         self.convert_3d_plot()
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
-        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='F')
+        data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
         data = data/data.max()
         return sst.KohnShamDensity(data)
 
