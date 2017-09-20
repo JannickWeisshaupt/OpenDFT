@@ -978,7 +978,6 @@ class EditStructureWindow(QtGui.QDialog):
         self.connect_tables()
         self.handle_change()
 
-
     def update_fields(self):
         self.disconnect_tables()
         self.scale_entry.set_text('1.0')
@@ -1184,7 +1183,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
 
-    def load_project(self,*args,folder_name=None):
+    def load_project(self,folder_name=None,*args):
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
         if len(folder_name) > 1:

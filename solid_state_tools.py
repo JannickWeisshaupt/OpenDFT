@@ -92,12 +92,13 @@ class StructureParser:
     def parse_cif_file(self,filename):
         with open(filename, 'r') as f:
             cif_text = f.read()
+        cif_text = cif_text.replace('\r','')
         alpha = float(re.findall(r"_cell_angle_alpha[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         beta = float(re.findall(r"_cell_angle_beta[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         gamma = float(re.findall(r"_cell_angle_gamma[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
-        a = float(re.findall(r"_cell_length_a [\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
-        b = float(re.findall(r"_cell_length_b [\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
-        c = float(re.findall(r"_cell_length_c [\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
+        a = float(re.findall(r"_cell_length_a[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
+        b = float(re.findall(r"_cell_length_b[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
+        c = float(re.findall(r"_cell_length_c[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
         params = [a,b,c,alpha,beta,gamma]
 
         unit_vectors = np.array(calculate_lattice_vectors_from_parameters(params))
@@ -121,7 +122,8 @@ class StructureParser:
 
 
         atom_array = atom_array[atom_array[:,3]!=0,:]
-        sym_lines = find_lines_between(cif_text,'_symmetry_equiv_pos_as_xyz','loop_')
+        sym_lines = find_lines_between(cif_text,'_symmetry_equiv_pos_as_xyz','loop_',strip=True)
+        sym_lines = self.remove_cif_attributes(sym_lines)
         n_sym = len(sym_lines)
         sym_atom_array = np.zeros((n_atoms*n_sym,4))
 
@@ -184,12 +186,13 @@ class StructureParser:
 
     def remove_counter(self,x):
         for i,el in enumerate(x):
-            if el != ' ' and (not el.isdigit()):
+            if not el.isdigit():
                 break
         return x[i:]
 
     def find_atom_lines(self,text):
         text_lines = text.split('\n')
+        text_lines = [x.strip() for x in text_lines]
         for i,line in enumerate(text_lines):
             if line == '_atom_site_fract_x':
                 line_of_x = i
@@ -210,6 +213,15 @@ class StructureParser:
                 atom_lines.append(line)
         return atom_lines,number_of_other_lines
 
+    def remove_cif_attributes(self,text):
+        res = []
+        for line in text:
+            if line[0] == '_':
+                break
+            else:
+                res.append(line)
+        return res
+
 class KohnShamDensity:
     def __init__(self,density):
         self.density = density
@@ -228,10 +240,12 @@ def calculate_lattice_vectors_from_parameters(parameters):
     a3 = c * np.array([x, y, z])
     return a1, a2, a3
 
-def find_lines_between(text,a,b):
+def find_lines_between(text,a,b,strip=False):
     reading = False
     atom_lines = []
     for line in text.split('\n'):
+        if strip:
+            line = line.strip()
         if line == a:
             reading = True
             continue
@@ -240,6 +254,7 @@ def find_lines_between(text,a,b):
         if reading and len(line)>0:
             atom_lines.append(line)
     return atom_lines
+
 
 if __name__ == "__main__":
     # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
