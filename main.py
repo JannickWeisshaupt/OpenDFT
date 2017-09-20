@@ -61,6 +61,7 @@ class EntryWithLabel(QtGui.QWidget):
         self.layout.setAlignment(QtCore.Qt.AlignLeft)
         self.layout.addWidget(self.label_widget)
         self.layout.addWidget(self.textbox)
+        self.editFinished_command = None
 
         if value is not None:
             self.textbox.setText(value)
@@ -70,6 +71,15 @@ class EntryWithLabel(QtGui.QWidget):
 
     def set_text(self,text):
         self.textbox.setText(text)
+
+    def connect_editFinished(self,command):
+        self.editFinished_command = command
+        self.textbox.editingFinished.connect(self.handleEditingFinished)
+
+    def handleEditingFinished(self):
+        if self.textbox.isModified():
+            self.editFinished_command()
+        self.textbox.setModified(False)
 
 
 class OptionFrame(QtGui.QGroupBox):
@@ -807,6 +817,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.scale_entry.setFixedHeight(50)
         self.unit_cell_option_layout.addWidget(self.scale_entry)
         self.scale_entry.set_text('1.0')
+        self.scale_entry.connect_editFinished(self.handle_change)
 
         self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
@@ -978,9 +989,11 @@ class EditStructureWindow(QtGui.QDialog):
                 self.set_number_of_atoms(6)
             else:
                 unit_cell = self.crystal_structure.lattice_vectors
+                scale = self.crystal_structure.scale
+                self.scale_entry.set_text('{0:1.6f}'.format(scale))
                 for i in range(3):
                     for j in range(3):
-                        self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]))
+                        self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]/scale))
 
                 n_atoms = self.crystal_structure.atoms.shape[0]
                 self.set_number_of_atoms(n_atoms)
@@ -1045,7 +1058,7 @@ class EditStructureWindow(QtGui.QDialog):
             atoms[i,3] = a_type
 
         atoms_clean = atoms[atoms[:,3]!=0,:]
-        return sst.CrystalStructure(unit_cell,atoms_clean)
+        return sst.CrystalStructure(unit_cell,atoms_clean, scale=scale)
 
     def handle_change(self):
         self.anything_changed = True
