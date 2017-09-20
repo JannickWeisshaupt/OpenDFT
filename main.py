@@ -1183,7 +1183,8 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
 
-    def load_project(self,folder_name=None,*args):
+    def load_project(self,*args,**kwargs):
+        folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
         if len(folder_name) > 1:
