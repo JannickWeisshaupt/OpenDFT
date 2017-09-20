@@ -1111,7 +1111,7 @@ class CentralWindow(QtGui.QWidget):
                 # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
                 project_directory = r"/home/jannick/OpenDFT_projects/LiBH4"
             else:
-                project_directory = r'D:\OpenDFT_projects\LiBH4'
+                project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
 
@@ -1167,7 +1167,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
 
-    def load_project(self,folder_name=None):
+    def load_project(self,*args,folder_name=None):
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
         if len(folder_name) > 1:

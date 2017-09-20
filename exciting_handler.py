@@ -128,7 +128,7 @@ Default: 	GGA_PBE"""
 
 
     def find_exciting_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
