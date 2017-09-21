@@ -3,16 +3,13 @@ import solid_state_tools as sst
 import xml.etree.ElementTree as ET
 import xml
 from xml.dom import minidom
-import subprocess
 import periodictable as pt
 import subprocess
 import os
 import time
-import matplotlib.pyplot as plt
 import re
 import threading
 
-plt.ion()
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
@@ -34,20 +31,20 @@ class Handler:
     def __init__(self):
         self.engine_name = 'exciting'
         self.default_extension = '.xml'
-        self.engine_command = ["excitingser"]
-        self.working_dirctory = '/exciting_files/'
+        self._engine_command = ["excitingser"]
+        self._working_dirctory = '/exciting_files/'
         self.engine_process = None
-        self.info_file = 'INFO.OUT'
-        self.filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
+        self._info_file = 'INFO.OUT'
+        self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
                            'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
 
-        self.timestamp_tasks = {}
+        self._timestamp_tasks = {}
 
         self.project_directory = None
-        self.input_filename = 'input.xml'
+        self._input_filename = 'input.xml'
         self.custom_command = ''
         self.custom_command_active = False
-        self.exciting_folder = self.find_exciting_folder()
+        self.exciting_folder = self.find_engine_folder()
         self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
         self.scf_options_tooltip = {'do':r'Decides if the ground state is calculated starting from scratch, '
                                          'using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.'}
@@ -126,8 +123,7 @@ Default: 	GGA_PBE"""
 
         self.relax_file_timestamp = None
 
-
-    def find_exciting_folder(self):
+    def find_engine_folder(self):
         p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
         res, err = p.communicate()
         res = res.decode()
@@ -156,7 +152,7 @@ Default: 	GGA_PBE"""
         crystal_base = np.zeros((3, 3))
 
         for i, basevec in enumerate(basevecs):
-            coords = np.array(self.split_and_remove_whitespace(basevec.text))
+            coords = np.array(self._split_and_remove_whitespace(basevec.text))
             crystal_base[i, :] = coords * scale
 
         atomic_cord_list = []
@@ -165,7 +161,7 @@ Default: 	GGA_PBE"""
             species_number = p_table_rev[species_name]
             for j1, atom in enumerate(species):
                 pos_vec = np.zeros(4)
-                rel_coords = np.array(self.split_and_remove_whitespace(atom.get('coord')))
+                rel_coords = np.array(self._split_and_remove_whitespace(atom.get('coord')))
                 if cart_bool:
                     pos_vec[:3] = np.dot(np.linalg.inv(crystal_base.T), rel_coords)
                 else:
@@ -177,166 +173,75 @@ Default: 	GGA_PBE"""
         crystal_structure = sst.CrystalStructure(crystal_base, atom_array,scale=scale)
         return crystal_structure
 
-    def make_tree(self):
-        root = ET.Element("input")
-        tree = ET.ElementTree(root)
-        ET.SubElement(root, "title").text = self.general_options['title']
-        return tree
-
-    def add_scf_to_tree(self, tree, crystal_structure,skip=False):
-        root = tree.getroot()
-        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
-        crystal = ET.SubElement(structure, "crystal",scale='1.0')
-        for i in range(3):
-            lattice_vector = crystal_structure.lattice_vectors[i, :]
-            ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
-
-        abs_coord_atoms = crystal_structure.atoms
-        species = set(abs_coord_atoms[:, 3].astype(np.int))
-        n_species = len(species)
-        n_atoms = abs_coord_atoms.shape[0]
-
-        for specie in species:
-            species_mask = abs_coord_atoms[:, 3].astype(np.int) == specie
-            sub_coords = abs_coord_atoms[species_mask, :]
-            specie_xml_el = ET.SubElement(structure, "species", speciesfile=p_table[specie] + '.xml')
-            n_atoms_specie = sub_coords.shape[0]
-            for i in range(n_atoms_specie):
-                ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
-
-
-        if skip:
-            new_scf_options = {}
-            new_scf_options.update(self.scf_options)
-            new_scf_options['do'] = 'skip'
-            groundstate = ET.SubElement(root, "groundstate",**new_scf_options)
-        else:
-            groundstate = ET.SubElement(root, "groundstate",**self.scf_options)
-
-    def add_bs_to_tree(self, tree,points):
-        root = tree.getroot()
-        properties = ET.SubElement(root, "properties")
-        bandstructure = ET.SubElement(properties, "bandstructure")
-        plot1d = ET.SubElement(bandstructure, "plot1d")
-        path = ET.SubElement(plot1d, "path", **self.bs_options)
-        for point in points:
-            cords = point[0]
-            label = point[1]
-            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
-
-    def add_relax_to_tree(self,tree):
-        root = tree.getroot()
-        relax = ET.SubElement(root, "relax",**self.relax_options)
-
-    def add_gw_to_tree(self,tree,taskname='g0w0'):
-        root = tree.getroot()
-        gw = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
-
-    def add_optical_spectrum_to_tree(self,tree):
-        root = tree.getroot()
-        if self.optical_spectrum_options['use gw'].lower() == 'true':
-            gw = ET.SubElement(root, "gw", taskname='skip')
-        elif self.optical_spectrum_options['use gw'].lower() == 'false':
-            pass
-        else:
-            raise Exception('Bad option for use gw')
-
-        xs = ET.SubElement(root, "xs", xstype = self.optical_spectrum_options['xstype'],nempty = self.optical_spectrum_options['nempty'],
-                           ngridk=self.optical_spectrum_options['ngridk'],ngridq = self.optical_spectrum_options['ngridq']
-                           ,broad=self.optical_spectrum_options['broad'],gqmax=self.optical_spectrum_options['gqmax'],
-                           vkloff=self.optical_spectrum_options['vkloff'])
-        ewindow = ET.SubElement(xs, "energywindow",intv = self.optical_spectrum_options['intv'],points = self.optical_spectrum_options['points'])
-        screening = ET.SubElement(xs, "screening",screentype = self.optical_spectrum_options['screentype'],
-                                  nempty=self.optical_spectrum_options['nempty_screeing'])
-        BSE = ET.SubElement(xs, "BSE", bsetype = self.optical_spectrum_options['bsetype'],nstlbse = self.optical_spectrum_options['nstlbse'])
-        qpointset = ET.SubElement(xs,'qpointset')
-        qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
+    def start_ground_state(self, crystal_structure, band_structure_points=None):
+        try:
+            os.remove(self.project_directory + self._working_dirctory + '/INFO.OUT')
+        except Exception as e:
+            print(e)
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure)
+        if band_structure_points is not None:
+            self._add_bs_to_tree(tree, band_structure_points)
+        self._write_input_file(tree)
+        time.sleep(0.05)
+        self._start_engine()
 
     def start_optical_spectrum(self,crystal_structure):
-        self.filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure)
-        self.add_optical_spectrum_to_tree(tree)
-        self.write_input_file(tree)
+        self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_optical_spectrum_to_tree(tree)
+        self._write_input_file(tree)
         time.sleep(0.05)
-        self.start_engine()
+        self._start_engine()
 
     def start_gw(self,crystal_structure,band_structure_points=None):
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure)
-        self.add_gw_to_tree(tree,taskname='g0w0')
-        self.write_input_file(tree)
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_gw_to_tree(tree, taskname='g0w0')
+        self._write_input_file(tree)
 
         def first_round():
-            self.start_engine()
+            self._start_engine()
             if self.custom_command_active:
                 while self.is_engine_running(tasks=['g0w0']):
                     time.sleep(1)
             else:
                 self.engine_process.wait()
             if band_structure_points is not None:
-                tree = self.make_tree()
-                self.add_scf_to_tree(tree, crystal_structure)
-                self.add_gw_to_tree(tree, taskname='band')
-                self.add_bs_to_tree(tree,band_structure_points)
-                self.write_input_file(tree)
-                self.start_engine()
+                tree = self._make_tree()
+                self._add_scf_to_tree(tree, crystal_structure)
+                self._add_gw_to_tree(tree, taskname='band')
+                self._add_bs_to_tree(tree, band_structure_points)
+                self._write_input_file(tree)
+                self._start_engine()
 
         t = threading.Thread(target=first_round)
         t.start()
 
-    def add_phonon_to_tree(self,tree,points):
-        root = tree.getroot()
-        phonon = ET.SubElement(root, "phonons",**self.phonons_options)
-        disp = ET.SubElement(phonon, "phonondispplot")
-        plot1d = ET.SubElement(disp, "plot1d")
-        path = ET.SubElement(plot1d,'path', steps=self.bs_options['steps'])
-        for point in points:
-            cords = point[0]
-            label = point[1]
-            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
-
-    def start_phonon_calculation(self,crystal_structure,band_structure_points):
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure)
-        self.add_phonon_to_tree(tree,band_structure_points)
-        self.write_input_file(tree)
+    def start_phonon(self, crystal_structure, band_structure_points):
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_phonon_to_tree(tree, band_structure_points)
+        self._write_input_file(tree)
         time.sleep(0.05)
-        self.start_engine()
-
-    def read_timestamps(self):
-        for task,filename in self.filenames_tasks.items():
-            if os.path.isfile(self.project_directory+self.working_dirctory+filename):
-                self.timestamp_tasks[task]=os.path.getmtime(self.project_directory+self.working_dirctory+filename)
-
-    def check_if_scf_is_finished(self):
-        try:
-            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
-        except IOError:
-            return False
-        info_text = f.read()
-        f.close()
-        scf_list = []
-        matches = re.findall(r"EXCITING[\s\w]*stopped", info_text)
-        if len(matches) == 0:
-            return False
-        else:
-            return True
+        self._start_engine()
 
     def start_relax(self,crystal_structure):
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure)
-        self.add_relax_to_tree(tree)
-        self.write_input_file(tree)
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_relax_to_tree(tree)
+        self._write_input_file(tree)
         time.sleep(0.05)
-        self.start_engine()
+        self._start_engine()
 
     def load_relax_structure(self):
-        file = self.project_directory+self.working_dirctory+'geometry_opt.xml'
+        file = self.project_directory+self._working_dirctory + 'geometry_opt.xml'
         if not os.path.isfile(file):
             return None
         if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
@@ -345,130 +250,9 @@ Default: 	GGA_PBE"""
         self.relax_file_timestamp = os.path.getmtime(file)
         return struc
 
-    def will_scf_run(self):
-        if self.scf_options['do'] == 'skip':
-            return False
-        else:
-            return True
-
-    def write_input_file(self, tree):
-        if not os.path.isdir(self.project_directory + self.working_dirctory):
-            os.mkdir(self.project_directory + self.working_dirctory)
-        xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
-        with open(self.project_directory + self.working_dirctory + self.input_filename, "w") as f:
-            f.write(xmlstr)
-
-            # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
-
-    def start_engine(self):
-        os.chdir(self.project_directory + self.working_dirctory)
-        if self.custom_command_active:
-            command = ['bash',self.custom_command]
-            # if tasks is not None:
-            #     filenames = [self.filenames_tasks[task] for task in tasks if task != 'scf']
-            #     for filename in filenames:
-            #         os.remove(self.project_directory+self.working_dirctory+filename)
-        else:
-            command = self.engine_command
-
-        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        os.chdir(self.project_directory)
-
-    def start_ground_state_calculation(self,crystal_structure,band_structure_points=None):
-        try:
-            os.remove(self.project_directory+self.working_dirctory+'/INFO.OUT')
-        except Exception as e:
-            print(e)
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure)
-        if band_structure_points is not None:
-            self.add_bs_to_tree(tree, band_structure_points)
-        self.write_input_file(tree)
-        time.sleep(0.05)
-        self.start_engine()
-
-    def kill_engine(self):
-        try:
-            self.engine_process.kill()
-        except Exception as e:
-            print(e)
-    #
-    # def read_engine_status(self):
-    #     if not self.is_engine_running():
-    #         output, error = self.engine_process.communicate()
-    #         return output, error
-    #     else:
-    #         return None
-
-    def _is_engine_running_custom_command(self,tasks):
-        bool_list = []
-
-        for task in tasks:
-            if task == 'scf':
-                continue
-            filename = self.filenames_tasks[task]
-            # filenames[task] = filename
-            file_exists = os.path.isfile(self.project_directory + self.working_dirctory + filename)
-            # files_exists[task] = file_exists
-            if file_exists:
-                timestamp = os.path.getmtime(self.project_directory + self.working_dirctory +filename)
-                try:
-                    file_is_old_bool = timestamp == self.timestamp_tasks[task]
-                except KeyError:
-                    file_is_old_bool = False
-
-            file_exist_and_new = file_exists and not file_is_old_bool
-            bool_list.append(file_exist_and_new)
-
-
-        if 'scf' in tasks:
-            bool_list.append(self.check_if_scf_is_finished())
-
-        finished_bool = all(bool_list)
-        if finished_bool:
-            return False
-        else:
-            return True
-
-    def is_engine_running(self,tasks=None):
-        if self.custom_command_active:
-            return self._is_engine_running_custom_command(tasks)
-        else:
-            if self.engine_process is None:
-                return False
-            if self.engine_process.poll() is None:
-                return True
-            else:
-                return False
-
-    def split_and_remove_whitespace(self, string):
-        l1 = string.split()
-        l2 = [float(x) for x in l1 if len(x) > 0]
-        return l2
-
-    def find_bandgap(self, bands):
-        for i in range(len(bands)):
-            valence_band = bands[i]
-            cond_band = bands[i + 1]
-            if (np.max(cond_band[:, 1]) > 0) and (np.min(cond_band[:, 1]) < 0):
-                return None, None
-            if any(cond_band[:, 1] > 0):
-                break
-        # Direct bandgap
-        band_diff = cond_band[:, 1] - valence_band[:, 1]
-        bandgap_index = np.argmin(band_diff)
-        bandgap = np.min(band_diff)
-        k_bandgap = valence_band[bandgap_index, 0]
-        # Indirect bandgap
-        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1])) - bandgap) > 0.01:
-            bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
-            k_bandgap = None
-        return bandgap, k_bandgap
-
     def read_scf_status(self):
         try:
-            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
+            f = open(self.project_directory + self._working_dirctory + self._info_file, 'r')
         except IOError:
             return None
         info_text = f.read()
@@ -492,7 +276,7 @@ Default: 	GGA_PBE"""
 
     def read_bandstructure(self):
         try:
-            e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
+            e = xml.etree.ElementTree.parse(self.project_directory + self._working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:
             return None
 
@@ -524,7 +308,7 @@ Default: 	GGA_PBE"""
                 else:
                     band[:, 1] = band[:, 1] - empirical_correction / 2
 
-        bandgap, k_bandgap = self.find_bandgap(bands)
+        bandgap, k_bandgap = self._find_bandgap(bands)
         special_k_points_together = zip(special_k_points, special_k_points_label)
 
 
@@ -532,7 +316,7 @@ Default: 	GGA_PBE"""
 
     def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
         band_structure = self.read_bandstructure()
-        band_qp = np.loadtxt(self.project_directory+self.working_dirctory+filename)
+        band_qp = np.loadtxt(self.project_directory + self._working_dirctory + filename)
         k_qp = band_qp[:, 0]
         E_qp = band_qp[:, 1]*hartree
 
@@ -545,7 +329,7 @@ Default: 	GGA_PBE"""
         for i in range(N_bands):
             bands_qp.append(np.array([k_qp[:,i],E_qp[:,i]]).T )
 
-        bandgap,k_bandgap = self.find_bandgap(bands_qp)
+        bandgap,k_bandgap = self._find_bandgap(bands_qp)
         if filename == 'PHDISP.OUT':
             bs_type = 'phonon'
         else:
@@ -557,9 +341,9 @@ Default: 	GGA_PBE"""
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
     def read_optical_spectrum(self):
-        eps_11 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
-        eps_22 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
-        eps_33 = np.loadtxt(self.project_directory+self.working_dirctory+'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
+        eps_11 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
+        eps_22 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
+        eps_33 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
 
 
         list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
@@ -568,14 +352,9 @@ Default: 	GGA_PBE"""
 
         return sst.OpticalSpectrum(eps_11[:,0]*hartree,list_of_eps2,epsilon1=list_of_eps1)
 
-    def convert_3d_plot(self):
-        os.chdir(self.project_directory + self.working_dirctory)
-        command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
-        self.helper_process = subprocess.call(command,shell=True)
-
-    def load_ks_state(self):
-        self.convert_3d_plot()
-        l_data = np.genfromtxt(self.project_directory + self.working_dirctory+'WF3D.xsf',skip_header=9,skip_footer=2,dtype=np.float)
+    def read_ks_state(self):
+        self._convert_3d_plot()
+        l_data = np.genfromtxt(self.project_directory + self._working_dirctory + 'WF3D.xsf', skip_header=9, skip_footer=2, dtype=np.float)
         n_grid = l_data.shape[1]
         # data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
         data = np.zeros((n_grid,n_grid,n_grid))
@@ -587,7 +366,233 @@ Default: 	GGA_PBE"""
         data = data/data.max()
         return sst.KohnShamDensity(data)
 
-    def add_ks_density_to_tree(self,tree,bs_point,grid):
+    def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure, skip=True)
+        self._add_ks_density_to_tree(tree, bs_point, grid)
+        self._write_input_file(tree)
+        self._start_engine()
+
+    def kill_engine(self):
+        try:
+            self.engine_process.kill()
+        except Exception as e:
+            print(e)
+
+    def is_engine_running(self,tasks=None):
+        if self.custom_command_active:
+            return self._is_engine_running_custom_command(tasks)
+        else:
+            if self.engine_process is None:
+                return False
+            if self.engine_process.poll() is None:
+                return True
+            else:
+                return False
+
+    def will_scf_run(self):
+        if self.scf_options['do'] == 'skip':
+            return False
+        else:
+            return True
+
+    def _make_tree(self):
+        root = ET.Element("input")
+        tree = ET.ElementTree(root)
+        ET.SubElement(root, "title").text = self.general_options['title']
+        return tree
+
+    def _add_scf_to_tree(self, tree, crystal_structure, skip=False):
+        root = tree.getroot()
+        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
+        crystal = ET.SubElement(structure, "crystal",scale='1.0')
+        for i in range(3):
+            lattice_vector = crystal_structure.lattice_vectors[i, :]
+            ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
+
+        abs_coord_atoms = crystal_structure.atoms
+        species = set(abs_coord_atoms[:, 3].astype(np.int))
+        n_species = len(species)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        for specie in species:
+            species_mask = abs_coord_atoms[:, 3].astype(np.int) == specie
+            sub_coords = abs_coord_atoms[species_mask, :]
+            specie_xml_el = ET.SubElement(structure, "species", speciesfile=p_table[specie] + '.xml')
+            n_atoms_specie = sub_coords.shape[0]
+            for i in range(n_atoms_specie):
+                ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
+
+
+        if skip:
+            new_scf_options = {}
+            new_scf_options.update(self.scf_options)
+            new_scf_options['do'] = 'skip'
+            groundstate = ET.SubElement(root, "groundstate",**new_scf_options)
+        else:
+            groundstate = ET.SubElement(root, "groundstate",**self.scf_options)
+
+    def _add_bs_to_tree(self, tree, points):
+        root = tree.getroot()
+        properties = ET.SubElement(root, "properties")
+        bandstructure = ET.SubElement(properties, "bandstructure")
+        plot1d = ET.SubElement(bandstructure, "plot1d")
+        path = ET.SubElement(plot1d, "path", **self.bs_options)
+        for point in points:
+            cords = point[0]
+            label = point[1]
+            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+
+    def _add_relax_to_tree(self, tree):
+        root = tree.getroot()
+        relax = ET.SubElement(root, "relax",**self.relax_options)
+
+    def _add_gw_to_tree(self, tree, taskname='g0w0'):
+        root = tree.getroot()
+        gw = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
+
+    def _add_optical_spectrum_to_tree(self, tree):
+        root = tree.getroot()
+        if self.optical_spectrum_options['use gw'].lower() == 'true':
+            gw = ET.SubElement(root, "gw", taskname='skip')
+        elif self.optical_spectrum_options['use gw'].lower() == 'false':
+            pass
+        else:
+            raise Exception('Bad option for use gw')
+
+        xs = ET.SubElement(root, "xs", xstype = self.optical_spectrum_options['xstype'],nempty = self.optical_spectrum_options['nempty'],
+                           ngridk=self.optical_spectrum_options['ngridk'],ngridq = self.optical_spectrum_options['ngridq']
+                           ,broad=self.optical_spectrum_options['broad'],gqmax=self.optical_spectrum_options['gqmax'],
+                           vkloff=self.optical_spectrum_options['vkloff'])
+        ewindow = ET.SubElement(xs, "energywindow",intv = self.optical_spectrum_options['intv'],points = self.optical_spectrum_options['points'])
+        screening = ET.SubElement(xs, "screening",screentype = self.optical_spectrum_options['screentype'],
+                                  nempty=self.optical_spectrum_options['nempty_screeing'])
+        BSE = ET.SubElement(xs, "BSE", bsetype = self.optical_spectrum_options['bsetype'],nstlbse = self.optical_spectrum_options['nstlbse'])
+        qpointset = ET.SubElement(xs,'qpointset')
+        qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
+
+    def _add_phonon_to_tree(self, tree, points):
+        root = tree.getroot()
+        phonon = ET.SubElement(root, "phonons",**self.phonons_options)
+        disp = ET.SubElement(phonon, "phonondispplot")
+        plot1d = ET.SubElement(disp, "plot1d")
+        path = ET.SubElement(plot1d,'path', steps=self.bs_options['steps'])
+        for point in points:
+            cords = point[0]
+            label = point[1]
+            ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+
+    def _read_timestamps(self):
+        for task,filename in self._filenames_tasks.items():
+            if os.path.isfile(self.project_directory+self._working_dirctory+filename):
+                self._timestamp_tasks[task]=os.path.getmtime(self.project_directory + self._working_dirctory + filename)
+
+    def _check_if_scf_is_finished(self):
+        try:
+            f = open(self.project_directory + self._working_dirctory + self._info_file, 'r')
+        except IOError:
+            return False
+        info_text = f.read()
+        f.close()
+        scf_list = []
+        matches = re.findall(r"EXCITING[\s\w]*stopped", info_text)
+        if len(matches) == 0:
+            return False
+        else:
+            return True
+
+    def _write_input_file(self, tree):
+        if not os.path.isdir(self.project_directory + self._working_dirctory):
+            os.mkdir(self.project_directory + self._working_dirctory)
+        xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
+        with open(self.project_directory + self._working_dirctory + self._input_filename, "w") as f:
+            f.write(xmlstr)
+
+            # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
+
+    def _start_engine(self):
+        os.chdir(self.project_directory + self._working_dirctory)
+        if self.custom_command_active:
+            command = ['bash',self.custom_command]
+            # if tasks is not None:
+            #     filenames = [self.filenames_tasks[task] for task in tasks if task != 'scf']
+            #     for filename in filenames:
+            #         os.remove(self.project_directory+self.working_dirctory+filename)
+        else:
+            command = self._engine_command
+
+        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.chdir(self.project_directory)
+
+    #
+    # def read_engine_status(self):
+    #     if not self.is_engine_running():
+    #         output, error = self.engine_process.communicate()
+    #         return output, error
+    #     else:
+    #         return None
+
+    def _is_engine_running_custom_command(self,tasks):
+        bool_list = []
+
+        for task in tasks:
+            if task == 'scf':
+                continue
+            filename = self._filenames_tasks[task]
+            # filenames[task] = filename
+            file_exists = os.path.isfile(self.project_directory + self._working_dirctory + filename)
+            # files_exists[task] = file_exists
+            if file_exists:
+                timestamp = os.path.getmtime(self.project_directory + self._working_dirctory + filename)
+                try:
+                    file_is_old_bool = timestamp == self._timestamp_tasks[task]
+                except KeyError:
+                    file_is_old_bool = False
+
+            file_exist_and_new = file_exists and not file_is_old_bool
+            bool_list.append(file_exist_and_new)
+
+
+        if 'scf' in tasks:
+            bool_list.append(self._check_if_scf_is_finished())
+
+        finished_bool = all(bool_list)
+        if finished_bool:
+            return False
+        else:
+            return True
+
+    def _split_and_remove_whitespace(self, string):
+        l1 = string.split()
+        l2 = [float(x) for x in l1 if len(x) > 0]
+        return l2
+
+    def _find_bandgap(self, bands):
+        for i in range(len(bands)):
+            valence_band = bands[i]
+            cond_band = bands[i + 1]
+            if (np.max(cond_band[:, 1]) > 0) and (np.min(cond_band[:, 1]) < 0):
+                return None, None
+            if any(cond_band[:, 1] > 0):
+                break
+        # Direct bandgap
+        band_diff = cond_band[:, 1] - valence_band[:, 1]
+        bandgap_index = np.argmin(band_diff)
+        bandgap = np.min(band_diff)
+        k_bandgap = valence_band[bandgap_index, 0]
+        # Indirect bandgap
+        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1])) - bandgap) > 0.01:
+            bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
+            k_bandgap = None
+        return bandgap, k_bandgap
+
+    def _convert_3d_plot(self):
+        os.chdir(self.project_directory + self._working_dirctory)
+        command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
+        self.helper_process = subprocess.call(command,shell=True)
+
+    def _add_ks_density_to_tree(self, tree, bs_point, grid):
         root = tree.getroot()
         properties = ET.SubElement(root, "properties")
         wfplot = ET.SubElement(properties, "wfplot")
@@ -608,14 +613,6 @@ Default: 	GGA_PBE"""
         p2 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
         p3 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
 
-    def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
-        self.read_timestamps()
-        tree = self.make_tree()
-        self.add_scf_to_tree(tree, crystal_structure,skip=True)
-        self.add_ks_density_to_tree(tree,bs_point,grid)
-        self.write_input_file(tree)
-        self.start_engine()
-
 
 if __name__ == '__main__':
     handler = Handler()
@@ -623,7 +620,7 @@ if __name__ == '__main__':
 
     handler.custom_command_active = True
     ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
-    ac_bo2 = handler.check_if_scf_is_finished()
+    ac_bo2 = handler._check_if_scf_is_finished()
 
     print(ac_bo,ac_bo2)
 

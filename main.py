@@ -268,7 +268,7 @@ class DftEngineWindow(QtGui.QWidget):
         else:
             bs_points = None
         try:
-            esc_handler.start_ground_state_calculation(self.parent.crystal_structure, band_structure_points=bs_points)
+            esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
@@ -318,7 +318,7 @@ class DftEngineWindow(QtGui.QWidget):
 
         tasks = ['phonons']
         try:
-            esc_handler.start_phonon_calculation(self.parent.crystal_structure,self.band_structure_points)
+            esc_handler.start_phonon(self.parent.crystal_structure, self.band_structure_points)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
@@ -763,7 +763,7 @@ class KsStateWindow(QtGui.QDialog):
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.parent.error_dialog.showMessage(error_message)
 
-            ks_dens = esc_handler.load_ks_state()
+            ks_dens = esc_handler.read_ks_state()
             n_band = int(self.n_band_entry.get_text())
             k = int(self.k_point_entry.get_text())
             key = "k{} n{}".format(k,n_band)
@@ -1124,8 +1124,8 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                # project_directory = r"/home/jannick/OpenDFT_projects/GaN"
+                # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
@@ -1147,7 +1147,7 @@ class CentralWindow(QtGui.QWidget):
             else:
                 pass
                 # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
-        esc_handler.exciting_folder = esc_handler.find_exciting_folder()
+        esc_handler.exciting_folder = esc_handler.find_engine_folder()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
