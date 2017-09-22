@@ -1078,7 +1078,7 @@ class CentralWindow(QtGui.QWidget):
         self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
 
-        self.installation_folder = __file__
+        self.installation_folder = __file__.replace('main.py','')
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
