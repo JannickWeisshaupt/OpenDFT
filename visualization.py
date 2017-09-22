@@ -393,22 +393,27 @@ class BandStructureVisualization(QtGui.QWidget):
         self.ax.cla()
         for band in band_structure.bands:
             self.ax.plot(band[:,0],band[:,1],color='b',linewidth=2)
-        for xc,xl in band_structure.special_k_points:
-            self.ax.axvline(x=xc, color='k', linewidth=1.5)
-
-        unzipped_k = zip(*band_structure.special_k_points)
-        bandgap = band_structure.bandgap
-        k_bandgap = band_structure.k_bandgap
-        special_k_points = unzipped_k[0]
-        special_k_points_label = unzipped_k[1]
 
         xlength = band[:,0].max()-band[:,0].min()
         self.ax.set_xlim(band[:,0].min()-xlength/800,band[:,0].max())
         self.ax.plot([band[:,0].min(),band[:,0].max()], [0, 0], 'k--')
 
-        self.ax.set_xticks(special_k_points)
-        self.ax.set_xticklabels(special_k_points_label,rotation='horizontal',horizontalalignment='center')
+        if band_structure.special_k_points is not None:
+            for xc,xl in band_structure.special_k_points:
+                self.ax.axvline(x=xc, color='k', linewidth=1.5)
 
+            unzipped_k = zip(*band_structure.special_k_points)
+            special_k_points = unzipped_k[0]
+            special_k_points_label = unzipped_k[1]
+
+            self.ax.set_xticks(special_k_points)
+            self.ax.set_xticklabels(special_k_points_label,rotation='horizontal',horizontalalignment='center')
+        else:
+            special_k_points = []
+            special_k_points_label = []
+
+        bandgap = band_structure.bandgap
+        k_bandgap = band_structure.k_bandgap
         if k_bandgap is None and bandgap is not None:
             title_bandgap = ' $E_g = %1.1f $ eV' % bandgap + ' (indirect)'
         elif bandgap is None:

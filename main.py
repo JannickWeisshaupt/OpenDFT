@@ -9,7 +9,7 @@ from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from exciting_handler import Handler as Handler
+from quantum_espresso_handler import Handler as Handler
 from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
 import pickle
 import time
@@ -1124,8 +1124,8 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                # project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
-                project_directory = r"/home/jannick/exciting_cluster/GaN"
+                project_directory = r"/home/jannick/OpenDFT_projects/test_qe/"
+                # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
@@ -1136,7 +1136,7 @@ class CentralWindow(QtGui.QWidget):
         self.list_of_tabs[i].do_select_event()
 
     def overwrite_handler(self):
-        "TODO this is horrible"
+        # TODO this is horrible maybe totally redo
         esc_handler_new = Handler()
         for method in dir(esc_handler_new):
             command = 'type(esc_handler_new.'+method+')'
@@ -1163,6 +1163,8 @@ class CentralWindow(QtGui.QWidget):
         self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
+        if (esc_handler.pseudo_directory is not None) and (not os.path.isdir(self.project_directory + esc_handler.pseudo_directory)):
+            os.mkdir(self.project_directory + esc_handler.pseudo_directory)
         self.project_loaded = True
 
     def reset_results_and_plots(self):
@@ -1414,6 +1416,9 @@ class CentralWindow(QtGui.QWidget):
             if 'relax' in tasks:
                 check_relax()
         else:
+            self.scf_data = esc_handler.read_scf_status()
+            if self.scf_data is not None:
+                self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
             if ('error' in message.lower() or len(err)>0):
