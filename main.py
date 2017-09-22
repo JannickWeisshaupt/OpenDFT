@@ -1078,6 +1078,8 @@ class CentralWindow(QtGui.QWidget):
         self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
 
+        self.installation_folder = __file__
+
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
 
@@ -1431,7 +1433,16 @@ class CentralWindow(QtGui.QWidget):
                 read_bandstructures = []
                 titles = [esc_handler.general_options['title']]
                 if 'bandstructure' in tasks:
-                    read_bandstructures.append(esc_handler.read_bandstructure())
+                    if esc_handler.engine_name == 'quantum espresso':
+                        coords = [x[0] for x in self.dft_engine_window.band_structure_points]
+                        labels = [x[1] for x in self.dft_engine_window.band_structure_points]
+                        new_coords = self.crystal_structure.convert_to_tpiba(coords)
+                        band_structure_points = zip(new_coords,labels)
+                        read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
+                    else:
+                        read_bandstructure = esc_handler.read_bandstructure()
+                    read_bandstructures.append(read_bandstructure)
+
                 if 'g0w0' in tasks:
                     read_bandstructures.append(esc_handler.read_gw_bandstructure())
                 if 'bandstructure' in tasks and 'g0w0' in tasks:

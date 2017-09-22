@@ -16,6 +16,12 @@ class CrystalStructure:
 
     def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
         self.lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
+        volume = np.dot(np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:]),self.lattice_vectors[2,:])
+        self.inv_lattice_vectors = np.zeros((3,3))
+        self.inv_lattice_vectors[0,:] = np.cross(self.lattice_vectors[1,:],self.lattice_vectors[2,:])*2*np.pi/volume
+        self.inv_lattice_vectors[1,:] = np.cross(self.lattice_vectors[2,:],self.lattice_vectors[0,:])*2*np.pi/volume
+        self.inv_lattice_vectors[2,:] = np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:])*2*np.pi/volume
+
         self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
         self.n_atoms = atoms.shape[0]
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
@@ -41,7 +47,6 @@ class CrystalStructure:
                 abs_coord_out = abs_coord.reshape((n_repeat*self.n_atoms,4))
         return abs_coord_out
 
-
     def find_bonds(self,abs_coords):
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:,:3]
@@ -57,13 +62,41 @@ class CrystalStructure:
                     bonds.append([j1,j2]);
         return bonds
 
+    def convert_to_tpiba(self,band_structure_points):
+        if type(band_structure_points) in [list,tuple]:
+            band_structure_points = np.array(band_structure_points)
+        N = band_structure_points.shape[0]
+        conv_points = np.zeros((N,3))
+        a = np.linalg.norm(self.lattice_vectors[0, :])
+        for i in range(N):
+            conv_points[i,:] = np.dot(self.inv_lattice_vectors.T,band_structure_points[i,:])/(2*np.pi/a)
+        return conv_points
+
 class BandStructure:
-    def __init__(self,bands,bandgap,k_bandgap,special_k_points=None,bs_type='electronic'):
+    def __init__(self,bands,special_k_points=None,bs_type='electronic'):
         self.bands = bands
-        self.bandgap = bandgap
+        self.bandgap,self.k_bandgap = self._find_bandgap(bands)
         self.special_k_points = special_k_points
-        self.k_bandgap = k_bandgap
         self.bs_type = bs_type
+
+    def _find_bandgap(self, bands):
+        for i in range(len(bands)):
+            valence_band = bands[i]
+            cond_band = bands[i + 1]
+            if (np.max(cond_band[:, 1]) > 0) and (np.min(cond_band[:, 1]) < 0):
+                return None, None
+            if any(cond_band[:, 1] > 0):
+                break
+        # Direct bandgap
+        band_diff = cond_band[:, 1] - valence_band[:, 1]
+        bandgap_index = np.argmin(band_diff)
+        bandgap = np.min(band_diff)
+        k_bandgap = valence_band[bandgap_index, 0]
+        # Indirect bandgap
+        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1])) - bandgap) > 0.01:
+            bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
+            k_bandgap = None
+        return bandgap, k_bandgap
 
 class OpticalSpectrum:
     def __init__(self,energy,epsilon2,epsilon1=None):

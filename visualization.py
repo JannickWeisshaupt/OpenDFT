@@ -27,7 +27,6 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 import matplotlib.pyplot as plt
 import random
 
-
 bohr = 0.52917721
 
 cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
@@ -54,6 +53,14 @@ except IOError:
 
 colormap_list = sorted(s,key=str.lower)
 
+def convert_to_greek(input):
+    result = []
+    for el in input:
+        if el.lower().strip() == 'gamma':
+            result.append(r'$\Gamma$')
+        else:
+            result.append(el)
+    return result
 
 def KnuthMorrisPratt(text, pattern):
 
@@ -404,7 +411,7 @@ class BandStructureVisualization(QtGui.QWidget):
 
             unzipped_k = zip(*band_structure.special_k_points)
             special_k_points = unzipped_k[0]
-            special_k_points_label = unzipped_k[1]
+            special_k_points_label = convert_to_greek(unzipped_k[1])
 
             self.ax.set_xticks(special_k_points)
             self.ax.set_xticklabels(special_k_points_label,rotation='horizontal',horizontalalignment='center')
@@ -422,8 +429,7 @@ class BandStructureVisualization(QtGui.QWidget):
             k_bandgap_label = np.array(special_k_points_label)[k_bandgap == special_k_points][0]
             title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' at ' + k_bandgap_label
         else:
-            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap
-
+            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap+ ' (direct)'
 
         self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25)
         if self.first_plot_bool:

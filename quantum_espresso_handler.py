@@ -10,6 +10,7 @@ import time
 import re
 import threading
 from six import string_types
+from collections import OrderedDict
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -30,7 +31,7 @@ def convert_greek(input):
 
 class Handler:
     def __init__(self):
-        self.engine_name = 'exciting'
+        self.engine_name = 'quantum espresso'
         self.default_extension = '.xml'
         self._engine_command = ["pw.x"]
         self._working_dirctory = '/quantum_espresso_files/'
@@ -46,8 +47,10 @@ class Handler:
         self.custom_command = ''
         self.custom_command_active = False
         self.exciting_folder = self.find_engine_folder()
-        self.scf_options = {'prefix':'title','ecutwfc':'12.0','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10'}
-        # self.scf_options_non_string_type  = {'ecutwfc':float}
+        self.scf_options = {'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
+                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7'}
+
+
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -71,6 +74,9 @@ class Handler:
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
         # self._correct_types()
+        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+            raise Exception('Too few bands')
+
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
         file.close()
@@ -79,7 +85,7 @@ class Handler:
         if band_structure_points is not None:
             def run_bs():
                 while self.is_engine_running():
-                    time.sleep(0.5)
+                    time.sleep(0.001)
                 file = self._make_input_file(filename='bands.in')
                 self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
                 file.close()
@@ -119,12 +125,12 @@ class Handler:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(range(len(scf_energy_list)), scf_energy_list))
+        res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
         if len(res) < 2:
             return None
         return res
 
-    def read_bandstructure(self):
+    def read_bandstructure(self,special_k_points=None):
         try:
             f = open(self.project_directory + self._working_dirctory + '/bands.out', 'r')
         except IOError:
@@ -135,18 +141,32 @@ class Handler:
         k_points = []
         energy_values = []
         found_line = False
+        special_k_point_initial = []
         for line in text.split('\n'):
             line = line.strip()
             if line.strip().startswith('k ='):
                 line_list = line.split()
-                k_points.append([float(line_list[2]),float(line_list[3]),float(line_list[4])] )
+                read_k_point = [float(line_list[2]),float(line_list[3]),float(line_list[4])]
+                k_points.append(read_k_point)
+
+                if special_k_points is not None:
+                    for k_point,label in special_k_points:
+                        if np.linalg.norm( np.array(read_k_point) - k_point)<0.001:
+                            special_k_point_initial.append([len(k_points)-1,label])
+                            break
+
                 found_line = True
+                e_numbers = []
                 continue
             if found_line and len(line)>0:
                 e_split = line.split()
-                e_numbers = [float(x) for x in e_split]
+                e_numbers.extend([float(x) for x in e_split])
+            elif found_line and len(line) == 0 and len(e_numbers)>0:
                 energy_values.append(e_numbers)
                 found_line = False
+
+        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+',text)
+        n_electrons = int(float(matches[0].split('=')[1]))
 
         n_bands = len(energy_values[0])
         n_k_points = len(k_points)
@@ -163,9 +183,23 @@ class Handler:
             band[:,1] = e_band
             bands.append(band)
 
+        special_k_points_out = [[k_array[i],label] for i,label in special_k_point_initial]
 
+        try:
+            valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
+            cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
 
-        return sst.BandStructure(bands,1,1)
+            evalence = max( [band[:,1].max() for band in valence_bands] )
+            econd = min([band[:,1].min() for band in cond_bands])
+
+            efermi = evalence + (econd-evalence)/2
+            for band in bands:
+                band[:, 1] = band[:, 1] - efermi
+
+        except Exception:
+            pass
+
+        return sst.BandStructure(bands,special_k_points=special_k_points_out)
 
 
 
@@ -214,7 +248,7 @@ class Handler:
         if calculation == 'bands' and band_points is None:
             raise Exception('If calculation is bands you need to supply band points')
 
-        control_options = {x: self.scf_options[x] for x in ['prefix']}
+        control_options ={'prefix':self.general_options['title']}
         control_options['verbosity'] = 'high'
         control_options['pseudo_dir'] = self.project_directory + self.pseudo_directory
         control_options['outdir'] = self.project_directory + self._working_dirctory
@@ -222,13 +256,18 @@ class Handler:
         self._write_block(file, '&control',control_options )
         system_options = {}
         system_options['ecutwfc'] = float(self.scf_options['ecutwfc'])
+        system_options['ecutrho'] = float(self.scf_options['ecutrho'])
         system_options['ibrav'] = 0
         system_options['nat'] = crystal_structure.n_atoms
         system_options['nbnd'] = int(self.scf_options['nbnd'])
+
+        electron_options = {'diagonalization':self.scf_options['diagonalization'],'conv_thr':float(self.scf_options['conv_thr']),'mixing_beta':float(self.scf_options['mixing_beta']),
+                            'mixing_mode':self.scf_options['mixing_mode']}
+
         n_typ = set(crystal_structure.atoms[:,3])
         system_options['ntyp'] = len(n_typ)
         self._write_block(file,'&system',system_options)
-        self._write_block(file,'&electrons',{})
+        self._write_block(file,'&electrons',electron_options)
         file.write('ATOMIC_SPECIES\n')
         for specie in n_typ:
             file.write(p_table[specie] + " {0:1.5f}".format(atomic_mass[specie]) +' '+ p_table[specie]+'.pseudo\n')
@@ -279,7 +318,7 @@ class Handler:
             if type(value) == int:
                 file.write('   '+key+'='+str(value)+'\n')
             elif type(value) == float:
-                file.write('   '+key+'='+'{0:1.5f}'.format(value)+'\n')
+                file.write('   '+key+'='+'{0:1.16f}'.format(value)+'\n')
             elif type(value) == str or isinstance(value, string_types):
                 file.write('   '+key + '=' +"'"+value+"'" + '\n')
             else:
@@ -299,5 +338,12 @@ if __name__ == '__main__':
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
     handler.scf_options['ecutwfc'] = 20.0
-    handler.start_ground_state(crystal_structure,band_structure_points=((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W')))
-    handler.read_bandstructure()
+    band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
+    handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
+
+    coords = [x[0] for x in band_structure_points]
+    labels = [x[1] for x in band_structure_points]
+    new_coords = crystal_structure.convert_to_tpiba(coords)
+    band_structure_points_conv = zip(new_coords, labels)
+
+    band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)

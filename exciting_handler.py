@@ -309,11 +309,10 @@ Default: 	GGA_PBE"""
                 else:
                     band[:, 1] = band[:, 1] - empirical_correction / 2
 
-        bandgap, k_bandgap = self._find_bandgap(bands)
         special_k_points_together = zip(special_k_points, special_k_points_label)
 
 
-        return sst.BandStructure(bands, bandgap, k_bandgap, special_k_points=special_k_points_together)
+        return sst.BandStructure(bands, special_k_points=special_k_points_together)
 
     def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
         band_structure = self.read_bandstructure()
@@ -568,25 +567,6 @@ Default: 	GGA_PBE"""
         l1 = string.split()
         l2 = [float(x) for x in l1 if len(x) > 0]
         return l2
-
-    def _find_bandgap(self, bands):
-        for i in range(len(bands)):
-            valence_band = bands[i]
-            cond_band = bands[i + 1]
-            if (np.max(cond_band[:, 1]) > 0) and (np.min(cond_band[:, 1]) < 0):
-                return None, None
-            if any(cond_band[:, 1] > 0):
-                break
-        # Direct bandgap
-        band_diff = cond_band[:, 1] - valence_band[:, 1]
-        bandgap_index = np.argmin(band_diff)
-        bandgap = np.min(band_diff)
-        k_bandgap = valence_band[bandgap_index, 0]
-        # Indirect bandgap
-        if np.abs((np.min(cond_band[:, 1]) - np.max(valence_band[:, 1])) - bandgap) > 0.01:
-            bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
-            k_bandgap = None
-        return bandgap, k_bandgap
 
     def _convert_3d_plot(self):
         os.chdir(self.project_directory + self._working_dirctory)
