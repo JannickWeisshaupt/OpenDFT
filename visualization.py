@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('Qt4Agg')
 mpl.rcParams['backend.qt4']='PySide'
-
+from bisect import bisect
 # mpl.rc('font',**{'size': 22, 'family':'serif','serif':['Palatino']})
 # mpl.rc('text', usetex=True)
 
@@ -397,6 +397,8 @@ class BandStructureVisualization(QtGui.QWidget):
     def plot(self,band_structure):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
+        self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f}'.format(*self.make_interactive_text(x,y,band_structure))
+
         self.ax.cla()
         for band in band_structure.bands:
             self.ax.plot(band[:,0],band[:,1],color='b',linewidth=2)
@@ -436,6 +438,23 @@ class BandStructureVisualization(QtGui.QWidget):
             self.first_plot_bool = False
             self.figure.tight_layout()
         self.canvas.draw()
+
+    def make_interactive_text(self,k_in,E,band_structure):
+        bands = band_structure.bands
+        k = band_structure.bands[0][:,0]
+        index_k = np.argmin(np.abs(k-k_in))
+        E_values_at_k = sorted([band[index_k,1] for band in bands])
+        E_index = bisect(E_values_at_k,E)
+        try:
+            E_above = E_values_at_k[E_index]
+            E_below = E_values_at_k[E_index-1]
+            gap = E_above - E_below
+        except IndexError:
+            gap = 0
+        if gap<0:
+            gap = 0
+        return [k_in,E,gap]
+
 
 
 class ScfVisualization(QtGui.QWidget):
