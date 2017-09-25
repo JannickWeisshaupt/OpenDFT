@@ -22,6 +22,7 @@ except:
     import Queue as queue
 
 esc_handler = Handler()
+general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
 
 
@@ -507,7 +508,7 @@ class EngineOptionsDialog(QtGui.QDialog):
         species_path = self.species_path_entry.get_text()
         if len(species_path) > 0:
             self.parent.project_properties['custom dft folder'] = species_path
-            esc_handler.exciting_folder = species_path
+            esc_handler.dft_installation_folder = species_path
 
     def accept_own(self):
         self.apply()
@@ -537,7 +538,7 @@ class EngineOptionsDialog(QtGui.QDialog):
             if self.parent.project_properties['custom command active']:
                 if not self.custom_command_checkbox.checkState():
                     self.custom_command_checkbox.toggle()
-        self.species_path_entry.set_text(esc_handler.exciting_folder)
+        self.species_path_entry.set_text(esc_handler.dft_installation_folder)
         self.filename_label.setText(self.parent.project_properties['custom command'])
 
 
@@ -1149,7 +1150,7 @@ class CentralWindow(QtGui.QWidget):
             else:
                 pass
                 # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
-        esc_handler.exciting_folder = esc_handler.find_engine_folder()
+        esc_handler.dft_installation_folder = esc_handler.find_engine_folder()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
@@ -1276,7 +1277,7 @@ class CentralWindow(QtGui.QWidget):
                     esc_handler.custom_command_active = self.project_properties['custom command active']
                     esc_handler.custom_command = self.project_properties['custom command']
                     if self.project_properties['custom dft folder']:
-                        esc_handler.exciting_folder = self.project_properties['custom dft folder']
+                        esc_handler.dft_installation_folder = self.project_properties['custom dft folder']
                 except:
                     self.project_properties['custom command active'] = False
                     self.project_properties['custom command'] = ''
@@ -1295,10 +1296,14 @@ class CentralWindow(QtGui.QWidget):
     def load_crystal_structure(self,filetype):
         file_dialog = QtGui.QFileDialog()
 
-        if filetype == 'exciting xml':
+        if filetype == 'exciting':
             file_dialog.setNameFilters(["Exciting (*.xml)", "All (*.*)"])
+        elif filetype == 'quantum espresso':
+            file_dialog.setNameFilters(["Quantum Espresso (*.in)", "All (*.*)"])
         elif filetype == 'cif':
             file_dialog.setNameFilters(["Cif (*.cif)", "All (*.*)"])
+        else:
+            raise Exception('bad filetype')
 
         if file_dialog.exec_():
             file_name = file_dialog.selectedFiles()
@@ -1307,8 +1312,8 @@ class CentralWindow(QtGui.QWidget):
             if len(file_name) == 0:
                 return
 
-            if filetype == 'exciting xml':
-                self.crystal_structure = esc_handler.parse_input_file(file_name)
+            if filetype in ['exciting','quantum espresso']:
+                self.crystal_structure = general_handler.parse_input_file(filetype,file_name)
             elif filetype == 'cif':
                 parser = sst.StructureParser()
                 self.crystal_structure = parser.parse_cif_file(file_name)
@@ -1354,10 +1359,15 @@ class CentralWindow(QtGui.QWidget):
 
         import_structure_menu = self.file_menu.addMenu('Import structure from')
 
-        open_structure_action_exciting = QtGui.QAction("exciting xml", self.window)
+        open_structure_action_exciting = QtGui.QAction("exciting input file", self.window)
         open_structure_action_exciting.setStatusTip('Load crystal structure from exciting xml')
-        open_structure_action_exciting.triggered.connect(lambda: self.load_crystal_structure('exciting xml'))
+        open_structure_action_exciting.triggered.connect(lambda: self.load_crystal_structure('exciting'))
         import_structure_menu.addAction(open_structure_action_exciting)
+
+        open_structure_action_quantum_espresso = QtGui.QAction("quantum_espresso input file", self.window)
+        open_structure_action_quantum_espresso.setStatusTip('Load crystal structure from quantum espresso input file')
+        open_structure_action_quantum_espresso.triggered.connect(lambda: self.load_crystal_structure('quantum espresso'))
+        import_structure_menu.addAction(open_structure_action_quantum_espresso)
 
         open_structure_action_cif = QtGui.QAction("cif", self.window)
         open_structure_action_cif.setShortcut('Ctrl+Shift+c')

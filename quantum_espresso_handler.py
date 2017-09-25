@@ -46,7 +46,7 @@ class Handler:
         self._input_filename = 'input.xml'
         self.custom_command = ''
         self.custom_command_active = False
-        self.exciting_folder = self.find_engine_folder()
+        self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = {'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
                             'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7'}
 
@@ -63,14 +63,14 @@ class Handler:
         self.optical_spectrum_options = {}
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'pw.x'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        p = subprocess.Popen(['which', 'pw.x'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
         return res.strip()
 
     def parse_input_file(self, filename):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
         # self._correct_types()

@@ -45,7 +45,7 @@ class Handler:
         self._input_filename = 'input.xml'
         self.custom_command = ''
         self.custom_command_active = False
-        self.exciting_folder = self.find_engine_folder()
+        self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
         self.scf_options_tooltip = {'do':r'Decides if the ground state is calculated starting from scratch, '
                                          'using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.'}
@@ -125,7 +125,7 @@ Default: 	GGA_PBE"""
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
@@ -405,7 +405,7 @@ Default: 	GGA_PBE"""
 
     def _add_scf_to_tree(self, tree, crystal_structure, skip=False):
         root = tree.getroot()
-        structure = ET.SubElement(root, "structure", speciespath=self.exciting_folder + 'species',tshift='false',autormt='true')
+        structure = ET.SubElement(root, "structure", speciespath=self.dft_installation_folder + 'species', tshift='false', autormt='true')
         crystal = ET.SubElement(structure, "crystal",scale='1.0')
         for i in range(3):
             lattice_vector = crystal_structure.lattice_vectors[i, :]

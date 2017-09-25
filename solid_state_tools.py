@@ -255,6 +255,30 @@ class StructureParser:
                 res.append(line)
         return res
 
+
+class GeneralHandler():
+    def __init__(self):
+        from exciting_handler import Handler
+        self.exciting_handler = Handler()
+        from quantum_espresso_handler import Handler
+        self.quantum_espresso_handler = Handler()
+
+        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler}
+
+    def is_handler_available(self,engine_name):
+        handler = self.handlers[engine_name]
+
+        if len(handler.dft_installation_folder) > 0:
+            return True
+        else:
+            return False
+
+
+    def parse_input_file(self,engine_name,filename):
+        handler = self.handlers[engine_name]
+        return handler.parse_input_file(filename)
+
+
 class KohnShamDensity:
     def __init__(self,density):
         self.density = density
@@ -289,6 +313,8 @@ def find_lines_between(text,a,b,strip=False):
     return atom_lines
 
 
+
+
 if __name__ == "__main__":
     # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
@@ -299,3 +325,5 @@ if __name__ == "__main__":
 
     parser = StructureParser()
     out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
+    general_handler = GeneralHandler()
+    print(general_handler.available_handlers)
