@@ -372,6 +372,7 @@ class InfoWindow(QtGui.QWidget):
         self.text_widget.setReadOnly(True)
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
+        self.last_text = ''
 
     def do_select_event(self):
         try:
@@ -383,10 +384,11 @@ class InfoWindow(QtGui.QWidget):
         cur_pos = self.vertical_scrollbar.value()
         with open(filename,'r') as f:
             text = f.read()
-        text = text.replace('\n','<br>')
-        # text = text.replace('iteration','<b>iteration</b>')
-        # text = text.replace('total energy','<b>total energy</b>')
+        if text == self.last_text:
+            return
 
+        self.last_text = text
+        text = text.replace('\n','<br>')
         self.text_widget.setHtml(text)
         self.vertical_scrollbar.setValue(cur_pos)
 
@@ -821,7 +823,7 @@ class KsStateWindow(QtGui.QDialog):
             self.parent.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
             if ('error' in message.lower() or len(err)>0):
-                error_message = 'DFT calculation finished with an error:<br><br>' + message+'<br>Error:<br>'+err \
+                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n','<br>')+'<br>Error:<br>'+err.replace('\n','<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.parent.error_dialog.showMessage(error_message)
@@ -1199,7 +1201,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/test_qe/"
+                project_directory = r"/home/jannick/OpenDFT_projects/GaN_qe/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -1492,10 +1494,13 @@ class CentralWindow(QtGui.QWidget):
             self.dft_engine_window.abort_bool = False
             return
         elif esc_handler.is_engine_running(tasks=tasks):
-            self.scf_data = esc_handler.read_scf_status()
-            if self.scf_data is not None:
-                self.scf_window.scf_widget.plot(self.scf_data)
-            self.info_window.update_text(esc_handler.project_directory + esc_handler.working_dirctory + esc_handler.info_file)
+            selected_tab_index = self.tabWidget.currentIndex()
+            if selected_tab_index == 4:
+                self.scf_data = esc_handler.read_scf_status()
+                if self.scf_data is not None:
+                    self.scf_window.scf_widget.plot(self.scf_data)
+            elif selected_tab_index == 5:
+                self.info_window.update_text(esc_handler.project_directory + esc_handler.working_dirctory + esc_handler.info_file)
             QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True,tasks=tasks)
             if 'relax' in tasks:

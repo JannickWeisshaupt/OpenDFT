@@ -12,6 +12,7 @@ import threading
 from six import string_types
 from collections import OrderedDict
 import pandas as pd
+import signal
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -216,15 +217,17 @@ class Handler:
         with open(self.project_directory+self.working_dirctory+ '/rho.dat') as f:
             text = f.readlines()
         total_res = []
-        for line in text[8:]:
+        for line in text[2:]:
             res = line.split()
+            if not '.' in res[0]:
+                continue
             numbers = [float(x) for x in res]
             total_res.extend(numbers)
 
         n_grid = [int(text[i].split()[0]) for i in range(3,6)]
 
         l_data = np.array(total_res)
-        data = l_data.reshape(n_grid,order='F')
+        data = l_data.reshape(n_grid,order='C')
 
         data = data / data.max()
         return sst.KohnShamDensity(data)
@@ -248,15 +251,16 @@ class Handler:
         self._start_pp_process()
 
     def _start_pp_process(self):
-        command = ['pp.x<pp.in']
+        command = 'exec pp.x<pp.in'
         os.chdir(self.project_directory + self.working_dirctory)
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                               shell=True)
+                                               shell=True,preexec_fn=os.setpgrp)
         os.chdir(self.project_directory)
 
     def kill_engine(self):
         try:
             self.engine_process.kill()
+            # os.killpg(os.getpgid(self.engine_process.pid), signal.SIGTERM)
         except Exception as e:
             print(e)
 
@@ -342,7 +346,7 @@ class Handler:
         final_command = [None]
         final_command[0] = command[0] + ' <'+filename+' >'+outname
 
-        self.engine_process = subprocess.Popen(final_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+        self.engine_process = subprocess.Popen("exec "+final_command[0], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
         os.chdir(self.project_directory)
 
     def _is_engine_running_custom_command(self,tasks):
