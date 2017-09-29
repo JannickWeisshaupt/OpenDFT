@@ -375,6 +375,10 @@ Default: 	GGA_PBE"""
         self._write_input_file(tree)
         self._start_engine()
 
+    def calculate_electron_density(self, crystal_structure):
+        # TODO implement this
+        raise NotImplementedError
+
     def kill_engine(self):
         try:
             self.engine_process.kill()
