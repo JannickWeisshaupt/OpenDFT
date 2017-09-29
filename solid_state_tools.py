@@ -315,6 +315,7 @@ def find_lines_between(text,a,b,strip=False):
 
 
 
+
 if __name__ == "__main__":
     # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])

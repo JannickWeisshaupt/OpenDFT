@@ -14,7 +14,7 @@ from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteInto
 import pickle
 import time
 import threading
-
+from collections import OrderedDict
 
 try:
     import queue
@@ -362,6 +362,34 @@ class ScfWindow(QtGui.QWidget):
         pass
 
 
+class InfoWindow(QtGui.QWidget):
+    def __init__(self,parent=None):
+        QtGui.QWidget.__init__(self, parent)
+        layout = QtGui.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.text_widget = QtGui.QTextEdit(parent=self)
+        self.text_widget.setReadOnly(True)
+        layout.addWidget(self.text_widget)
+        self.vertical_scrollbar = self.text_widget.verticalScrollBar()
+
+    def do_select_event(self):
+        try:
+            self.update_text(esc_handler.project_directory+esc_handler.working_dirctory+esc_handler.info_file)
+        except Exception:
+            pass
+
+    def update_text(self,filename):
+        cur_pos = self.vertical_scrollbar.value()
+        with open(filename,'r') as f:
+            text = f.read()
+        text = text.replace('\n','<br>')
+        # text = text.replace('iteration','<b>iteration</b>')
+        # text = text.replace('total energy','<b>total energy</b>')
+
+        self.text_widget.setHtml(text)
+        self.vertical_scrollbar.setValue(cur_pos)
+
 class PlotWithTreeview(QtGui.QWidget):
     def __init__(self,Visualizer,data_dictionary,parent=None):
         QtGui.QWidget.__init__(self)
@@ -428,7 +456,7 @@ class PlotWithTreeview(QtGui.QWidget):
 
     def update_tree(self):
         self.treeview.clear()
-        for key,value in self.data_dictionary.items():
+        for key,value in OrderedDict(sorted(self.data_dictionary.items())).items():
             self.add_result_key(key)
 
     def do_select_event(self):
@@ -563,7 +591,7 @@ class OptionWithTreeview(PlotWithTreeview):
 
     def update_tree(self):
         self.treeview.clear()
-        for key,value in self.data_dictionary.items():
+        for key,value in OrderedDict(sorted(self.data_dictionary.items())).items():
             self.add_result_key(key)
         self.add_result_key('None')
 
@@ -691,12 +719,14 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
 class KsStateWindow(QtGui.QDialog):
     def __init__(self,parent):
         super(KsStateWindow, self).__init__(parent)
+        self.calc_queue = queue.Queue()
+        self.current_calc_properties = {}
         self.setFixedSize(700,500)
         self.parent = parent
         self.main_widget = QtGui.QWidget(parent=self)
         self.layout = QtGui.QVBoxLayout(self)
         self.calc_ks_group = QtGui.QGroupBox(parent=self.main_widget)
-        self.calc_ks_group.setTitle('Calculate KS state')
+        self.calc_ks_group.setTitle('Calculation Options')
         self.layout.addWidget(self.calc_ks_group)
 
         self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
@@ -718,6 +748,12 @@ class KsStateWindow(QtGui.QDialog):
         self.calculate_button.clicked.connect(self.calculate_ks_state)
         button_layout.addWidget(self.calculate_button)
 
+        self.calculate_density_button = QtGui.QPushButton('Calculate\nelectron density',button_frame)
+        self.calculate_density_button.setFixedWidth(150)
+        self.calculate_density_button.setFixedHeight(50)
+        self.calculate_density_button.clicked.connect(self.calculate_electron_density)
+        button_layout.addWidget(self.calculate_density_button)
+
         self.choose_nk_button = QtGui.QPushButton(button_frame)
         self.choose_nk_button.setFixedWidth(150)
         self.choose_nk_button.setFixedHeight(50)
@@ -725,7 +761,7 @@ class KsStateWindow(QtGui.QDialog):
         button_layout.addWidget(self.choose_nk_button)
 
         self.plot_group = QtGui.QGroupBox(parent=self.main_widget)
-        self.plot_group.setTitle('Calculate KS state')
+        self.plot_group.setTitle('Plot Options')
         self.layout.addWidget(self.plot_group)
 
         self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget,self.parent.ks_densities,parent=self)
@@ -735,26 +771,52 @@ class KsStateWindow(QtGui.QDialog):
 
         self.plot_widget.update_tree()
 
+    def calculate_electron_density(self):
+        esc_handler.calculate_electron_density(self.parent.crystal_structure)
+        self.current_calc_properties['type'] = 'density'
+        QtCore.QTimer.singleShot(100, self.check_engine)
 
 
     def calculate_ks_state(self):
-        n_band = int(self.n_band_entry.get_text())
-        k = int(self.k_point_entry.get_text())
+        n_band_str = self.n_band_entry.get_text()
+        if ',' in n_band_str:
+            tr = n_band_str.split(',')
+            n_band = [int(x) for x in tr]
+        else:
+            n_band = [int(n_band_str)]
+
+        k_band_str = self.k_point_entry.get_text()
+        if ',' in k_band_str:
+            tr = k_band_str.split(',')
+            k = [int(x) for x in tr]
+        else:
+            k = [int(k_band_str)]
+
+        if len(k) == 1:
+            k = k*len(n_band)
+        if len(n_band) == 1:
+            n_band = n_band*len(k)
+
+        to_do_list = zip(k,n_band)
+        map(self.calc_queue.put,to_do_list)
+        self.start_ks_calculation()
 
 
-        esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
-
-        QtCore.QTimer.singleShot(500, self.check_engine)
 
     def choose_nk(self):
         pass
 
+    def start_ks_calculation(self):
+        k,n_band = self.calc_queue.get()
+        self.current_calc_properties = {'type':'ks density','k':k,'n_band':n_band}
+        esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
+        QtCore.QTimer.singleShot(100, self.check_engine)
 
     def check_engine(self):
         tasks=['ks density']
         if esc_handler.is_engine_running(tasks=tasks):
             self.parent.status_bar.set_engine_status(True,tasks=tasks)
-            QtCore.QTimer.singleShot(500, self.check_engine)
+            QtCore.QTimer.singleShot(100, self.check_engine)
         else:
             self.parent.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
@@ -765,12 +827,19 @@ class KsStateWindow(QtGui.QDialog):
                 self.parent.error_dialog.showMessage(error_message)
 
             ks_dens = esc_handler.read_ks_state()
-            n_band = int(self.n_band_entry.get_text())
-            k = int(self.k_point_entry.get_text())
-            key = "k{} n{}".format(k,n_band)
+            if self.current_calc_properties['type'] == 'ks density':
+                n_band = self.current_calc_properties['n_band']
+                k = self.current_calc_properties['k']
+                key = "k{} n{}".format(k,n_band)
+            elif self.current_calc_properties['type'] == 'density':
+                key = 'density'
+
             if ks_dens is not None:
                 self.parent.ks_densities[key] = ks_dens
                 self.plot_widget.update_tree()
+
+            if not self.calc_queue.empty():
+                self.start_ks_calculation()
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -1085,12 +1154,13 @@ class CentralWindow(QtGui.QWidget):
         self.error_dialog.resize(700, 600)
 
         self.layout = QtGui.QGridLayout(self)
-        self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
 
+        self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
         self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization, data_dictionary=self.band_structures, parent=self)
         self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization, data_dictionary=self.optical_spectra, parent=self)
         self.dft_engine_window = DftEngineWindow(self)
         self.scf_window = ScfWindow(parent=self)
+        self.info_window = InfoWindow(parent=self)
 
         self.tabWidget = QtGui.QTabWidget()
         self.tabWidget.currentChanged.connect(self.tab_is_changed)
@@ -1106,7 +1176,7 @@ class CentralWindow(QtGui.QWidget):
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
 
-        self.list_of_tabs = [self.mayavi_widget,self.dft_engine_window,self.band_structure_window,self.optical_spectra_window,self.scf_window]
+        self.list_of_tabs = [self.mayavi_widget,self.dft_engine_window,self.band_structure_window,self.optical_spectra_window,self.scf_window,self.info_window]
 
 
         self.tabWidget.addTab(self.list_of_tabs[0], 'Structure')
@@ -1114,6 +1184,8 @@ class CentralWindow(QtGui.QWidget):
         self.tabWidget.addTab(self.list_of_tabs[2],'Bandstructure')
         self.tabWidget.addTab(self.list_of_tabs[3],'Optical Spectrum')
         self.tabWidget.addTab(self.list_of_tabs[4], 'Scf')
+        self.tabWidget.addTab(self.list_of_tabs[5], 'Info')
+
         self.tabWidget.show()
 
         self.show()
@@ -1423,6 +1495,7 @@ class CentralWindow(QtGui.QWidget):
             self.scf_data = esc_handler.read_scf_status()
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
+            self.info_window.update_text(esc_handler.project_directory + esc_handler.working_dirctory + esc_handler.info_file)
             QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True,tasks=tasks)
             if 'relax' in tasks:

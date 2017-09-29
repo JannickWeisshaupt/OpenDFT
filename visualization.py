@@ -397,7 +397,7 @@ class BandStructureVisualization(QtGui.QWidget):
     def plot(self,band_structure):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
-        self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f}'.format(*self.make_interactive_text(x,y,band_structure))
+        self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f} eV'.format(*self.make_interactive_text(x,y,band_structure))
 
         self.ax.cla()
         for band in band_structure.bands:

@@ -11,6 +11,7 @@ import re
 import threading
 from six import string_types
 from collections import OrderedDict
+import pandas as pd
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -34,10 +35,10 @@ class Handler:
         self.engine_name = 'quantum espresso'
         self.default_extension = '.xml'
         self._engine_command = ["pw.x"]
-        self._working_dirctory = '/quantum_espresso_files/'
+        self.working_dirctory = '/quantum_espresso_files/'
         self.pseudo_directory = '/pseudos/'
         self.engine_process = None
-        self._info_file = 'scf.out'
+        self.info_file = 'scf.out'
         self._filenames_tasks = {}
 
         self._timestamp_tasks = {}
@@ -112,7 +113,7 @@ class Handler:
 
     def read_scf_status(self):
         try:
-            f = open(self.project_directory + self._working_dirctory + self._info_file, 'r')
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
             return None
         info_text = f.read()
@@ -132,7 +133,7 @@ class Handler:
 
     def read_bandstructure(self,special_k_points=None):
         try:
-            f = open(self.project_directory + self._working_dirctory + '/bands.out', 'r')
+            f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
         except IOError:
             return None
         text = f.read().replace('-',' -')
@@ -201,8 +202,6 @@ class Handler:
 
         return sst.BandStructure(bands,special_k_points=special_k_points_out)
 
-
-
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError
 
@@ -213,10 +212,47 @@ class Handler:
         raise NotImplementedError
 
     def read_ks_state(self):
-        raise NotImplementedError
 
-    def calculate_ks_density(self, crystal_structure, bs_point, grid='40 40 40'):
-        raise NotImplementedError
+        with open(self.project_directory+self.working_dirctory+ '/rho.dat') as f:
+            text = f.readlines()
+        total_res = []
+        for line in text[8:]:
+            res = line.split()
+            numbers = [float(x) for x in res]
+            total_res.extend(numbers)
+
+        n_grid = [int(text[i].split()[0]) for i in range(3,6)]
+
+        l_data = np.array(total_res)
+        data = l_data.reshape(n_grid,order='F')
+
+        data = data / data.max()
+        return sst.KohnShamDensity(data)
+
+    def calculate_ks_density(self, crystal_structure, bs_point):
+        f = self._make_input_file(filename='pp.in')
+        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':7, 'filplot': 'e_density', 'kpoint(1)':bs_point[0], 'kband(1)':bs_point[1]}
+        self._write_block(f,'&inputpp',inputpp_dic)
+        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
+        self._write_block(f,'&plot',plot_dic)
+        f.close()
+        self._start_pp_process()
+
+    def calculate_electron_density(self,crystal_structure):
+        f = self._make_input_file(filename='pp.in')
+        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':0, 'filplot': 'e_density'}
+        self._write_block(f,'&inputpp',inputpp_dic)
+        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
+        self._write_block(f,'&plot',plot_dic)
+        f.close()
+        self._start_pp_process()
+
+    def _start_pp_process(self):
+        command = ['pp.x<pp.in']
+        os.chdir(self.project_directory + self.working_dirctory)
+        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                               shell=True)
+        os.chdir(self.project_directory)
 
     def kill_engine(self):
         try:
@@ -239,9 +275,9 @@ class Handler:
         return True
 
     def _make_input_file(self,filename='scf.in'):
-        if not os.path.isdir(self.project_directory + self._working_dirctory):
-            os.mkdir(self.project_directory + self._working_dirctory)
-        f = open(self.project_directory+self._working_dirctory+'/'+filename,'w')
+        if not os.path.isdir(self.project_directory + self.working_dirctory):
+            os.mkdir(self.project_directory + self.working_dirctory)
+        f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
     def _add_scf_to_file(self,file,crystal_structure,calculation='scf',band_points=None):
@@ -251,7 +287,7 @@ class Handler:
         control_options ={'prefix':self.general_options['title']}
         control_options['verbosity'] = 'high'
         control_options['pseudo_dir'] = self.project_directory + self.pseudo_directory
-        control_options['outdir'] = self.project_directory + self._working_dirctory
+        control_options['outdir'] = self.project_directory + self.working_dirctory
         control_options['calculation'] = calculation
         self._write_block(file, '&control',control_options )
         system_options = {}
@@ -295,7 +331,7 @@ class Handler:
 
 
     def _start_engine(self,filename='scf.in'):
-        os.chdir(self.project_directory + self._working_dirctory)
+        os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
         else:
@@ -337,13 +373,17 @@ if __name__ == '__main__':
 
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
-    handler.scf_options['ecutwfc'] = 20.0
-    band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
-    handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
-
-    coords = [x[0] for x in band_structure_points]
-    labels = [x[1] for x in band_structure_points]
-    new_coords = crystal_structure.convert_to_tpiba(coords)
-    band_structure_points_conv = zip(new_coords, labels)
-
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
+    # handler.scf_options['ecutwfc'] = 20.0
+    # band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
+    # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
+    #
+    # coords = [x[0] for x in band_structure_points]
+    # labels = [x[1] for x in band_structure_points]
+    # new_coords = crystal_structure.convert_to_tpiba(coords)
+    # band_structure_points_conv = zip(new_coords, labels)
+    #
+    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
+    handler.calculate_ks_density(None,[1,1])
+    while handler.is_engine_running():
+        time.sleep(0.1)
+    ks = handler.read_ks_state()

@@ -366,6 +366,7 @@ Default: 	GGA_PBE"""
         data = data/data.max()
         return sst.KohnShamDensity(data)
 
+
     def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
         self._read_timestamps()
         tree = self._make_tree()
