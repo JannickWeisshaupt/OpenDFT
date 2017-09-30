@@ -64,6 +64,8 @@ class Handler:
         self.phonons_options_tooltip = {}
         self.optical_spectrum_options = {}
 
+        self.relax_file_timestamp = None
+
     def find_engine_folder(self):
         p = subprocess.Popen(['which', 'pw.x'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
@@ -75,7 +77,6 @@ class Handler:
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
-        # self._correct_types()
         if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
 
@@ -107,10 +108,64 @@ class Handler:
         raise NotImplementedError
 
     def start_relax(self, crystal_structure):
-        raise NotImplementedError
+        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+            raise Exception('Too few bands')
+
+        file = self._make_input_file()
+        self._add_scf_to_file(file,crystal_structure,calculation='relax')
+        file.close()
+        self._start_engine()
 
     def load_relax_structure(self):
-        raise NotImplementedError
+        file = self.project_directory+self.working_dirctory+self.info_file
+        if not os.path.isfile(file):
+            return None
+        if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
+            return None
+        self.relax_file_timestamp = os.path.getmtime(file)
+
+        with open(file) as f:
+            text = f.readlines()
+
+        matched_lines = [i for i,line in enumerate(text) if 'atomic_positions' in line.lower()]
+        if len(matched_lines) == 0:
+            return None
+        highest_index = max(matched_lines)
+        species = []
+        coords = []
+        for line in text[highest_index+1:]:
+            try:
+                res = line.split()
+                species.append(p_table_rev[res[0]])
+                coords.append(np.array([float(x) for x in res[1:]]))
+            except Exception:
+                if len(res)==0:
+                    continue
+                else:
+                    break
+
+        atoms = np.zeros((len(species),4))
+        for i,atom in enumerate(zip(species,coords)):
+            atoms[i,:3] = atom[1]
+            atoms[i,3] = atom[0]
+
+        matched_line = [i for i, line in enumerate(text) if 'lattice parameter' in line.lower()]
+        line = text[matched_line[0]]
+        res = line.split('=')[1].replace('a.u.','')
+        a = float(res)
+
+        matched_line = [i for i, line in enumerate(text) if 'a(1) =' in line.lower()][0]
+        lattice_vectors = np.zeros((3,3))
+
+        for i in range(matched_line,matched_line+3):
+            line = text[i]
+            res = line.split('=')[1]
+            res = res.replace('(','').replace(')','').split()
+            res = np.array([float(x) for x in res])
+            lattice_vectors[i-matched_line,:] = res*a
+
+        return sst.CrystalStructure(lattice_vectors,atoms)
+
 
     def read_scf_status(self):
         try:
@@ -308,6 +363,9 @@ class Handler:
         system_options['ntyp'] = len(n_typ)
         self._write_block(file,'&system',system_options)
         self._write_block(file,'&electrons',electron_options)
+        if calculation in ['relax', 'md', 'vc-relax','vc-md']:
+            self._write_block(file,'&ions',{})
+
         file.write('ATOMIC_SPECIES\n')
         for specie in n_typ:
             file.write(p_table[specie] + " {0:1.5f}".format(atomic_mass[specie]) +' '+ p_table[specie]+'.pseudo\n')
@@ -387,7 +445,8 @@ if __name__ == '__main__':
     # band_structure_points_conv = zip(new_coords, labels)
     #
     # band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
-    handler.calculate_ks_density(None,[1,1])
-    while handler.is_engine_running():
-        time.sleep(0.1)
-    ks = handler.read_ks_state()
+    # handler.calculate_ks_density(None,[1,1])
+    # while handler.is_engine_running():
+    #     time.sleep(0.1)
+    # ks = handler.read_ks_state()
+    out = handler.load_relax_structure()

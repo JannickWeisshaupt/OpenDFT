@@ -15,6 +15,12 @@ import pickle
 import time
 import threading
 from collections import OrderedDict
+import logging
+
+current_time = time.localtime()
+current_time_string = [str(x) for x in current_time[:6]]
+logging.basicConfig(level=logging.DEBUG, filename=__file__.replace('main.py','')+"/logfiles/"+"_".join(current_time_string)+".log")
+logging.info('Program started')
 
 try:
     import queue
@@ -1025,7 +1031,7 @@ class EditStructureWindow(QtGui.QDialog):
             self.unit_cell_table.itemChanged.disconnect()
             self.atom_table.itemChanged.disconnect()
         except Exception as e:
-            print(e)
+            logging.exception(e)
 
     def connect_tables(self):
         self.unit_cell_table.itemChanged.connect(self.handle_change)
@@ -1076,7 +1082,7 @@ class EditStructureWindow(QtGui.QDialog):
                     item = self.atom_table.item(i, 0)
                     item.setText(p_table[atom[3]])
         except Exception as e:
-            print(e)
+            logging.exception(e)
 
         self.connect_tables()
 
@@ -1098,7 +1104,10 @@ class EditStructureWindow(QtGui.QDialog):
         try:
             scale_string = self.scale_entry.get_text()
             scale = float(scale_string)
-        except:
+            if scale == 0:
+                raise Exception('Scale cannot be zero')
+        except Exception as e:
+            logging.exception(e)
             scale = 1.0
         unit_cell = unit_cell*scale
 
@@ -1201,7 +1210,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/GaN_qe/"
+                project_directory = r"/home/jannick/OpenDFT_projects/test_qe/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -1287,7 +1296,7 @@ class CentralWindow(QtGui.QWidget):
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
-            print(e)
+            logging.exception(e)
 
     def load_saved_results(self):
         esc_handler.project_directory = self.project_directory
@@ -1479,6 +1488,7 @@ class CentralWindow(QtGui.QWidget):
         if DEBUG or reply == QtGui.QMessageBox.Yes:
             self.save_results()
             self.parent.quit()
+            logging.info('Program stopped normally')
             sys.exit()
 
     def check_engine(self,tasks):

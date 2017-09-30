@@ -1,5 +1,5 @@
 exciting: Done
 nwchem: Missing (installed)
-quantum espresso: Missing (installed)
+quantum espresso: Moslty Done
 Siesta: Missing (not installed)
 Abinit: Missing (installed)
