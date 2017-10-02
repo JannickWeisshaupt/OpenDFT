@@ -1522,7 +1522,7 @@ class CentralWindow(QtGui.QWidget):
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
             if ('error' in message.lower() or len(err)>0):
-                error_message = 'DFT calculation finished with an error:<br><br>' + message+'<br>Error:<br>'+err \
+                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',"<br>")+'<br>Error:<br>'+err.replace('\n','<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)

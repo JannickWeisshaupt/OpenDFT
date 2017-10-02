@@ -50,7 +50,7 @@ class Handler:
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = {'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
-                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7'}
+                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7',"restart_mode":'from_scratch','nstep':'50'}
 
 
         self.scf_options_tooltip = {}
@@ -348,6 +348,8 @@ class Handler:
         control_options['pseudo_dir'] = self.project_directory + self.pseudo_directory
         control_options['outdir'] = self.project_directory + self.working_dirctory
         control_options['calculation'] = calculation
+        control_options['restart_mode'] = self.scf_options['restart_mode']
+        control_options['nstep'] = int(self.scf_options['nstep'])
         self._write_block(file, '&control',control_options )
         system_options = {}
         system_options['ecutwfc'] = float(self.scf_options['ecutwfc'])
