@@ -9,7 +9,7 @@ from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from quantum_espresso_handler import Handler as Handler
+from nwchem_handler import Handler as Handler
 from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
 import pickle
 import time
@@ -889,6 +889,7 @@ class EditStructureWindow(QtGui.QDialog):
         unit_cell_option_widget = QtGui.QWidget(self.unit_cell_box)
         # unit_cell_option_widget.setFixedHeight(10)
         self.unit_cell_option_layout = QtGui.QHBoxLayout(unit_cell_option_widget)
+        self.unit_cell_option_layout.setAlignment(QtCore.Qt.AlignLeft)
         self.unit_cell_layout.addWidget(unit_cell_option_widget)
 
         self.scale_entry = EntryWithLabel(self,'Scale')
@@ -897,7 +898,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.scale_entry.set_text('1.0')
         self.scale_entry.connect_editFinished(self.handle_change)
 
-        self.periodic_checkbox = QtGui.QCheckBox('Peridic',parent=self)
+        self.periodic_checkbox = QtGui.QCheckBox('Periodic',parent=self)
         self.periodic_checkbox.toggle()
         self.periodic_checkbox.stateChanged.connect(self.handle_change)
         self.unit_cell_option_layout.addWidget(self.periodic_checkbox)
@@ -1072,14 +1073,14 @@ class EditStructureWindow(QtGui.QDialog):
             else:
                 scale = self.crystal_structure.scale
                 self.scale_entry.set_text('{0:1.6f}'.format(scale))
-                if type(self.crystal_structure is sst.CrystalStructure):
+                if type(self.crystal_structure) is sst.CrystalStructure:
                     unit_cell = self.crystal_structure.lattice_vectors
                     for i in range(3):
                         for j in range(3):
                             self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]/scale))
                     if not self.periodic_checkbox.checkState():
                         self.periodic_checkbox.toggle()
-                elif type(self.crystal_structure is sst.MolecularStructure):
+                elif type(self.crystal_structure) is sst.MolecularStructure:
                     if self.periodic_checkbox.checkState():
                         self.periodic_checkbox.toggle()
 

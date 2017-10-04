@@ -238,7 +238,6 @@ class StructureVisualization(HasTraits):
 
         dens = ks_density.density
         dens_plot = np.tile(dens,repeat)
-        unit_cell = self.crystal_structure.lattice_vectors
 
         if type(contours) == int:
             color = None
@@ -252,13 +251,24 @@ class StructureVisualization(HasTraits):
 
         polydata = self.cp.actor.actors[0].mapper.input
         pts = np.array(polydata.points) - 1
-        # Transform the points to the unit cell:
-        larger_cell= np.zeros((3,3))
-        larger_cell[0,:]=unit_cell[0,:]*repeat[0]
-        larger_cell[1,:]=unit_cell[1,:]*repeat[1]
-        larger_cell[2,:]=unit_cell[2,:]*repeat[2]
 
-        polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
+        if type(ks_density) is sst.KohnShamDensity:
+            unit_cell = self.crystal_structure.lattice_vectors
+            # Transform the points to the unit cell:
+            larger_cell= np.zeros((3,3))
+            larger_cell[0,:]=unit_cell[0,:]*repeat[0]
+            larger_cell[1,:]=unit_cell[1,:]*repeat[1]
+            larger_cell[2,:]=unit_cell[2,:]*repeat[2]
+
+            polydata.points = np.dot(pts, larger_cell / np.array(dens_plot.shape)[:, np.newaxis])
+        elif type(ks_density) is sst.MolecularDensity:
+            lattice_vecs = ks_density.grid_vectors
+            origin = ks_density.origin
+            polydata.points = np.dot(pts, lattice_vecs / np.array(dens_plot.shape)[:, np.newaxis])+origin
+
+        else:
+            raise ValueError('Invalid type for density')
+
 
         # self.scene.mlab.view(distance='auto')
         self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])

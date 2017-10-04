@@ -17,6 +17,8 @@ class MolecularStructure(object):
     def __init__(self, atoms,scale=1.0):
         self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
         self.atoms[:,:3] = self.atoms[:,:3]*scale
+        self.n_atoms = atoms.shape[0]
+        self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
     def calc_absolute_coordinates(self,repeat=[1,1,1]):
         return self.atoms
@@ -303,9 +305,15 @@ class GeneralHandler():
         return handler.parse_input_file(filename)
 
 
-class KohnShamDensity:
+class KohnShamDensity(object):
     def __init__(self,density):
         self.density = density
+
+class MolecularDensity(object):
+    def __init__(self,density,lattice_vecs,origin):
+        self.density = density
+        self.grid_vectors = lattice_vecs
+        self.origin = origin
 
 def calculate_lattice_vectors_from_parameters(parameters):
     a, b, c, alpha, beta, gamma = parameters
@@ -351,4 +359,4 @@ if __name__ == "__main__":
     parser = StructureParser()
     out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
     general_handler = GeneralHandler()
-    print(general_handler.available_handlers)
+    # print(general_handler.available_handlers)

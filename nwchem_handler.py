@@ -20,6 +20,7 @@ p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 atomic_mass = {i: el.mass for i, el in enumerate(pt.elements)}
 
 hartree = 27.211
+bohr = 0.52917721
 
 
 def convert_greek(input):
@@ -33,10 +34,10 @@ def convert_greek(input):
 
 class Handler:
     def __init__(self):
-        self.engine_name = 'empty'
+        self.engine_name = 'nchem'
         self.default_extension = ''
         self._engine_command = ["nwchem"]
-        self.working_dirctory = '/test/'
+        self.working_dirctory = '/nwchem_files/'
         self.pseudo_directory = None
         self.engine_process = None
         self.info_file = 'scf.out'
@@ -48,7 +49,7 @@ class Handler:
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {}
+        self.scf_options = {'basis': 'cc-pvdz','method':'scf'}
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -73,8 +74,6 @@ class Handler:
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
-            raise Exception('Too few bands')
 
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
@@ -104,11 +103,8 @@ class Handler:
         raise NotImplementedError
 
     def start_relax(self, crystal_structure):
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
-            raise Exception('Too few bands')
-
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure,calculation='relax')
+        self._add_scf_to_file(file,crystal_structure,calculation='optimize')
         file.close()
         self._start_engine()
 
@@ -123,17 +119,17 @@ class Handler:
         with open(file) as f:
             text = f.readlines()
 
-        matched_lines = [i for i,line in enumerate(text) if 'atomic_positions' in line.lower()]
+        matched_lines = [i for i,line in enumerate(text) if 'output coordinates in a.u.' in line.lower()]
         if len(matched_lines) == 0:
             return None
         highest_index = max(matched_lines)
         species = []
         coords = []
-        for line in text[highest_index+1:]:
+        for line in text[highest_index+4:]:
             try:
                 res = line.split()
-                species.append(p_table_rev[res[0]])
-                coords.append(np.array([float(x) for x in res[1:]]))
+                species.append(p_table_rev[res[1].title()])
+                coords.append(np.array([float(x) for x in res[3:]]))
             except Exception:
                 if len(res)==0:
                     continue
@@ -143,24 +139,9 @@ class Handler:
         atoms = np.zeros((len(species),4))
         for i,atom in enumerate(zip(species,coords)):
             atoms[i,:3] = atom[1]
-            atoms[i,3] = atom[0]
+            atoms[i,3] =atom[0]
 
-        matched_line = [i for i, line in enumerate(text) if 'lattice parameter' in line.lower()]
-        line = text[matched_line[0]]
-        res = line.split('=')[1].replace('a.u.','')
-        a = float(res)
-
-        matched_line = [i for i, line in enumerate(text) if 'a(1) =' in line.lower()][0]
-        lattice_vectors = np.zeros((3,3))
-
-        for i in range(matched_line,matched_line+3):
-            line = text[i]
-            res = line.split('=')[1]
-            res = res.replace('(','').replace(')','').split()
-            res = np.array([float(x) for x in res])
-            lattice_vectors[i-matched_line,:] = res*a
-
-        return sst.CrystalStructure(lattice_vectors,atoms)
+        return sst.MolecularStructure(atoms)
 
     def read_scf_status(self):
         try:
@@ -170,12 +151,24 @@ class Handler:
         info_text = f.read()
         f.close()
 
-
         scf_energy_list = []
-        matches = re.findall(r"total energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
-        for match in matches:
-            ms = match.split('=')
-            scf_energy_list.append(float(ms[1]))
+
+        hits = [i for i,l in enumerate(info_text.split('\n')) if l.strip().startswith('iter')]
+        if len(hits)==0:
+            return None
+        else:
+            hit = hits[0]
+        for line in info_text.split('\n')[hit+2:]:
+            sline = line.split()
+            if len(sline)==0:
+                break
+            scf_energy_list.append(float(sline[1]))
+
+
+        # matches = re.findall(r"Total SCF energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+        # for match in matches:
+        #     ms = match.split('=')
+        #     scf_energy_list.append(float(ms[1]))
 
         res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
         if len(res) < 2:
@@ -264,8 +257,16 @@ class Handler:
 
     def read_ks_state(self):
 
-        with open(self.project_directory+self.working_dirctory+ '/rho.dat') as f:
+        with open(self.project_directory+self.working_dirctory+ '/chargedensity.cube') as f:
             text = f.readlines()
+        origin = np.array(text[2].split()[1:],dtype=np.float)
+        lattice_vecs = np.zeros((3,3))
+        for i in range(3):
+            line = text[3+i]
+            coords = np.array(line.split()[1:],dtype=np.float)
+            steps = int(line.split()[0])
+            lattice_vecs[i,:3] = coords*(steps-1)
+
         total_res = []
         for line in text[2:]:
             res = line.split()
@@ -280,25 +281,29 @@ class Handler:
         data = l_data.reshape(n_grid,order='C')
 
         data = data / data.max()
-        return sst.KohnShamDensity(data)
+        return sst.MolecularDensity(data,lattice_vecs,origin)
 
     def calculate_ks_density(self, crystal_structure, bs_point):
-        f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':7, 'filplot': 'e_density', 'kpoint(1)':bs_point[0], 'kband(1)':bs_point[1]}
-        self._write_block(f,'&inputpp',inputpp_dic)
-        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
-        self._write_block(f,'&plot',plot_dic)
-        f.close()
-        self._start_pp_process()
+        file = self._make_input_file()
+        file.write('title '+'"'+self.general_options['title']+'"\n')
+        self._add_geometry(file,crystal_structure,auto=False)
+        self._add_basis(file,crystal_structure)
+        # self._add_scf_field_to_file(file)
+        self._add_dplot_to_file(file,crystal_structure,orbital=bs_point[1])
+        file.write('task dplot\n')
+        file.close()
+        self._start_engine()
 
     def calculate_electron_density(self,crystal_structure):
-        f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':0, 'filplot': 'e_density'}
-        self._write_block(f,'&inputpp',inputpp_dic)
-        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
-        self._write_block(f,'&plot',plot_dic)
-        f.close()
-        self._start_pp_process()
+        file = self._make_input_file()
+        file.write('title '+'"'+self.general_options['title']+'"\n')
+        self._add_geometry(file,crystal_structure,auto=False)
+        self._add_basis(file,crystal_structure)
+        # self._add_scf_field_to_file(file)
+        self._add_dplot_to_file(file,crystal_structure)
+        file.write('task dplot\n')
+        file.close()
+        self._start_engine()
 
     def kill_engine(self):
         try:
@@ -306,6 +311,9 @@ class Handler:
             # os.killpg(os.getpgid(self.engine_process.pid), signal.SIGTERM)
         except Exception as e:
             print(e)
+
+    def will_scf_run(self):
+        return True
 
     def is_engine_running(self, tasks=None):
         if self.custom_command_active:
@@ -319,7 +327,14 @@ class Handler:
                 return False
 
     def _add_scf_to_file(self, file, crystal_structure, calculation='scf', band_points=None):
-        pass
+        file.write('title '+'"'+self.general_options['title']+'"\n')
+        self._add_geometry(file,crystal_structure)
+        self._add_basis(file,crystal_structure)
+
+        file.write('task ' + self.scf_options['method'])
+        if calculation == 'optimize':
+            file.write(' '+calculation)
+        file.write('\n')
 
     def _make_input_file(self, filename='scf.in'):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
@@ -336,20 +351,85 @@ class Handler:
 
         outname = filename.split('.')[0] + '.out'
         final_command = [None]
-        final_command[0] = command[0] + filename + ' >' + outname
+        final_command[0] = command[0] +' '+ filename + ' >' + outname
 
         self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
         os.chdir(self.project_directory)
 
+    def _add_geometry(self,file,crystal_structure,auto=False):
+        if not auto:
+            auto_string = 'noautoz nocenter noautosym'
+        else:
+            auto_string = ''
+        file.write('geometry units atomic '+auto_string+'\n')
+
+        for atom in crystal_structure.atoms:
+            file.write('    '+p_table[atom[3]].lower())
+            file.write(" {0:1.9f} {1:1.9f} {2:1.9f}\n".format(*atom[:3]))
+        file.write('end\n')
+
+    def _add_basis(self,file,crystal_structure):
+        file.write('basis\n')
+        file.write('    *'+ ' library ' + self.scf_options['basis']+'\n')
+        # for atom in crystal_structure.atoms:
+        #     file.write('    '+p_table[atom[3]].lower() + ' library ' + self.scf_options['basis']+'\n')
+        file.write('end\n')
+
+    def _add_scf_field_to_file(self,file,input=False):
+        file.write('scf\n')
+        if input:
+            file.write('    vectors input scf.movecs\n')
+        file.write('end\n')
+
+    def _add_dplot_to_file(self,file,crystal_structure,limits=None,orbital=None):
+        if limits is None:
+            edge = 0.5
+            limits = np.zeros((3,3))
+            coords = crystal_structure.calc_absolute_coordinates()[:,:3]
+            for i in range(3):
+                coord = coords[:,i]
+                tr_range = coord.max()-coord.min()
+                if tr_range == 0:
+                    tr_range = 5
+                limits[i,:] = [coord.min()-tr_range*edge,coord.max()+tr_range*edge,100]
+
+
+
+
+
+        file.write('dplot\n')
+        file.write('    TITLE '+self.general_options['title']+'\n')
+        file.write('    vectors scf.movecs\n')
+        file.write('    LimitXYZ\n')
+        for limit in limits:
+            limit[:2] = limit[:2]*bohr
+            file.write('    {0:1.9f} {1:1.9f} {2:1.0f}\n'.format(*limit))
+
+
+        file.write("""    spin total
+    gaussian
+    output chargedensity.cube\n""")
+        if orbital is not None:
+            file.write('    orbitals density; 1; '+str(orbital)+'\n')
+
+        file.write('end\n')
+
 if __name__ == '__main__':
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-    crystal_structure = sst.CrystalStructure(None, atoms)
+    atoms = np.array([[0, 0, -1.2, 7], [0, 0, 1.2, 7]])
+    crystal_structure = sst.MolecularStructure(atoms)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
-    # handler.scf_options['ecutwfc'] = 20.0
+    handler.project_directory = "/home/jannick/OpenDFT_projects/nwchem_test"
+    # handler.start_ground_state(crystal_structure)
+    handler.read_scf_status()
+
+    # handler.calculate_electron_density(crystal_structure)
+    # while handler.is_engine_running():
+    #     time.sleep(0.1)
+    # dens = handler.read_ks_state()
+
+        # handler.scf_options['ecutwfc'] = 20.0
     # band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
     # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
     #
@@ -363,4 +443,4 @@ if __name__ == '__main__':
     # while handler.is_engine_running():
     #     time.sleep(0.1)
     # ks = handler.read_ks_state()
-    out = handler.load_relax_structure()
+    # out = handler.load_relax_structure()
