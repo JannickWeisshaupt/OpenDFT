@@ -1,18 +1,42 @@
 from __future__ import division
 import numpy as np
 import re
-from visualization import cov_radii
 import periodictable as pt
 import sys
 
+bohr = 0.52917721067
+
 # from CifFile import ReadCif
+cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 
-bohr = 0.52917721067
 
-class CrystalStructure:
+class MolecularStructure(object):
+    def __init__(self, atoms,scale=1.0):
+        self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
+        self.atoms[:,:3] = self.atoms[:,:3]*scale
+
+    def calc_absolute_coordinates(self,repeat=[1,1,1]):
+        return self.atoms
+
+    def find_bonds(self,abs_coords):
+        n_atoms = abs_coords.shape[0]
+        abs_coords_pure = abs_coords[:,:3]
+
+        dist_mat = np.zeros((n_atoms,n_atoms))
+        bonds = []
+        for j1 in range(n_atoms):
+            for j2 in range(j1+1,n_atoms):
+
+                dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
+                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.3:
+                    dist_mat[j1, j2] = dist
+                    bonds.append([j1,j2]);
+        return bonds
+
+class CrystalStructure(object):
 
     def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
         self.lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
@@ -317,12 +341,12 @@ def find_lines_between(text,a,b,strip=False):
 
 
 if __name__ == "__main__":
-    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-    #
-    # crystal_structure = CrystalStructure(unit_cell, atoms)
-    # coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
-    # print(crystal_structure.find_bonds(coords))
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+
+    crystal_structure = CrystalStructure(unit_cell, atoms)
+    coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
+    print(crystal_structure.find_bonds(coords))
 
     parser = StructureParser()
     out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')

@@ -8,7 +8,7 @@ from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button
 from traitsui.api import View, Item, Group
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
     SceneEditor
-
+import solid_state_tools as sst
 from mayavi.core.api import Engine
 import copy
 import numpy as np
@@ -166,6 +166,8 @@ class StructureVisualization(HasTraits):
         return False
 
     def plot_unit_cell(self, repeat=[1, 1, 1]):
+        if type(self.crystal_structure) is sst.MolecularStructure:
+            return
         cell = self.crystal_structure.lattice_vectors
         existing_lines = []
 

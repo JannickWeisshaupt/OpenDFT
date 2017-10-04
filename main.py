@@ -887,7 +887,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_layout.setAlignment(QtCore.Qt.AlignTop)
 
         unit_cell_option_widget = QtGui.QWidget(self.unit_cell_box)
-        unit_cell_option_widget.setFixedHeight(50)
+        # unit_cell_option_widget.setFixedHeight(10)
         self.unit_cell_option_layout = QtGui.QHBoxLayout(unit_cell_option_widget)
         self.unit_cell_layout.addWidget(unit_cell_option_widget)
 
@@ -896,6 +896,11 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_option_layout.addWidget(self.scale_entry)
         self.scale_entry.set_text('1.0')
         self.scale_entry.connect_editFinished(self.handle_change)
+
+        self.periodic_checkbox = QtGui.QCheckBox('Peridic',parent=self)
+        self.periodic_checkbox.toggle()
+        self.periodic_checkbox.stateChanged.connect(self.handle_change)
+        self.unit_cell_option_layout.addWidget(self.periodic_checkbox)
 
         self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
@@ -1065,12 +1070,18 @@ class EditStructureWindow(QtGui.QDialog):
                 self.clear_unit_cell_table()
                 self.set_number_of_atoms(6)
             else:
-                unit_cell = self.crystal_structure.lattice_vectors
                 scale = self.crystal_structure.scale
                 self.scale_entry.set_text('{0:1.6f}'.format(scale))
-                for i in range(3):
-                    for j in range(3):
-                        self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]/scale))
+                if type(self.crystal_structure is sst.CrystalStructure):
+                    unit_cell = self.crystal_structure.lattice_vectors
+                    for i in range(3):
+                        for j in range(3):
+                            self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]/scale))
+                    if not self.periodic_checkbox.checkState():
+                        self.periodic_checkbox.toggle()
+                elif type(self.crystal_structure is sst.MolecularStructure):
+                    if self.periodic_checkbox.checkState():
+                        self.periodic_checkbox.toggle()
 
                 n_atoms = self.crystal_structure.atoms.shape[0]
                 self.set_number_of_atoms(n_atoms)
@@ -1095,12 +1106,6 @@ class EditStructureWindow(QtGui.QDialog):
                 self.atom_table.setItem(i,j,item)
 
     def read_tables(self):
-        unit_cell = np.zeros((3,3))
-        for i in range(3):
-            for j in range(3):
-                item = self.unit_cell_table.item(i,j)
-                unit_cell[i,j] = float(item.text())
-
         try:
             scale_string = self.scale_entry.get_text()
             scale = float(scale_string)
@@ -1109,7 +1114,16 @@ class EditStructureWindow(QtGui.QDialog):
         except Exception as e:
             logging.exception(e)
             scale = 1.0
-        unit_cell = unit_cell*scale
+        if self.periodic_checkbox.checkState():
+            unit_cell = np.zeros((3,3))
+            for i in range(3):
+                for j in range(3):
+                    item = self.unit_cell_table.item(i,j)
+                    unit_cell[i,j] = float(item.text())
+
+            unit_cell = unit_cell*scale
+        else:
+            unit_cell = None
 
         n_rows = self.atom_table.rowCount()
         atoms = np.zeros((n_rows,4))
@@ -1138,7 +1152,13 @@ class EditStructureWindow(QtGui.QDialog):
             atoms[i,3] = a_type
 
         atoms_clean = atoms[atoms[:,3]!=0,:]
-        return sst.CrystalStructure(unit_cell,atoms_clean, scale=scale)
+
+        if self.periodic_checkbox.checkState():
+            out_struc = sst.CrystalStructure(unit_cell,atoms_clean, scale=scale)
+        else:
+            out_struc = sst.MolecularStructure(atoms_clean,scale=scale)
+
+        return out_struc
 
     def handle_change(self):
         self.anything_changed = True
@@ -1210,7 +1230,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/test_qe/"
+                project_directory = r"/home/jannick/OpenDFT_projects/nwchem_test/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'

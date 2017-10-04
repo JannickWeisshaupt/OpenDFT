@@ -33,26 +33,22 @@ def convert_greek(input):
 
 class Handler:
     def __init__(self):
-        self.engine_name = 'quantum espresso'
-        self.default_extension = '.xml'
-        self._engine_command = ["pw.x"]
-        self.working_dirctory = '/quantum_espresso_files/'
-        self.pseudo_directory = '/pseudos/'
+        self.engine_name = 'empty'
+        self.default_extension = ''
+        self._engine_command = ["nwchem"]
+        self.working_dirctory = '/test/'
+        self.pseudo_directory = None
         self.engine_process = None
         self.info_file = 'scf.out'
         self._filenames_tasks = {}
-
         self._timestamp_tasks = {}
 
         self.project_directory = None
-        self._input_filename = 'input.xml'
+        self._input_filename = 'scf.in'
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
-                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7',"restart_mode":'from_scratch','nstep':'50'}
-
-
+        self.scf_options = {}
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -67,7 +63,7 @@ class Handler:
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'pw.x'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['which', 'empty'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
@@ -322,116 +318,34 @@ class Handler:
             else:
                 return False
 
-    def will_scf_run(self):
-        return True
+    def _add_scf_to_file(self, file, crystal_structure, calculation='scf', band_points=None):
+        pass
 
-    def _make_input_file(self,filename='scf.in'):
+    def _make_input_file(self, filename='scf.in'):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _add_scf_to_file(self,file,crystal_structure,calculation='scf',band_points=None):
-        if calculation == 'bands' and band_points is None:
-            raise Exception('If calculation is bands you need to supply band points')
-
-        control_options ={'prefix':self.general_options['title']}
-        control_options['verbosity'] = 'high'
-        control_options['pseudo_dir'] = self.project_directory + self.pseudo_directory
-        control_options['outdir'] = self.project_directory + self.working_dirctory
-        control_options['calculation'] = calculation
-        control_options['restart_mode'] = self.scf_options['restart_mode']
-        control_options['nstep'] = int(self.scf_options['nstep'])
-        self._write_block(file, '&control',control_options )
-        system_options = {}
-        system_options['ecutwfc'] = float(self.scf_options['ecutwfc'])
-        system_options['ecutrho'] = float(self.scf_options['ecutrho'])
-        system_options['ibrav'] = 0
-        system_options['nat'] = crystal_structure.n_atoms
-        system_options['nbnd'] = int(self.scf_options['nbnd'])
-
-        electron_options = {'diagonalization':self.scf_options['diagonalization'],'conv_thr':float(self.scf_options['conv_thr']),'mixing_beta':float(self.scf_options['mixing_beta']),
-                            'mixing_mode':self.scf_options['mixing_mode']}
-
-        n_typ = set(crystal_structure.atoms[:,3])
-        system_options['ntyp'] = len(n_typ)
-        self._write_block(file,'&system',system_options)
-        self._write_block(file,'&electrons',electron_options)
-        if calculation in ['relax', 'md', 'vc-relax','vc-md']:
-            self._write_block(file,'&ions',{})
-
-        file.write('ATOMIC_SPECIES\n')
-        for specie in n_typ:
-            file.write(p_table[specie] + " {0:1.5f}".format(atomic_mass[specie]) +' '+ p_table[specie]+'.pseudo\n')
-
-        file.write('ATOMIC_POSITIONS crystal\n')
-        crystal_structure.atoms = crystal_structure.atoms[np.argsort(crystal_structure.atoms[:,3]),:]
-        for i in range(crystal_structure.n_atoms):
-            atom = crystal_structure.atoms[i,:]
-            coords = atom[:3]
-            specie = p_table[atom[3]]
-            file.write(specie+' {0:1.5f} {1:1.5f} {2:1.5f}\n'.format(*coords))
-
-        file.write('CELL_PARAMETERS bohr\n')
-        for i in range(3):
-            unit_vec = crystal_structure.lattice_vectors[i,:]
-            file.write('{0:1.5f} {1:1.5f} {2:1.5f}\n'.format(*unit_vec))
-        if calculation == 'scf':
-            file.write('K_POINTS (automatic) \n')
-            file.write(self.scf_options['k points']+ ' '+self.scf_options['k point shift'])
-        elif calculation == 'bands':
-            file.write('K_POINTS {crystal_b} \n')
-            file.write('  '+str(len(band_points))+'\n')
-            for band_point,label in band_points:
-                file.write(' {0:1.5f} {1:1.5f} {2:1.5f} '.format(*band_point)+self.scf_options['k points band']+' !'+label+'\n')
-
-    def _start_pp_process(self):
-        command = 'exec pp.x<pp.in'
-        os.chdir(self.project_directory + self.working_dirctory)
-        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                               shell=True,preexec_fn=os.setpgrp)
-        os.chdir(self.project_directory)
-
-    def _start_engine(self,filename='scf.in'):
+    def _start_engine(self, filename='scf.in'):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
         else:
             command = self._engine_command
 
-
         outname = filename.split('.')[0] + '.out'
         final_command = [None]
-        final_command[0] = command[0] + ' <'+filename+' >'+outname
+        final_command[0] = command[0] + filename + ' >' + outname
 
-        self.engine_process = subprocess.Popen("exec "+final_command[0], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+        self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE, shell=True)
         os.chdir(self.project_directory)
-
-    def _is_engine_running_custom_command(self,tasks):
-        raise NotImplementedError
-
-    def _write_block(self,file,block_name,options):
-        file.write(block_name+'\n')
-        for key,value in options.items():
-            if type(value) == int:
-                file.write('   '+key+'='+str(value)+'\n')
-            elif type(value) == float:
-                file.write('   '+key+'='+'{0:1.16f}'.format(value)+'\n')
-            elif type(value) == str or isinstance(value, string_types):
-                file.write('   '+key + '=' +"'"+value+"'" + '\n')
-            else:
-                raise Exception('bad type for option')
-
-        file.write('/\n')
-
-    def _correct_types(self):
-        for key,value in self.scf_options_non_string_type.items():
-            self.scf_options[key] = value(self.scf_options[key])
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    crystal_structure = sst.CrystalStructure(None, atoms)
 
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
