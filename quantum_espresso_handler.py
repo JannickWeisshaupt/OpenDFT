@@ -188,74 +188,14 @@ class Handler:
 
     def read_bandstructure(self,special_k_points=None):
         try:
-            f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
+            f = open(self.project_directory + self.working_dirctory + '/scf.out', 'r')
         except IOError:
             return None
-        text = f.read().replace('-',' -')
+        text = f.readlines()
         f.close()
 
-        k_points = []
-        energy_values = []
-        found_line = False
-        special_k_point_initial = []
-        for line in text.split('\n'):
-            line = line.strip()
-            if line.strip().startswith('k ='):
-                line_list = line.split()
-                read_k_point = [float(line_list[2]),float(line_list[3]),float(line_list[4])]
-                k_points.append(read_k_point)
 
-                if special_k_points is not None:
-                    for k_point,label in special_k_points:
-                        if np.linalg.norm( np.array(read_k_point) - k_point)<0.001:
-                            special_k_point_initial.append([len(k_points)-1,label])
-                            break
 
-                found_line = True
-                e_numbers = []
-                continue
-            if found_line and len(line)>0:
-                e_split = line.split()
-                e_numbers.extend([float(x) for x in e_split])
-            elif found_line and len(line) == 0 and len(e_numbers)>0:
-                energy_values.append(e_numbers)
-                found_line = False
-
-        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+',text)
-        n_electrons = int(float(matches[0].split('=')[1]))
-
-        n_bands = len(energy_values[0])
-        n_k_points = len(k_points)
-        bands = []
-        k_array = np.zeros(n_k_points)
-        for i in range(1,n_k_points):
-            k_array[i] = np.linalg.norm(np.array(k_points[i])-np.array(k_points[i-1])) + k_array[i-1]
-
-        for i in range(n_bands):
-            band = np.zeros((n_k_points,2))
-            band[:,0] = k_array
-
-            e_band = [x[i] for x in energy_values]
-            band[:,1] = e_band
-            bands.append(band)
-
-        special_k_points_out = [[k_array[i],label] for i,label in special_k_point_initial]
-
-        try:
-            valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
-            cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
-
-            evalence = max( [band[:,1].max() for band in valence_bands] )
-            econd = min([band[:,1].min() for band in cond_bands])
-
-            efermi = evalence + (econd-evalence)/2
-            for band in bands:
-                band[:, 1] = band[:, 1] - efermi
-
-        except Exception:
-            pass
-
-        return sst.BandStructure(bands,special_k_points=special_k_points_out)
 
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError

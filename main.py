@@ -269,7 +269,7 @@ class DftEngineWindow(QtGui.QWidget):
             tasks.append('scf')
 
         bs_checkers = self.bs_option_widget.read_checkbuttons()
-        if bs_checkers['Calculate']:
+        if bs_checkers['Calculate'] and type(self.parent.crystal_structure) is sst.CrystalStructure:
             bs_points = self.band_structure_points
             tasks.append('bandstructure')
         else:
@@ -790,6 +790,9 @@ class KsStateWindow(QtGui.QDialog):
         if ',' in n_band_str:
             tr = n_band_str.split(',')
             n_band = [int(x) for x in tr]
+        elif '-' in n_band_str:
+            n_band_split = n_band_str.split('-')
+            n_band = list(range(int(n_band_split[0]),1+int(n_band_split[1])))
         else:
             n_band = [int(n_band_str)]
 
@@ -808,7 +811,6 @@ class KsStateWindow(QtGui.QDialog):
         to_do_list = zip(k,n_band)
         map(self.calc_queue.put,to_do_list)
         self.start_ks_calculation()
-
 
 
     def choose_nk(self):
@@ -1548,6 +1550,11 @@ class CentralWindow(QtGui.QWidget):
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)
 
+            if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
+                energy_diagram = esc_handler.read_energy_diagram()
+                if energy_diagram is not None:
+                    self.band_structures[esc_handler.general_options['title']] = energy_diagram
+
             if 'bandstructure' in tasks or 'g0w0' in tasks:
                 read_bandstructures = []
                 titles = [esc_handler.general_options['title']]
@@ -1569,6 +1576,8 @@ class CentralWindow(QtGui.QWidget):
 
 
                 for read_bandstructure,title in zip(read_bandstructures,titles):
+                    if read_bandstructure is None:
+                        continue
                     self.band_structures[title] = read_bandstructure
                     self.band_structure_window.update_tree()
                 if len(read_bandstructures)!=0 and self.band_structure_window.plot_widget.first_plot_bool:

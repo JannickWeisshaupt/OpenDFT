@@ -384,7 +384,7 @@ class BandStructureVisualization(QtGui.QWidget):
         self.figure = plt.figure(1)
         plt.close(plt.figure(1))
         self.ax = None
-
+        self.last_bandstructure = None
         self.canvas = FigureCanvas(self.figure)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -397,6 +397,20 @@ class BandStructureVisualization(QtGui.QWidget):
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
+
+        option_widget = QtGui.QWidget()
+        option_widget.setFixedHeight(60)
+        option_layout = QtGui.QHBoxLayout(option_widget)
+        option_layout.setAlignment(QtCore.Qt.AlignLeft)
+        layout.addWidget(option_widget)
+        from main import EntryWithLabel
+        self.Emin_entry = EntryWithLabel(option_widget,'Emin')
+        self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
+        option_layout.addWidget(self.Emin_entry)
+        self.Emax_entry = EntryWithLabel(option_widget,'Emax')
+        self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
+        option_layout.addWidget(self.Emax_entry)
+
         # layout.addWidget(self.button)
         self.setLayout(layout)
         self.show()
@@ -407,20 +421,79 @@ class BandStructureVisualization(QtGui.QWidget):
             self.canvas.draw()
 
     def plot(self,band_structure):
+        if band_structure is None:
+            return
+        self.last_bandstructure = band_structure
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
-        self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f} eV'.format(*self.make_interactive_text(x,y,band_structure))
+        if type(band_structure) is sst.EnergyDiagram:
+            self.plot_energy_diagram(band_structure)
+        elif type(band_structure) is sst.BandStructure:
+            self.plot_bandstructure(band_structure)
+
+        if self.first_plot_bool:
+            self.first_plot_bool = False
+            self.figure.tight_layout()
+
+        try:
+            Emin = float(self.Emin_entry.get_text())
+        except Exception:
+            Emin = None
+
+        try:
+            Emax = float(self.Emax_entry.get_text())
+        except Exception:
+            Emax = None
+
+        if Emin is not None:
+            self.ax.set_ylim(bottom=Emin)
+        if Emax is not None:
+            self.ax.set_ylim(top=Emax)
+        self.canvas.draw()
+
+    def plot_energy_diagram(self,energy_diagram):
+        self.ax.cla()
+
+        energies = energy_diagram.energies
+        labels = energy_diagram.labels
+        gap = energy_diagram.homo_lumo_gap
+
+        self.ax.set_xlim(-1,1)
+        self.ax.get_xaxis().set_ticks([])
+        energy_range = max(energies) - min(energies)
+        self.ax.set_ylim(min(energies)-energy_range*0.05,max(energies)+energy_range*0.05)
+
+        self.ax.plot([-0.4,0.4],[energy_diagram.E_fermi]*2,'k--')
+        for i,info in enumerate(zip(energies,labels)):
+            energy = info[0]
+            label = info[1]
+            self.ax.plot([-0.3,0.3],[energy,energy])
+            if i%2 == 0:
+                text_pos = 0.38
+                alignment = 'right'
+            else:
+                text_pos = -0.38
+                alignment = 'left'
+            self.ax.text(text_pos,energy,label,verticalalignment='center', horizontalalignment=alignment)
+
+        self.ax.set_ylabel("Energy eV")
+        self.ax.set_title('Energy diagram. Homo-Lumo gap = {0:1.2f} eV'.format(gap))
+
+
+    def plot_bandstructure(self,band_structure):
+        self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f} eV'.format(
+            *self.make_interactive_text(x, y, band_structure))
 
         self.ax.cla()
         for band in band_structure.bands:
-            self.ax.plot(band[:,0],band[:,1],color='b',linewidth=2)
+            self.ax.plot(band[:, 0], band[:, 1], color='b', linewidth=2)
 
-        xlength = band[:,0].max()-band[:,0].min()
-        self.ax.set_xlim(band[:,0].min()-xlength/800,band[:,0].max())
-        self.ax.plot([band[:,0].min(),band[:,0].max()], [0, 0], 'k--')
+        xlength = band[:, 0].max() - band[:, 0].min()
+        self.ax.set_xlim(band[:, 0].min() - xlength / 800, band[:, 0].max())
+        self.ax.plot([band[:, 0].min(), band[:, 0].max()], [0, 0], 'k--')
 
         if band_structure.special_k_points is not None:
-            for xc,xl in band_structure.special_k_points:
+            for xc, xl in band_structure.special_k_points:
                 self.ax.axvline(x=xc, color='k', linewidth=1.5)
 
             unzipped_k = zip(*band_structure.special_k_points)
@@ -428,7 +501,7 @@ class BandStructureVisualization(QtGui.QWidget):
             special_k_points_label = convert_to_greek(unzipped_k[1])
 
             self.ax.set_xticks(special_k_points)
-            self.ax.set_xticklabels(special_k_points_label,rotation='horizontal',horizontalalignment='center')
+            self.ax.set_xticklabels(special_k_points_label, rotation='horizontal', horizontalalignment='center')
         else:
             special_k_points = []
             special_k_points_label = []
@@ -443,13 +516,9 @@ class BandStructureVisualization(QtGui.QWidget):
             k_bandgap_label = np.array(special_k_points_label)[k_bandgap == special_k_points][0]
             title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' at ' + k_bandgap_label
         else:
-            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap+ ' (direct)'
+            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' (direct)'
 
         self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25)
-        if self.first_plot_bool:
-            self.first_plot_bool = False
-            self.figure.tight_layout()
-        self.canvas.draw()
 
     def make_interactive_text(self,k_in,E,band_structure):
         bands = band_structure.bands

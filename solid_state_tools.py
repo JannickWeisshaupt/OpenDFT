@@ -3,6 +3,7 @@ import numpy as np
 import re
 import periodictable as pt
 import sys
+from bisect import bisect
 
 bohr = 0.52917721067
 
@@ -123,6 +124,35 @@ class BandStructure:
             bandgap = (np.min(cond_band[:, 1]) - np.max(valence_band[:, 1]))
             k_bandgap = None
         return bandgap, k_bandgap
+
+class EnergyDiagram(object):
+    def __init__(self,energies,labels,occupations=None):
+        self.energies = energies
+        self.labels = labels
+        self.occupations = occupations
+        self.homo_lumo_gap,self.E_fermi = self._find_homo_lumo_gap(energies)
+
+
+    def _find_homo_lumo_gap(self,energies):
+        if self.occupations is None:
+            index = bisect(energies,0)
+            gap = energies[index] - energies[index-1]
+            E_fermi = energies[index-1] + gap/2
+        else:
+            unoccupied_energies = []
+            occupied_energies = []
+            for energy,occupation in zip(self.energies,self.occupations):
+                if occupation==0:
+                    unoccupied_energies.append(energy)
+                else:
+                    occupied_energies.append(energy)
+            gap = min(unoccupied_energies) - max(occupied_energies)
+            E_fermi = max(occupied_energies) + gap/2
+
+        return gap,E_fermi
+
+
+
 
 class OpticalSpectrum:
     def __init__(self,energy,epsilon2,epsilon1=None):

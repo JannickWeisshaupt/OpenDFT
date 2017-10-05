@@ -49,7 +49,7 @@ class Handler:
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'basis': 'cc-pvdz','method':'scf'}
+        self.scf_options = {'basis': 'cc-pvdz','method':'scf','spin state':'singlet','spin restriction':'RHF'}
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -80,18 +80,18 @@ class Handler:
         file.close()
         self._start_engine()
 
-        if band_structure_points is not None:
-            def run_bs():
-                while self.is_engine_running():
-                    time.sleep(0.001)
-                file = self._make_input_file(filename='bands.in')
-                self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
-                file.close()
-                self._start_engine(filename='bands.in')
-
-
-            t = threading.Thread(target=run_bs)
-            t.start()
+        # if band_structure_points is not None:
+        #     def run_bs():
+        #         while self.is_engine_running():
+        #             time.sleep(0.001)
+        #         file = self._make_input_file(filename='bands.in')
+        #         self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
+        #         file.close()
+        #         self._start_engine(filename='bands.in')
+        #
+        #
+        #     t = threading.Thread(target=run_bs)
+        #     t.start()
 
     def start_optical_spectrum(self, crystal_structure):
         raise NotImplementedError
@@ -164,87 +164,100 @@ class Handler:
                 break
             scf_energy_list.append(float(sline[1]))
 
-
-        # matches = re.findall(r"Total SCF energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
-        # for match in matches:
-        #     ms = match.split('=')
-        #     scf_energy_list.append(float(ms[1]))
+        matches = re.findall(r"Total SCF energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+        for match in matches:
+            ms = match.split('=')
+            scf_energy_list.append(float(ms[1]))
 
         res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
+
         if len(res) < 2:
             return None
         return res
 
     def read_bandstructure(self,special_k_points=None):
+        raise NotImplementedError
+
+    def read_energy_diagram(self):
         try:
-            f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
             return None
-        text = f.read().replace('-',' -')
+        text = f.readlines()
         f.close()
 
-        k_points = []
-        energy_values = []
-        found_line = False
-        special_k_point_initial = []
-        for line in text.split('\n'):
-            line = line.strip()
-            if line.strip().startswith('k ='):
-                line_list = line.split()
-                read_k_point = [float(line_list[2]),float(line_list[3]),float(line_list[4])]
-                k_points.append(read_k_point)
+        # hits = [i for i,l in enumerate(text) if 'final eigenvalues' in l.lower()]
+        # if len(hits) == 0:
+        #     return None
+        # hit = hits[-1]
+        #
+        # energies = []
+        # started_bool = False
+        # for line in text[hit+1:]:
+        #     if '-----' in line:
+        #         continue
+        #     try:
+        #         sline = line.split()
+        #         if len(sline)==0:
+        #             continue
+        #         energies.append(float(sline[1])*hartree)
+        #         started_bool = True
+        #
+        #     except Exception:
+        #         if started_bool:
+        #             break
+        #
+        # labels = [str(i+1) for i,energie in enumerate(energies)]
+        # hits = [i for i,l in enumerate(text) if 'final eigenvalues' in l.lower()]
+        # if len(hits) == 0:
+        #     return None
+        # hit = hits[-1]
+        #
+        # energies = []
+        # started_bool = False
+        # for line in text[hit+1:]:
+        #     if '-----' in line:
+        #         continue
+        #     try:
+        #         sline = line.split()
+        #         if len(sline)==0:
+        #             continue
+        #         energies.append(float(sline[1])*hartree)
+        #         started_bool = True
+        #
+        #     except Exception:
+        #         if started_bool:
+        #             break
+        #
+        # labels = [str(i+1) for i,energie in enumerate(energies)]
 
-                if special_k_points is not None:
-                    for k_point,label in special_k_points:
-                        if np.linalg.norm( np.array(read_k_point) - k_point)<0.001:
-                            special_k_point_initial.append([len(k_points)-1,label])
-                            break
+        hits = [i for i,l in enumerate(text) if 'final molecular orbital analysis' in l.lower()]
+        if len(hits) == 0:
+            return None
+        hit = hits[-1]
 
-                found_line = True
-                e_numbers = []
-                continue
-            if found_line and len(line)>0:
-                e_split = line.split()
-                e_numbers.extend([float(x) for x in e_split])
-            elif found_line and len(line) == 0 and len(e_numbers)>0:
-                energy_values.append(e_numbers)
-                found_line = False
+        energies = []
+        occupations = []
+        for line in text[hit+1:]:
+            try:
+                if not line.strip().startswith('Vector'):
+                    continue
+                sline = line.split('E=')
+                if len(sline)==0:
+                    continue
+                energies.append(float(sline[1].strip().replace('D','e'))*hartree)
+                sline2 = line.split('Occ=')[1]
+                sline3 = sline2.split('E=')[0]
+                sline3 = sline3.replace('D','e')
+                occupations.append(float(sline3))
+            except Exception:
+                pass
 
-        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+',text)
-        n_electrons = int(float(matches[0].split('=')[1]))
 
-        n_bands = len(energy_values[0])
-        n_k_points = len(k_points)
-        bands = []
-        k_array = np.zeros(n_k_points)
-        for i in range(1,n_k_points):
-            k_array[i] = np.linalg.norm(np.array(k_points[i])-np.array(k_points[i-1])) + k_array[i-1]
+        labels = [str(i+1) for i,energie in enumerate(energies)]
+        return sst.EnergyDiagram(energies,labels,occupations=occupations)
 
-        for i in range(n_bands):
-            band = np.zeros((n_k_points,2))
-            band[:,0] = k_array
 
-            e_band = [x[i] for x in energy_values]
-            band[:,1] = e_band
-            bands.append(band)
-
-        special_k_points_out = [[k_array[i],label] for i,label in special_k_point_initial]
-
-        try:
-            valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
-            cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
-
-            evalence = max( [band[:,1].max() for band in valence_bands] )
-            econd = min([band[:,1].min() for band in cond_bands])
-
-            efermi = evalence + (econd-evalence)/2
-            for band in bands:
-                band[:, 1] = band[:, 1] - efermi
-
-        except Exception:
-            pass
-
-        return sst.BandStructure(bands,special_k_points=special_k_points_out)
 
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError
@@ -330,7 +343,7 @@ class Handler:
         file.write('title '+'"'+self.general_options['title']+'"\n')
         self._add_geometry(file,crystal_structure)
         self._add_basis(file,crystal_structure)
-
+        self._add_scf_field_to_file(file)
         file.write('task ' + self.scf_options['method'])
         if calculation == 'optimize':
             file.write(' '+calculation)
@@ -380,6 +393,9 @@ class Handler:
         file.write('scf\n')
         if input:
             file.write('    vectors input scf.movecs\n')
+        file.write('   '+self.scf_options['spin state']+'\n')
+        file.write('   '+self.scf_options['spin restriction']+'\n')
+
         file.write('end\n')
 
     def _add_dplot_to_file(self,file,crystal_structure,limits=None,orbital=None):
@@ -422,7 +438,8 @@ if __name__ == '__main__':
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/nwchem_test"
     # handler.start_ground_state(crystal_structure)
-    handler.read_scf_status()
+    # handler.read_scf_status()
+    energies = handler.read_energy_diagram()
 
     # handler.calculate_electron_density(crystal_structure)
     # while handler.is_engine_running():
