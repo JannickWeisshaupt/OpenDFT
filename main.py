@@ -745,6 +745,9 @@ class KsStateWindow(QtGui.QDialog):
         self.n_band_entry = EntryWithLabel(self.calc_ks_group,'Band index')
         self.sub_layout.addWidget(self.n_band_entry,0,1)
 
+        self.label_entry = EntryWithLabel(self.calc_ks_group,'Label')
+        self.sub_layout.addWidget(self.label_entry,0,2)
+
         button_frame = QtGui.QWidget(self.calc_ks_group)
         self.sub_layout.addWidget(button_frame,2,0,1,0)
 
@@ -808,7 +811,10 @@ class KsStateWindow(QtGui.QDialog):
         if len(n_band) == 1:
             n_band = n_band*len(k)
 
-        to_do_list = zip(k,n_band)
+        label = self.label_entry.get_text()
+        label_list = [label]*len(k)
+
+        to_do_list = zip(k,n_band,label_list)
         map(self.calc_queue.put,to_do_list)
         self.start_ks_calculation()
 
@@ -817,8 +823,8 @@ class KsStateWindow(QtGui.QDialog):
         pass
 
     def start_ks_calculation(self):
-        k,n_band = self.calc_queue.get()
-        self.current_calc_properties = {'type':'ks density','k':k,'n_band':n_band}
+        k,n_band,label = self.calc_queue.get()
+        self.current_calc_properties = {'type':'ks density','k':k,'n_band':n_band,'label':label}
         esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
         QtCore.QTimer.singleShot(100, self.check_engine)
 
@@ -837,12 +843,13 @@ class KsStateWindow(QtGui.QDialog):
                 self.parent.error_dialog.showMessage(error_message)
 
             ks_dens = esc_handler.read_ks_state()
+            label = self.current_calc_properties['label']
             if self.current_calc_properties['type'] == 'ks density':
                 n_band = self.current_calc_properties['n_band']
                 k = self.current_calc_properties['k']
-                key = "k{} n{}".format(k,n_band)
+                key = "{} k{} n{}".format(label,k,n_band)
             elif self.current_calc_properties['type'] == 'density':
-                key = 'density'
+                key = label +' density'
 
             if ks_dens is not None:
                 self.parent.ks_densities[key] = ks_dens

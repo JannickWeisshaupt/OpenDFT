@@ -254,7 +254,7 @@ class Handler:
                 pass
 
 
-        labels = [str(i+1) for i,energie in enumerate(energies)]
+        labels = ['' for i,energie in enumerate(energies)]
         return sst.EnergyDiagram(energies,labels,occupations=occupations)
 
 

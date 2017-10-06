@@ -329,7 +329,7 @@ class StructureVisualization(HasTraits):
             i2 = bond[1]
             p1 = abs_coord_atoms[i1,:3]
             p2 = abs_coord_atoms[i2,:3]
-            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125)
+            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125,tube_sides=18)
 
 class OpticalSpectrumVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -452,6 +452,9 @@ class BandStructureVisualization(QtGui.QWidget):
         self.canvas.draw()
 
     def plot_energy_diagram(self,energy_diagram):
+
+        self.ax.format_coord = lambda x, y: 'E = {0:1.2f} eV, E_gap = {1:1.2f} eV'.format(*self.make_interactive_text_energy_diagram(x,y,energy_diagram))
+
         self.ax.cla()
 
         energies = energy_diagram.energies
@@ -536,6 +539,18 @@ class BandStructureVisualization(QtGui.QWidget):
             gap = 0
         return [k_in,E,gap]
 
+    def make_interactive_text_energy_diagram(self,x,E,energy_diagram):
+        energies = energy_diagram.energies
+        E_index = bisect(energies,E)
+        try:
+            E_above = energies[E_index]
+            E_below = energies[E_index-1]
+            gap = E_above - E_below
+        except IndexError:
+            gap = 0
+        if gap<0:
+            gap = 0
+        return [E,gap]
 
 
 class ScfVisualization(QtGui.QWidget):
