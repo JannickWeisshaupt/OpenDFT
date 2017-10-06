@@ -461,12 +461,13 @@ def construct_convex_hull(w_points):
                 con_temp.add(bond[0])
         connections.append(con_temp)
 
-    shortest_connections = []
-    for i,connection in enumerate(connections):
-        connection = list(connection)
-        dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
-        in_sort = np.argsort(dist)[:3]
-        shortest_connections.append(np.array(connection)[in_sort])
+    # shortest_connections = []
+    # for i,connection in enumerate(connections):
+    #     connection = list(connection)
+    #     dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
+    #     in_sort = np.argsort(dist)[:3]
+    #     shortest_connections.append(np.array(connection)[in_sort])
+    shortest_connections = connections
 
     return shortest_connections
 

@@ -106,6 +106,7 @@ class BrillouinVisualization(HasTraits):
     def __init__(self):
         super(BrillouinVisualization,self).__init__()
         self.crystal_structure = None
+        self.k_path = None
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -114,7 +115,9 @@ class BrillouinVisualization(HasTraits):
         self.crystal_structure = crystal_structure
         self.w_points = sst.construct_brillouin_vertices(crystal_structure)
         self.brillouin_edges = sst.construct_convex_hull(self.w_points)
-        self.update_plot()
+
+    def set_path(self,k_path):
+        self.k_path = k_path
 
     @on_trait_change('scene.activated')
     def update_plot(self,*args,**kwargs):
@@ -122,13 +125,29 @@ class BrillouinVisualization(HasTraits):
             return
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
-        self.scene.mlab.points3d(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], color=(1, 0, 0), scale_factor=.1,figure=self.scene.mayavi_scene)
+        if self.k_path is not None:
+            self.plot_path()
 
+        self.plot_brillouin_zone()
+
+
+
+
+    def plot_path(self):
+        k_path_array = np.zeros((len(self.k_path),3))
+        for i in range(len(self.k_path)):
+            k_path_array[i,:] = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.k_path[i][0])
+
+        self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0), figure=self.scene.mayavi_scene)
+        self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,figure=self.scene.mayavi_scene)
+
+
+    def plot_brillouin_zone(self):
+        self.scene.mlab.points3d(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], color=(1, 0, 0), scale_factor=.1,figure=self.scene.mayavi_scene)
         for i, connection in enumerate(self.brillouin_edges):
             for con in connection:
                 bond = [i, con]
                 self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene)
-
 
 
 class StructureVisualization(HasTraits):

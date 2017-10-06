@@ -1643,9 +1643,14 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window.show()
 
     def open_brillouin_window(self):
-        if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure:
-            self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
+        if type(self.crystal_structure) is not sst.CrystalStructure:
+            return
         self.brillouin_window.show()
+        if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure and type(self.crystal_structure):
+            self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
+            self.brillouin_window.mayavi_widget.set_path(self.dft_engine_window.band_structure_points)
+            self.brillouin_window.mayavi_widget.update_plot()
+
 
 
 if __name__ == "__main__":
