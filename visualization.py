@@ -103,10 +103,19 @@ class BrillouinVisualization(HasTraits):
 
     scene = Instance(MlabSceneModel, ())
 
-    def __init__(self):
-        super(BrillouinVisualization,self).__init__()
+    def __init__(self,parent):
+        super(BrillouinVisualization,self).__init__(parent=parent)
+        self.figure = self.scene.mlab.gcf()
+        self.parent = parent
         self.crystal_structure = None
         self.k_path = None
+        self.brillouin_edges = None
+        self.picker = self.figure.on_mouse_pick(self.picker_callback) # alternative self.scene.mayavi_scene
+
+        # Decrease the tolerance, so that we can more easily select a precise
+        # point.
+        self.picker.tolerance = 0.01
+
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -135,20 +144,54 @@ class BrillouinVisualization(HasTraits):
 
     def plot_path(self):
         k_path_array = np.zeros((len(self.k_path),3))
+
         for i in range(len(self.k_path)):
             k_path_array[i,:] = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.k_path[i][0])
 
-        self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0), figure=self.scene.mayavi_scene)
-        self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,figure=self.scene.mayavi_scene)
+        self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0),reset_zoom=False, tube_radius=0.02, figure=self.scene.mayavi_scene)
+        self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,reset_zoom=False, figure=self.scene.mayavi_scene)
+        for i,k_point in enumerate(k_path_array):
+            self.scene.mlab.text3d(k_point[0], k_point[1], k_point[2], str(i+1),scale=0.1, figure=self.scene.mayavi_scene)
 
 
-    def plot_brillouin_zone(self):
-        self.scene.mlab.points3d(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], color=(1, 0, 0), scale_factor=.1,figure=self.scene.mayavi_scene)
-        for i, connection in enumerate(self.brillouin_edges):
-            for con in connection:
-                bond = [i, con]
-                self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene)
 
+    def plot_brillouin_zone(self,plot_connections=False):
+        self.figure.scene.disable_render = True
+
+        self.wpoints_plot = np.append(self.w_points,np.array([[0,0,0]]),axis=0)
+        # self.scene.mlab.points3d(0.0, 0.0, 0.0, color=(0.7, 0.7, 0.7), scale_factor=.1, figure=self.scene.mayavi_scene)
+        self.plot_of_vertices = self.scene.mlab.points3d(self.wpoints_plot[:, 0], self.wpoints_plot[:, 1], self.wpoints_plot[:, 2], color=(0.7, 0.7, 0.7), scale_factor=.1,figure=self.scene.mayavi_scene)
+        self.glyph_points = self.plot_of_vertices.glyph.glyph_source.glyph_source.output.points.to_array()
+
+        if plot_connections:
+            for i, connection in enumerate(self.brillouin_edges):
+                for con in connection:
+                    bond = [i, con]
+                    self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
+        self.figure.scene.disable_render = False
+
+        self.outline = self.scene.mlab.outline(line_width=3,figure=self.scene.mayavi_scene)
+        self.outline.outline_mode = 'cornered'
+
+
+    def picker_callback(self,picker):
+        """ Picker callback: this get called when on pick events.
+        """
+        print('yeah')
+        if picker.actor in self.plot_of_vertices.actor.actors:
+            # Find which data point corresponds to the point picked:
+            # we have to account for the fact that each data point is
+            # represented by a glyph with several points
+            point_id = picker.point_id/self.glyph_points.shape[0]
+            # If the no points have been selected, we have '-1'
+            if point_id != -1:
+                # Retrieve the coordinnates coorresponding to that data
+                # point
+                x, y, z = self.wpoints_plot[point_id,:]
+                # Move the outline to the data point.
+                self.outline.bounds = (x-0.01, x+0.01,
+                                  y-0.01, y+0.01,
+                                  z-0.01, z+0.01)
 
 class StructureVisualization(HasTraits):
     n_x    = Range(1, 10, 1, mode='spinner')#)

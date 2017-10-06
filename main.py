@@ -36,15 +36,32 @@ class BrillouinWindow(QtGui.QDialog):
 
     def __init__(self, parent=None):
         super(BrillouinWindow, self).__init__(parent)
-        layout = QtGui.QVBoxLayout(self)
+        self.resize(900,600)
+        layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        self.mayavi_widget = BrillouinVisualization()
+        self.mayavi_widget = BrillouinVisualization(self)
         self.ui = self.mayavi_widget.edit_traits(parent=self,
                                                  kind='subpanel').control
         layout.addWidget(self.ui)
         self.ui.setParent(self)
 
+        table_widget = QtGui.QWidget(parent=self)
+        layout.addWidget(table_widget)
+
+        table_layout = QtGui.QVBoxLayout(table_widget)
+
+        self.table =  QtGui.QTableWidget(table_widget)
+        self.table.setColumnCount(4)
+        self.table.setRowCount(0)
+        table_layout.addWidget(self.table)
+
+        for i,label in enumerate(['x','y','z','Label']):
+            item = QtGui.QTableWidgetItem()
+            self.table.setHorizontalHeaderItem(i, item)
+            item.setText(label)
+
+        self.table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
 
 class MayaviQWidget(QtGui.QWidget):
     def __init__(self, crystal_structure, parent=None):
@@ -420,6 +437,7 @@ class InfoWindow(QtGui.QWidget):
         text = text.replace('\n','<br>')
         self.text_widget.setHtml(text)
         self.vertical_scrollbar.setValue(cur_pos)
+
 
 class PlotWithTreeview(QtGui.QWidget):
     def __init__(self,Visualizer,data_dictionary,parent=None):
