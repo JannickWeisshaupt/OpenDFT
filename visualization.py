@@ -94,6 +94,43 @@ the match that caused the yield.'''
         if matchLen == len(pattern):
             yield startPos
 
+class BrillouinVisualization(HasTraits):
+
+    view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
+                     height=450, width=500, show_label=False),Group('_',orientation='horizontal'),
+                resizable=True, # We need this to resize with the parent widget
+                )
+
+    scene = Instance(MlabSceneModel, ())
+
+    def __init__(self):
+        super(BrillouinVisualization,self).__init__()
+        self.crystal_structure = None
+
+    def clear_plot(self):
+        self.scene.mlab.clf(figure=self.scene.mayavi_scene)
+
+    def set_crystal_structure(self,crystal_structure):
+        self.crystal_structure = crystal_structure
+        self.w_points = sst.construct_brillouin_vertices(crystal_structure)
+        self.brillouin_edges = sst.construct_convex_hull(self.w_points)
+        self.update_plot()
+
+    @on_trait_change('scene.activated')
+    def update_plot(self,*args,**kwargs):
+        if self.crystal_structure is None:
+            return
+        self.scene.mlab.clf(figure=self.scene.mayavi_scene)
+
+        self.scene.mlab.points3d(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], color=(1, 0, 0), scale_factor=.1,figure=self.scene.mayavi_scene)
+
+        for i, connection in enumerate(self.brillouin_edges):
+            for con in connection:
+                bond = [i, con]
+                self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene)
+
+
+
 class StructureVisualization(HasTraits):
     n_x    = Range(1, 10, 1, mode='spinner')#)
     n_y  = Range(1, 10, 1,  mode='spinner')#mode='spinner')
@@ -118,7 +155,7 @@ class StructureVisualization(HasTraits):
         self.cp = None
 
     def clear_plot(self):
-        self.scene.mlab.clf()
+        self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
     @on_trait_change('scene.activated,show_unitcell,show_bonds,show_atoms,n_x,n_y,n_z')
     def update_plot(self,*args,**kwargs):
@@ -130,14 +167,14 @@ class StructureVisualization(HasTraits):
             return
         self.scene.anti_aliasing_frames = 20
         # We can do normal mlab calls on the embedded scene.
-        self.scene.mlab.clf()
+        self.scene.mlab.clf(figure=self.scene.mayavi_scene)
         repeat = [self.n_x,self.n_y,self.n_z]
 
         self.scene.disable_render = True
 
         if keep_view:
-            cur_view = self.scene.mlab.view()
-            cur_roll = self.scene.mlab.roll()
+            cur_view = self.scene.mlab.view(figure=self.scene.mayavi_scene)
+            cur_roll = self.scene.mlab.roll(figure=self.scene.mayavi_scene)
 
         if self.show_atoms:
             self.plot_atoms(repeat=repeat)
@@ -150,8 +187,8 @@ class StructureVisualization(HasTraits):
 
         self.scene.disable_render = False
         if keep_view:
-            self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])
-            self.scene.mlab.roll(cur_roll)
+            self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
+            self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
 
 
 
@@ -176,16 +213,7 @@ class StructureVisualization(HasTraits):
                 for j3 in range(repeat[2]):
                     offset = j1 * cell[0, :] + j2 * cell[1, :] + j3 * cell[2, :]
                     self.plot_single_unit_cell(offset)
-                    # for i1, a in enumerate(cell):
-                    #     i2 = (i1 + 1) % 3
-                    #     i3 = (i1 + 2) % 3
-                    #     for b in [np.zeros(3), cell[i2]]:
-                    #         for c in [np.zeros(3), cell[i3]]:
-                    #             p1 = b + c + offset
-                    #             p2 = p1 + a
-                    #             if not self.check_if_line_exists(p1,p2,existing_lines):
-                    #                 self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.03)
-                    #                 existing_lines.append([p1,p2])
+
 
     def plot_single_unit_cell(self,offset):
         cell = self.crystal_structure.lattice_vectors
@@ -203,7 +231,7 @@ class StructureVisualization(HasTraits):
         p8 = offset+a1+a2+a3
 
         coords = np.array([p1,p2,p5,p3,p1,p4,p6,p8,p7,p4,p6,p2,p5,p8,p7,p3])
-        self.scene.mlab.plot3d(coords[:,0],coords[:,1],coords[:,2], tube_radius=0.05)
+        self.scene.mlab.plot3d(coords[:,0],coords[:,1],coords[:,2], tube_radius=0.05,figure=self.scene.mayavi_scene)
 
     def plot_atoms(self, repeat=[1, 1, 1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
@@ -224,7 +252,7 @@ class StructureVisualization(HasTraits):
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
                                      scale_factor=atom_size,
                                      resolution=30,
-                                     color=atomic_color)
+                                     color=atomic_color,figure=self.scene.mayavi_scene)
 
     def clear_density_plot(self):
         if self.cp is not None:
@@ -246,7 +274,7 @@ class StructureVisualization(HasTraits):
         else:
             color = (1.0,1.0,0.2)
         self.cp = self.scene.mlab.contour3d(dens_plot, contours=contours, transparent=transparent,
-                            opacity=opacity, colormap=colormap,color=color)
+                            opacity=opacity, colormap=colormap,color=color,figure=self.scene.mayavi_scene)
         # Do some tvtk magic in order to allow for non-orthogonal unit cells:
 
         polydata = self.cp.actor.actors[0].mapper.input
@@ -271,8 +299,8 @@ class StructureVisualization(HasTraits):
 
 
         # self.scene.mlab.view(distance='auto')
-        self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3])
-        self.scene.mlab.roll(cur_roll)
+        self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
+        self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
         self.density_plotted = ks_density
 
 
@@ -329,7 +357,8 @@ class StructureVisualization(HasTraits):
             i2 = bond[1]
             p1 = abs_coord_atoms[i1,:3]
             p2 = abs_coord_atoms[i2,:3]
-            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125,tube_sides=18)
+            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
+
 
 class OpticalSpectrumVisualization(QtGui.QWidget):
     def __init__(self, parent=None):

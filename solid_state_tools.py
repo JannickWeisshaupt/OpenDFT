@@ -4,6 +4,8 @@ import re
 import periodictable as pt
 import sys
 from bisect import bisect
+import time
+from scipy.spatial import ConvexHull
 
 bohr = 0.52917721067
 
@@ -13,6 +15,18 @@ cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 
+
+def remove_duplicates_old(data, treshold=0.01):
+    if len(data) == 0:
+        return np.array([])
+    new_data = []
+    n, m = data.shape
+    for iii in range(n):
+
+        tr_data = np.linalg.norm(data[iii + 1:, :] - data[iii, :], axis=1)
+        if not any(tr_data < treshold):
+            new_data.append(data[iii, :])
+    return np.array(new_data)
 
 class MolecularStructure(object):
     def __init__(self, atoms,scale=1.0):
@@ -152,8 +166,6 @@ class EnergyDiagram(object):
         return gap,E_fermi
 
 
-
-
 class OpticalSpectrum:
     def __init__(self,energy,epsilon2,epsilon1=None):
         self.energy = energy # energy in eV
@@ -234,22 +246,10 @@ class StructureParser:
                 sym_atom_array[counter,3] = atom_spec
                 counter +=1
 
-        atom_array_finally = self.remove_duplicates_old(sym_atom_array)
+        atom_array_finally = remove_duplicates_old(sym_atom_array)
         atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:,3]),:]
         return CrystalStructure(unit_vectors,atom_array_finally_sorted,scale=a)
 
-
-    def remove_duplicates_old(self, data, treshold=0.01):
-        if len(data) == 0:
-            return np.array([])
-        new_data = []
-        n, m = data.shape
-        for iii in range(n):
-
-            tr_data = np.linalg.norm(data[iii + 1:, :] - data[iii, :], axis=1)
-            if not any(tr_data < treshold):
-                new_data.append(data[iii, :])
-        return np.array(new_data)
 
     def perform_sym(self,pos,sym):
         x = pos[0]
@@ -374,19 +374,135 @@ def find_lines_between(text,a,b,strip=False):
             atom_lines.append(line)
     return atom_lines
 
+def construct_brillouin_vertices(crystal_structure):
+    inv_lattice = crystal_structure.inv_lattice_vectors
+    l1 = inv_lattice[:,0]
+    l2 = inv_lattice[:,1]
+    l3 = inv_lattice[:,2]
+
+    origin = 0 * l1
+    point_array = np.zeros((27,3))
+
+    counter= 0
+    for i in range(-1, 2):
+        for j in range(-1, 2):
+            for k in range(-1, 2):
+                point_array[counter,:] = l1 * i + l2 * j + k * l3
+                counter += 1
+    N_points = point_array.shape[0]
+    wigner_points = []
+    x1, y1, z1 = origin
+
+    for i in range(N_points):
+        for j in range(i+1,N_points):
+            for k in range(j+1,N_points):
+
+                if i == j or i == k or j == k:
+                    continue
+
+                x2, y2, z2 = point_array[i,:]
+                x3, y3, z3 = point_array[j,:]
+                x4, y4, z4 = point_array[k,:]
+
+                A = np.array([[2 * x1 - x2 - x3 - x4, 2 * y1 - y2 - y3 - y4, 2 * z1 - z2 - z3 - z4],
+                              [2 * x2 - x1 - x3 - x4, 2 * y2 - y1 - y3 - y4, 2 * z2 - z1 - z3 - z4],
+                              [2 * x3 - x1 - x2 - x4, 2 * y3 - y1 - y2 - y4, 2 * z3 - z1 - z2 - z4]
+                              ])
+                r = np.linalg.matrix_rank(A)
+                if r < 3:
+                    continue
+                B = np.array([[x1 ** 2 - 0.5 * (x2 ** 2 + x3 ** 2 + x4 ** 2) + y1 ** 2 - 0.5 * (
+                y2 ** 2 + y3 ** 2 + y4 ** 2) + z1 ** 2 - 0.5 * (z2 ** 2 + z3 ** 2 + z4 ** 2)],
+                              [x2 ** 2 - 0.5 * (x1 ** 2 + x3 ** 2 + x4 ** 2) + y2 ** 2 - 0.5 * (
+                              y1 ** 2 + y3 ** 2 + y4 ** 2) + z2 ** 2 - 0.5 * (z1 ** 2 + z3 ** 2 + z4 ** 2)],
+                              [x3 ** 2 - 0.5 * (x1 ** 2 + x2 ** 2 + x4 ** 2) + y3 ** 2 - 0.5 * (
+                              y1 ** 2 + y2 ** 2 + y4 ** 2) + z3 ** 2 - 0.5 * (z1 ** 2 + z2 ** 2 + z4 ** 2)]])
+
+                xout = np.dot(np.linalg.inv(A), B).T
+                xout = np.array([xout[0, 0], xout[0, 1], xout[0, 2]])
+                wigner_points.append(xout)
+
+    wigner_points_cleaned = []
+
+    for w_point in wigner_points:
+        # dist = []
+        # for point in point_array:
+        #     dist.append(np.linalg.norm(w_point - point))
+        dist = np.linalg.norm(point_array-w_point,axis=1)
+        # dist = np.array(dist)
+        if np.all(np.linalg.norm(w_point - origin) <= dist * 1.01):
+            wigner_points_cleaned.append(w_point)
+
+    vertices_array = np.zeros((len(wigner_points_cleaned),3))
+    for i,w_point in enumerate(wigner_points_cleaned):
+        vertices_array[i,:] = w_point
+
+    return remove_duplicates_old(vertices_array)
+
+def construct_convex_hull(w_points):
+    #TODO this is not correct yet: The algorithm only keeps the 3 closest neighbors which is generally not true. Replace shortest_connections by connections to fix this. Howver then tesselation.
+
+    hull = ConvexHull(w_points)
 
 
+    bonds = []
+    for simplex in hull.simplices:
+        simplex = np.append(simplex, simplex[0])
+        for i in range(len(simplex)-1):
+            bonds.append([simplex[i],simplex[i+1]])
 
+    connections = []
+    for i in range(w_points.shape[0]):
+        con_temp = set()
+        for bond in bonds:
+            if i==bond[0]:
+                con_temp.add(bond[1])
+            elif i==bond[1]:
+                con_temp.add(bond[0])
+        connections.append(con_temp)
+
+    shortest_connections = []
+    for i,connection in enumerate(connections):
+        connection = list(connection)
+        dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
+        in_sort = np.argsort(dist)[:3]
+        shortest_connections.append(np.array(connection)[in_sort])
+
+    return shortest_connections
 
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
+    # unit_cell = 6.719 * np.eye(3,3);    unit_cell[2,1] = 0.5
+
+    # phi = 60/180*np.pi
+    # unit_cell = 6.719 * np.array([ [1,0,0], [np.cos(phi),np.sin(phi),0], [0, 0, 3]])
+
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
     print(crystal_structure.find_bonds(coords))
 
-    parser = StructureParser()
-    out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
-    general_handler = GeneralHandler()
+    import mayavi.mlab as mlab
+
+
+    w_points = construct_brillouin_vertices(crystal_structure)
+    brillouin_edges = construct_convex_hull(w_points)
+
+
+    mlab.points3d(w_points[:,0],w_points[:,1],w_points[:,2], color=(1, 0, 0),scale_factor=.1)
+
+
+    for i,connection in enumerate(brillouin_edges):
+        for con in connection:
+            bond = [i,con]
+            mlab.plot3d(w_points[bond, 0], w_points[bond, 1], w_points[bond, 2])
+
+    mlab.show()
+
+
+        # parser = StructureParser()
+    # out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
+    # general_handler = GeneralHandler()
     # print(general_handler.available_handlers)

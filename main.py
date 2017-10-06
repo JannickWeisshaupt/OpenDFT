@@ -6,7 +6,7 @@ import numpy as np
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list
+from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
 from nwchem_handler import Handler as Handler
@@ -32,6 +32,18 @@ general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
 
 
+class BrillouinWindow(QtGui.QDialog):
+
+    def __init__(self, parent=None):
+        super(BrillouinWindow, self).__init__(parent)
+        layout = QtGui.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.mayavi_widget = BrillouinVisualization()
+        self.ui = self.mayavi_widget.edit_traits(parent=self,
+                                                 kind='subpanel').control
+        layout.addWidget(self.ui)
+        self.ui.setParent(self)
 
 
 class MayaviQWidget(QtGui.QWidget):
@@ -90,7 +102,7 @@ class EntryWithLabel(QtGui.QWidget):
 
 
 class OptionFrame(QtGui.QGroupBox):
-    def __init__(self, parent,options,title='',tooltips={},checkbuttons=[]):
+    def __init__(self, parent,options,title='',tooltips={},checkbuttons=[],buttons=[]):
         QtGui.QGroupBox.__init__(self, parent)
         self.widgets_per_line = 4
         self.setTitle(title)
@@ -99,19 +111,30 @@ class OptionFrame(QtGui.QGroupBox):
         self.parent = parent
         self.options = options
         self.layout = QtGui.QGridLayout(self)
-        # self.layout.setAlignment(QtCore.Qt.AlignTop)
+        self.layout.setAlignment(QtCore.Qt.AlignLeft)
         self.entry_dict = {}
         self.checkbuttons = []
+        self.buttons = []
+        counter = 0
+
         for text,state in checkbuttons:
             cb = QtGui.QCheckBox(text,parent=self)
             if state:
                 cb.nextCheckState()
             self.checkbuttons.append(cb)
-            self.layout.addWidget(cb)
+            self.layout.addWidget(cb, counter // self.widgets_per_line, counter % self.widgets_per_line)
+            counter += 1
+        for text,function in buttons:
+            button = QtGui.QPushButton(text)
+            button.clicked.connect(function)
+            # button.setFixedWidth(100)
+            self.buttons.append(button)
+            self.layout.addWidget(button, counter // self.widgets_per_line, counter % self.widgets_per_line)
+            counter += 1
         self.make_option_entries()
 
     def make_option_entries(self):
-        counter = len(self.checkbuttons)//self.widgets_per_line+self.widgets_per_line
+        counter = (len(self.checkbuttons)+len(self.buttons))//self.widgets_per_line+self.widgets_per_line
         for option_key,option_value in self.options.items():
             entry = EntryWithLabel(self,option_key,option_value)
             if option_key in self.tooltips.keys():
@@ -162,7 +185,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.scf_option_widget = OptionFrame(self,esc_handler.scf_options,title='Groundstate options',tooltips=esc_handler.scf_options_tooltip)
         myform.addRow(self.scf_option_widget)
 
-        self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]])
+        self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]],buttons=[['Choose k-path',self.parent.open_brillouin_window]])
         myform.addRow(self.bs_option_widget)
 
         self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options')
@@ -1213,6 +1236,7 @@ class CentralWindow(QtGui.QWidget):
         self.engine_option_window = EngineOptionsDialog(self)
         self.ks_state_window = KsStateWindow(self)
         self.structure_window = EditStructureWindow(self)
+        self.brillouin_window = BrillouinWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -1240,7 +1264,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/nwchem_test/"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -1618,10 +1642,15 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window.update_fields()
         self.structure_window.show()
 
+    def open_brillouin_window(self):
+        if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure:
+            self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
+        self.brillouin_window.show()
+
+
 if __name__ == "__main__":
     DEBUG = True
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-
     app.exec_()
