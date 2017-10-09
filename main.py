@@ -19,7 +19,13 @@ import logging
 
 current_time = time.localtime()
 current_time_string = [str(x) for x in current_time[:6]]
-logging.basicConfig(level=logging.DEBUG, filename=__file__.replace('main.py','')+"/logfiles/"+"_".join(current_time_string)+".log")
+
+installation_folder = os.path.dirname(__file__)
+
+if not os.path.exists(installation_folder+"/logfiles/"):
+    os.makedirs(installation_folder+"/logfiles/")
+
+logging.basicConfig(level=logging.DEBUG, filename=installation_folder+"/logfiles/"+"_".join(current_time_string)+".log")
 logging.info('Program started')
 
 try:
@@ -269,7 +275,7 @@ class DftEngineWindow(QtGui.QWidget):
                                        , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
                                     [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
         trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
-        self.band_structure_points = zip(trash_bs_points, trash_bs_labels)
+        self.band_structure_points = list(zip(trash_bs_points, trash_bs_labels))
         self.show()
 
     def update_all(self):

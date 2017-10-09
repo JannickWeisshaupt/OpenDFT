@@ -17,6 +17,12 @@ p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 hartree = 27.211
 
 
+if os.name == 'nt':
+    shell_bool = True
+else:
+    shell_bool = False
+
+
 def convert_greek(input):
     result = []
     for el in input:
@@ -125,7 +131,7 @@ Default: 	GGA_PBE"""
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]

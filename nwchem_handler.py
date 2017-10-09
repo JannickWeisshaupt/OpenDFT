@@ -22,6 +22,10 @@ atomic_mass = {i: el.mass for i, el in enumerate(pt.elements)}
 hartree = 27.211
 bohr = 0.52917721
 
+if os.name == 'nt':
+    shell_bool = True
+else:
+    shell_bool = False
 
 def convert_greek(input):
     result = []
@@ -64,7 +68,7 @@ class Handler:
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'empty'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(['which', 'empty'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
