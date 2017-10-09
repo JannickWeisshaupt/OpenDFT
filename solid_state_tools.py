@@ -5,7 +5,7 @@ import periodictable as pt
 import sys
 from bisect import bisect
 import time
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull,Voronoi
 
 bohr = 0.52917721067
 
@@ -389,6 +389,10 @@ def construct_brillouin_vertices(crystal_structure):
             for k in range(-1, 2):
                 point_array[counter,:] = l1 * i + l2 * j + k * l3
                 counter += 1
+
+    # all_points = np.append(np.array([origin]),point_array,axis=0)
+    # voronoi = Voronoi(all_points)
+    # return voronoi.vertices
     N_points = point_array.shape[0]
     wigner_points = []
     x1, y1, z1 = origin
@@ -461,13 +465,13 @@ def construct_convex_hull(w_points):
                 con_temp.add(bond[0])
         connections.append(con_temp)
 
-    # shortest_connections = []
-    # for i,connection in enumerate(connections):
-    #     connection = list(connection)
-    #     dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
-    #     in_sort = np.argsort(dist)[:3]
-    #     shortest_connections.append(np.array(connection)[in_sort])
-    shortest_connections = connections
+    shortest_connections = []
+    for i,connection in enumerate(connections):
+        connection = list(connection)
+        dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
+        in_sort = np.argsort(dist)[:3]
+        shortest_connections.append(np.array(connection)[in_sort])
+    # shortest_connections = connections
 
     return shortest_connections
 

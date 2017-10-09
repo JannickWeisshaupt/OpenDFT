@@ -42,6 +42,9 @@ class BrillouinWindow(QtGui.QDialog):
 
     def __init__(self, parent=None):
         super(BrillouinWindow, self).__init__(parent)
+
+        self.k_path = None
+
         self.resize(900,600)
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -68,6 +71,20 @@ class BrillouinWindow(QtGui.QDialog):
             item.setText(label)
 
         self.table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+
+    def set_path(self,k_path):
+        self.table.setRowCount(len(k_path))
+        self.k_path = k_path
+        self.mayavi_widget.set_path(k_path)
+        for i in range(len(self.k_path)):
+            for j in range(4):
+                item = QtGui.QTableWidgetItem()
+                if j<3:
+                    text = "{0:1.6f}".format(k_path[i][0][j])
+                else:
+                    text = k_path[i][1]
+                item.setText(text)
+                self.table.setItem(i,j,item)
 
 class MayaviQWidget(QtGui.QWidget):
     def __init__(self, crystal_structure, parent=None):
@@ -1672,7 +1689,7 @@ class CentralWindow(QtGui.QWidget):
         self.brillouin_window.show()
         if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure and type(self.crystal_structure):
             self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
-            self.brillouin_window.mayavi_widget.set_path(self.dft_engine_window.band_structure_points)
+            self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
             self.brillouin_window.mayavi_widget.update_plot()
 
 
