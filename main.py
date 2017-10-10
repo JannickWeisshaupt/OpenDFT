@@ -71,11 +71,15 @@ class BrillouinWindow(QtGui.QDialog):
             item.setText(label)
 
         self.table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
+        self.connect_tables()
 
     def set_path(self,k_path):
+        self.disconnect_tables()
+
         self.table.setRowCount(len(k_path))
         self.k_path = k_path
         self.mayavi_widget.set_path(k_path)
+
         for i in range(len(self.k_path)):
             for j in range(4):
                 item = QtGui.QTableWidgetItem()
@@ -85,6 +89,37 @@ class BrillouinWindow(QtGui.QDialog):
                     text = k_path[i][1]
                 item.setText(text)
                 self.table.setItem(i,j,item)
+        self.connect_tables()
+
+    def read_table(self):
+        n_k = self.table.rowCount()
+        k_points = []
+        for i in range(n_k):
+            coords = np.array([float(self.table.item(i,j).text()) for j in range(3)])
+            k_point = [coords,str(self.table.item(i,3).text())]
+            k_points.append(k_point)
+
+        return k_points
+
+
+    def disconnect_tables(self):
+        try:
+            self.table.itemChanged.disconnect()
+        except Exception as e:
+            logging.exception(e)
+
+    def connect_tables(self):
+        self.table.itemChanged.connect(self.handle_change)
+
+    def handle_change(self):
+        k_path_read = self.read_table()
+        for i in range(len(self.k_path)):
+            del self.k_path[0]
+        for el in k_path_read:
+            self.k_path.append(el)
+
+        self.mayavi_widget.set_path(self.k_path)
+        self.mayavi_widget.plot_path()
 
 class MayaviQWidget(QtGui.QWidget):
     def __init__(self, crystal_structure, parent=None):

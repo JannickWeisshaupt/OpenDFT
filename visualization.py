@@ -8,6 +8,7 @@ from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button
 from traitsui.api import View, Item, Group
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
     SceneEditor
+from tvtk.tools import visual
 import solid_state_tools as sst
 from mayavi.core.api import Engine
 import copy
@@ -52,6 +53,7 @@ except IOError:
     s = ['hot','viridis','jet']
 
 colormap_list = sorted(s,key=str.lower)
+
 
 def convert_to_greek(input):
     result = []
@@ -110,8 +112,8 @@ class BrillouinVisualization(HasTraits):
         self.crystal_structure = None
         self.k_path = None
         self.brillouin_edges = None
-
-
+        self.path_plot = None
+        self.plot_of_vertices = None
 
 
     def clear_plot(self):
@@ -139,14 +141,20 @@ class BrillouinVisualization(HasTraits):
         self.picker = self.scene.mayavi_scene.on_mouse_pick(self.picker_callback) # alternative self.scene.mayavi_scene
         self.picker.tolerance = 0.01
 
+    def plot_unit_vectors(self):
+        pass
+        # for i in range(3):
+        #     Arrow_From_A_to_B(0,0,0,*self.crystal_structure.inv_lattice_vectors[i,:],figure=self.scene.mayavi_scene)
 
     def plot_path(self):
+        if self.path_plot is not None:
+            self.path_plot.remove()
         k_path_array = np.zeros((len(self.k_path),3))
 
         for i in range(len(self.k_path)):
             k_path_array[i,:] = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.k_path[i][0])
 
-        self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0),reset_zoom=False, tube_radius=0.02, figure=self.scene.mayavi_scene)
+        self.path_plot = self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0),reset_zoom=False, tube_radius=0.02, figure=self.scene.mayavi_scene)
         # self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,reset_zoom=False, figure=self.scene.mayavi_scene)
         for i,k_point in enumerate(k_path_array):
             self.scene.mlab.text3d(k_point[0], k_point[1], k_point[2], self.k_path[i][1],scale=0.1, figure=self.scene.mayavi_scene)
@@ -170,6 +178,8 @@ class BrillouinVisualization(HasTraits):
                     bond = [i, con]
                     self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
 
+        self.plot_unit_vectors()
+
         self.outline = self.scene.mlab.outline(line_width=3,figure=self.scene.mayavi_scene)
         self.outline.outline_mode = 'cornered'
 
@@ -178,13 +188,12 @@ class BrillouinVisualization(HasTraits):
     def picker_callback(self,picker):
         """ Picker callback: this get called when on pick events.
         """
-        print('yeah')
+        print('picker starting')
         if picker.actor in self.plot_of_vertices.actor.actors:
             # Find which data point corresponds to the point picked:
             # we have to account for the fact that each data point is
             # represented by a glyph with several points
             point_id = int(picker.point_id/self.glyph_points.shape[0])
-            print(point_id)
             # If the no points have been selected, we have '-1'
             if point_id != -1:
                 # Retrieve the coordinnates coorresponding to that data
