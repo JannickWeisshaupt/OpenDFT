@@ -65,6 +65,16 @@ class BrillouinWindow(QtGui.QDialog):
         self.table.setRowCount(0)
         table_layout.addWidget(self.table)
 
+        button_widget = QtGui.QWidget(parent=table_widget)
+        table_layout.addWidget(button_widget)
+
+        button_layout = QtGui.QHBoxLayout(button_widget)
+
+        remove_all_button = QtGui.QPushButton('Remove path',parent=button_widget)
+        button_layout.addWidget(remove_all_button)
+
+        remove_all_button.clicked.connect(self.clear_path)
+
         for i,label in enumerate(['x','y','z','Label']):
             item = QtGui.QTableWidgetItem()
             self.table.setHorizontalHeaderItem(i, item)
@@ -73,23 +83,35 @@ class BrillouinWindow(QtGui.QDialog):
         self.table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
         self.connect_tables()
 
-    def set_path(self,k_path):
+    def clear_path(self):
+        for i in range(len(self.k_path)):
+            del self.k_path[0]
+
+        self.mayavi_widget.set_path(self.k_path)
+        self.mayavi_widget.plot_path()
+        self.update_table()
+
+
+    def update_table(self):
         self.disconnect_tables()
-
-        self.table.setRowCount(len(k_path))
-        self.k_path = k_path
-        self.mayavi_widget.set_path(k_path)
-
+        self.table.setRowCount(len(self.k_path))
         for i in range(len(self.k_path)):
             for j in range(4):
                 item = QtGui.QTableWidgetItem()
                 if j<3:
-                    text = "{0:1.6f}".format(k_path[i][0][j])
+                    text = "{0:1.6f}".format(self.k_path[i][0][j])
                 else:
-                    text = k_path[i][1]
+                    text = self.k_path[i][1]
                 item.setText(text)
                 self.table.setItem(i,j,item)
         self.connect_tables()
+
+    def set_path(self,k_path):
+
+        self.k_path = k_path
+        self.mayavi_widget.set_path(k_path)
+        self.update_table()
+
 
     def read_table(self):
         n_k = self.table.rowCount()
@@ -1734,4 +1756,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
+    QtCore.QTimer.singleShot(1000,main.open_brillouin_window)
     app.exec_()

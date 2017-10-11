@@ -114,7 +114,7 @@ class BrillouinVisualization(HasTraits):
         self.brillouin_edges = None
         self.path_plot = None
         self.plot_of_vertices = None
-
+        self.text_plots = []
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -149,15 +149,27 @@ class BrillouinVisualization(HasTraits):
     def plot_path(self):
         if self.path_plot is not None:
             self.path_plot.remove()
-        k_path_array = np.zeros((len(self.k_path),3))
+            for text_plot in self.text_plots:
+                text_plot.remove()
 
-        for i in range(len(self.k_path)):
+        if len(self.k_path) == 0:
+            self.path_plot = None
+            return
+
+        n_path = len(self.k_path)
+        k_path_array = np.zeros((n_path,3))
+
+        for i in range(n_path):
             k_path_array[i,:] = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.k_path[i][0])
 
         self.path_plot = self.scene.mlab.plot3d(k_path_array[:,0],k_path_array[:,1],k_path_array[:,2], color=(0, 1, 0),reset_zoom=False, tube_radius=0.02, figure=self.scene.mayavi_scene)
         # self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,reset_zoom=False, figure=self.scene.mayavi_scene)
-        for i,k_point in enumerate(k_path_array):
-            self.scene.mlab.text3d(k_point[0], k_point[1], k_point[2], self.k_path[i][1],scale=0.1, figure=self.scene.mayavi_scene)
+
+        labels = [point[1] for point in self.k_path]
+        self.text_plots = [None]*n_path
+        for i in range(n_path):
+            text_plot = self.scene.mlab.text3d(k_path_array[i,0], k_path_array[i,1], k_path_array[i,2],labels[i] ,scale=0.1, figure=self.scene.mayavi_scene)
+            self.text_plots[i] = text_plot
 
     def plot_brillouin_zone(self,plot_connections=True):
 
@@ -170,7 +182,7 @@ class BrillouinVisualization(HasTraits):
         self.plot_of_vertices = self.scene.mlab.points3d(self.wpoints_plot[:, 0], self.wpoints_plot[:, 1], self.wpoints_plot[:, 2], color=(0.7, 0.7, 0.7), scale_factor=.1,figure=self.scene.mayavi_scene)
         self.glyph_points = self.plot_of_vertices.glyph.glyph_source.glyph_source.output.points.to_array()
 
-        self.scene.mlab.triangular_mesh(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], self.brillouin_edges,opacity=0.3,color=(0.5,0.5,0.5))
+        self.scene.mlab.triangular_mesh(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], self.brillouin_edges,opacity=0.3,color=(0.5,0.5,0.5),tube_radius=2,figure=self.scene.mayavi_scene)
 
         # if plot_connections:
         #     for i, connection in enumerate(self.brillouin_edges):
@@ -252,8 +264,6 @@ class StructureVisualization(HasTraits):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
         repeat = [self.n_x,self.n_y,self.n_z]
 
-        self.scene.disable_render = True
-
         if keep_view:
             cur_view = self.scene.mlab.view(figure=self.scene.mayavi_scene)
             cur_roll = self.scene.mlab.roll(figure=self.scene.mayavi_scene)
@@ -267,7 +277,6 @@ class StructureVisualization(HasTraits):
         if self.show_unitcell:
             self.plot_unit_cell(repeat=repeat)
 
-        self.scene.disable_render = False
         if keep_view:
             self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
             self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
