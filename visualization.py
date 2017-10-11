@@ -159,8 +159,6 @@ class BrillouinVisualization(HasTraits):
         for i,k_point in enumerate(k_path_array):
             self.scene.mlab.text3d(k_point[0], k_point[1], k_point[2], self.k_path[i][1],scale=0.1, figure=self.scene.mayavi_scene)
 
-
-
     def plot_brillouin_zone(self,plot_connections=True):
 
         self.wpoints_plot = np.append(self.w_points,np.array([[0,0,0]]),axis=0)
@@ -172,11 +170,15 @@ class BrillouinVisualization(HasTraits):
         self.plot_of_vertices = self.scene.mlab.points3d(self.wpoints_plot[:, 0], self.wpoints_plot[:, 1], self.wpoints_plot[:, 2], color=(0.7, 0.7, 0.7), scale_factor=.1,figure=self.scene.mayavi_scene)
         self.glyph_points = self.plot_of_vertices.glyph.glyph_source.glyph_source.output.points.to_array()
 
-        if plot_connections:
-            for i, connection in enumerate(self.brillouin_edges):
-                for con in connection:
-                    bond = [i, con]
-                    self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
+        self.scene.mlab.triangular_mesh(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2], self.brillouin_edges,opacity=0.3,color=(0.5,0.5,0.5))
+
+        # if plot_connections:
+        #     for i, connection in enumerate(self.brillouin_edges):
+        #         for con in connection:
+        #             bond = [i, con]
+        #             self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
+
+
 
         self.plot_unit_vectors()
 
