@@ -45,6 +45,8 @@ class Handler:
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
                            'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
 
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'gw', 'optical spectrum', 'phonons', 'relax'])
+
         self._timestamp_tasks = {}
 
         self.project_directory = None
@@ -371,7 +373,6 @@ Default: 	GGA_PBE"""
             # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
         data = data/data.max()
         return sst.KohnShamDensity(data)
-
 
     def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
         self._read_timestamps()

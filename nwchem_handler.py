@@ -48,6 +48,9 @@ class Handler:
         self._filenames_tasks = {}
         self._timestamp_tasks = {}
 
+        self.supported_methods = sst.ComputationalMethods(
+            ['non-periodic', 'scf','relax'])
+
         self.project_directory = None
         self._input_filename = 'scf.in'
         self.custom_command = ''

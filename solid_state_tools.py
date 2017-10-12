@@ -311,6 +311,25 @@ class StructureParser:
                 res.append(line)
         return res
 
+class ComputationalMethods(object):
+    def __init__(self,methods):
+        all_methods = ['periodic','non-periodic','scf','gw','optical spectrum','phonons','relax']
+
+        if methods is None:
+            methods = all_methods
+        for method in methods:
+            if method not in all_methods:
+                raise ValueError('methods: ' +str(method)+' is not known. Available methods are '+', '.join(all_methods))
+        self.methods = methods
+
+    def __getitem__(self, item):
+        return self.methods[item]
+
+    def __setitem__(self, key, value):
+        raise TypeError('ComputationalMethods object does not support item assignment')
+
+    def __iter__(self):
+        return iter(self.methods)
 
 class GeneralHandler():
     def __init__(self):
@@ -318,8 +337,10 @@ class GeneralHandler():
         self.exciting_handler = Handler()
         from quantum_espresso_handler import Handler
         self.quantum_espresso_handler = Handler()
+        from nwchem_handler import Handler
+        self.nwchem_handler = Handler()
 
-        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler}
+        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler}
 
     def is_handler_available(self,engine_name):
         handler = self.handlers[engine_name]

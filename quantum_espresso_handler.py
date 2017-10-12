@@ -45,8 +45,9 @@ class Handler:
         self.engine_process = None
         self.info_file = 'scf.out'
         self._filenames_tasks = {}
-
         self._timestamp_tasks = {}
+
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'relax'])
 
         self.project_directory = None
         self._input_filename = 'input.xml'

@@ -175,9 +175,10 @@ class BrillouinVisualization(HasTraits):
     def plot_brillouin_zone(self,plot_connections=True):
 
         self.wpoints_plot = np.append(self.w_points,np.array([[0,0,0]]),axis=0)
-        for i in [-1,1]:
-            for j in range(3):
-                self.wpoints_plot = np.append(self.wpoints_plot, np.array([i*0.5*self.crystal_structure.inv_lattice_vectors[j,:]]), axis=0)
+        # TODO find general way to make the center of facets points
+        # for i in [-1,1]:
+        #     for j in range(3):
+        #         self.wpoints_plot = np.append(self.wpoints_plot, np.array([i*0.5*self.crystal_structure.inv_lattice_vectors[j,:]]), axis=0)
 
         # self.scene.mlab.points3d(0.0, 0.0, 0.0, color=(0.7, 0.7, 0.7), scale_factor=.1, figure=self.scene.mayavi_scene)
         self.plot_of_vertices = self.scene.mlab.points3d(self.wpoints_plot[:, 0], self.wpoints_plot[:, 1], self.wpoints_plot[:, 2], color=(0.7, 0.7, 0.7), scale_factor=.1,figure=self.scene.mayavi_scene)

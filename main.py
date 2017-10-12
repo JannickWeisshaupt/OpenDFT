@@ -17,16 +17,6 @@ import threading
 from collections import OrderedDict
 import logging
 
-current_time = time.localtime()
-current_time_string = [str(x) for x in current_time[:6]]
-
-installation_folder = os.path.dirname(__file__)
-
-if not os.path.exists(installation_folder+"/logfiles/"):
-    os.makedirs(installation_folder+"/logfiles/")
-
-logging.basicConfig(level=logging.DEBUG, filename=installation_folder+"/logfiles/"+"_".join(current_time_string)+".log")
-logging.info('Program started')
 
 try:
     import queue
@@ -603,6 +593,77 @@ class PlotWithTreeview(QtGui.QWidget):
     def do_select_event(self):
         self.update_tree()
 
+class ChooseEngineWindow(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(ChooseEngineWindow, self).__init__(parent)
+
+        self.parent = parent
+
+        self.handlers = general_handler.handlers
+        self.selected_handler = None
+
+        main_layout = QtGui.QVBoxLayout(self)
+
+        info_widget = QtGui.QWidget(parent=self)
+        main_layout.addWidget(info_widget)
+        layout = QtGui.QHBoxLayout(info_widget)
+
+        self.treeview = QtGui.QTreeWidget(parent=self)
+        self.treeview.setMaximumWidth(200)
+        self.treeview.setHeaderHidden(True)
+        self.treeview.itemSelectionChanged.connect(self.handle_item_changed)
+
+        self.update_tree()
+        layout.addWidget(self.treeview)
+
+        self.text_widget = QtGui.QTextEdit(parent=self)
+        self.text_widget.setReadOnly(True)
+        layout.addWidget(self.text_widget)
+        self.vertical_scrollbar = self.text_widget.verticalScrollBar()
+
+        self.buttonBox = QtGui.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        main_layout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept_own)
+        self.buttonBox.rejected.connect(self.reject_own)
+
+
+
+    def add_result_key(self, title):
+        item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
+        return item
+
+    def update_tree(self):
+        self.treeview.clear()
+        for key,value in self.handlers.items():
+            self.add_result_key(key)
+
+    def handle_item_changed(self):
+        indexes = self.treeview.selectedIndexes()
+        if len(indexes) == 0:
+            return
+        item = self.treeview.itemFromIndex(indexes[0])
+        bs_name = item.text(0)
+
+        self.selected_handler = self.handlers[bs_name]
+        text = bs_name+' supports:\n\n'+'\n'.join(self.selected_handler.supported_methods)
+        text = text.replace('\n', '<br>')
+        self.text_widget.setHtml(text)
+
+
+    def accept_own(self):
+        if self.selected_handler is None:
+            return
+        global esc_handler
+        esc_handler = self.selected_handler
+
+        self.close()
+
+    def reject_own(self):
+        sys.exit()
+        self.reject()
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1323,7 +1384,13 @@ class CentralWindow(QtGui.QWidget):
         self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
 
-        self.installation_folder = __file__.replace('main.py','')
+        self.installation_folder = os.path.dirname(__file__)
+
+        self.load_defaults()
+
+        if self.defaults['ask engine']:
+            choose_engine_window = ChooseEngineWindow(parent=self)
+            choose_engine_window.exec_()
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
@@ -1534,6 +1601,26 @@ class CentralWindow(QtGui.QWidget):
         except IOError:
             print('file not found')
 
+    def load_defaults(self):
+        self.defaults = {}
+
+        try:
+            with open(self.installation_folder + '/defaults.pkl', 'rb') as handle:
+                b = pickle.load(handle)
+        except IOError:
+            logging.info('Default file not found')
+            b = {}
+
+        default_engine = b.pop('default engine',None)
+        ask_engine = b.pop('ask engine',True)
+
+        self.defaults['default engine'] = default_engine
+        self.defaults['ask engine'] = ask_engine
+
+    def save_defaults(self):
+        with open(self.installation_folder + '/defaults.pkl', 'wb') as handle:
+            pickle.dump(self.defaults, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     def update_structure_plot(self):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
         self.mayavi_widget.update_plot()
@@ -1651,6 +1738,7 @@ class CentralWindow(QtGui.QWidget):
                                                "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
 
         if DEBUG or reply == QtGui.QMessageBox.Yes:
+            self.save_defaults()
             self.save_results()
             self.parent.quit()
             logging.info('Program stopped normally')
@@ -1766,6 +1854,18 @@ class CentralWindow(QtGui.QWidget):
 
 if __name__ == "__main__":
     DEBUG = True
+
+    current_time = time.localtime()
+    current_time_string = [str(x) for x in current_time[:3]]
+
+    installation_folder = os.path.dirname(__file__)
+
+    if not os.path.exists(installation_folder + "/logfiles/"):
+        os.makedirs(installation_folder + "/logfiles/")
+
+    logging.basicConfig(level=logging.DEBUG,
+                        filename=installation_folder + "/logfiles/" + "_".join(current_time_string) + ".log")
+    logging.info('Program started')
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
