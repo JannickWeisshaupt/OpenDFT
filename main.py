@@ -65,16 +65,6 @@ class BrillouinWindow(QtGui.QDialog):
         self.table.setRowCount(0)
         table_layout.addWidget(self.table)
 
-        button_widget = QtGui.QWidget(parent=table_widget)
-        table_layout.addWidget(button_widget)
-
-        button_layout = QtGui.QHBoxLayout(button_widget)
-
-        remove_all_button = QtGui.QPushButton('Remove path',parent=button_widget)
-        button_layout.addWidget(remove_all_button)
-
-        remove_all_button.clicked.connect(self.clear_path)
-
         for i,label in enumerate(['x','y','z','Label']):
             item = QtGui.QTableWidgetItem()
             self.table.setHorizontalHeaderItem(i, item)
@@ -82,6 +72,19 @@ class BrillouinWindow(QtGui.QDialog):
 
         self.table.horizontalHeader().setResizeMode(QtGui.QHeaderView.Stretch)
         self.connect_tables()
+
+        button_widget = QtGui.QWidget(parent=table_widget)
+        table_layout.addWidget(button_widget)
+
+        button_layout = QtGui.QHBoxLayout(button_widget)
+
+        remove_all_button = QtGui.QPushButton('Remove path',parent=button_widget)
+        button_layout.addWidget(remove_all_button)
+        remove_all_button.clicked.connect(self.clear_path)
+
+        remove_selected_button = QtGui.QPushButton('Remove point',parent=button_widget)
+        button_layout.addWidget(remove_selected_button)
+        remove_selected_button.clicked.connect(self.remove_point)
 
     def clear_path(self):
         for i in range(len(self.k_path)):
@@ -91,6 +94,15 @@ class BrillouinWindow(QtGui.QDialog):
         self.mayavi_widget.plot_path()
         self.update_table()
 
+    def remove_point(self,*args,**kwargs):
+        points = kwargs.pop('points',None)
+        self.disconnect_tables()
+        if points is None:
+           points = sorted(set(index.row() for index in self.table.selectedIndexes()))
+        for point in points[::-1]:
+            self.table.removeRow(point)
+        self.connect_tables()
+        self.handle_change()
 
     def update_table(self):
         self.disconnect_tables()
@@ -1183,7 +1195,8 @@ class EditStructureWindow(QtGui.QDialog):
             self.atom_table.setItem(n_rows,j,item)
         self.connect_tables()
 
-    def remove_atoms(self,atoms=None):
+    def remove_atoms(self,*args,**kwargs):
+        atoms = kwargs.pop('atoms',None)
         self.disconnect_tables()
         if atoms is None:
            atoms = sorted(set(index.row() for index in self.atom_table.selectedIndexes()))

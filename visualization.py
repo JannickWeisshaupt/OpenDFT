@@ -107,7 +107,6 @@ class BrillouinVisualization(HasTraits):
 
     def __init__(self,parent):
         super(BrillouinVisualization,self).__init__(parent=parent)
-        self.figure = self.scene.mlab.gcf()
         self.parent = parent
         self.crystal_structure = None
         self.k_path = None
@@ -115,6 +114,8 @@ class BrillouinVisualization(HasTraits):
         self.path_plot = None
         self.plot_of_vertices = None
         self.text_plots = []
+        self.glyph_points = None
+        self.picker = None
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -131,14 +132,14 @@ class BrillouinVisualization(HasTraits):
     def update_plot(self,*args,**kwargs):
         if self.crystal_structure is None:
             return
+
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
         if self.k_path is not None:
             self.plot_path()
 
         self.plot_brillouin_zone()
-
-        self.picker = self.scene.mayavi_scene.on_mouse_pick(self.picker_callback) # alternative self.scene.mayavi_scene
+        self.picker = self.scene.mayavi_scene.on_mouse_pick(self.picker_callback)
         self.picker.tolerance = 0.01
 
     def plot_unit_vectors(self):
@@ -189,8 +190,6 @@ class BrillouinVisualization(HasTraits):
         #         for con in connection:
         #             bond = [i, con]
         #             self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
-
-
 
         self.plot_unit_vectors()
 
