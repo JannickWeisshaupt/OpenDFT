@@ -334,16 +334,17 @@ class ComputationalMethods(object):
 class GeneralHandler():
     def __init__(self):
         from exciting_handler import Handler
-        self.exciting_handler = Handler()
+        self.exciting_handler = Handler
         from quantum_espresso_handler import Handler
-        self.quantum_espresso_handler = Handler()
+        self.quantum_espresso_handler = Handler
         from nwchem_handler import Handler
-        self.nwchem_handler = Handler()
+        self.nwchem_handler = Handler
 
         self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler}
 
+
     def is_handler_available(self,engine_name):
-        handler = self.handlers[engine_name]
+        handler = self.handlers[engine_name]()
 
         if len(handler.dft_installation_folder) > 0:
             return True
@@ -352,7 +353,7 @@ class GeneralHandler():
 
 
     def parse_input_file(self,engine_name,filename):
-        handler = self.handlers[engine_name]
+        handler = self.handlers[engine_name]()
         return handler.parse_input_file(filename)
 
 

@@ -71,7 +71,7 @@ class Handler:
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'empty'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
+        p = subprocess.Popen(['which', 'nwchem'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]

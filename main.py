@@ -9,7 +9,6 @@ from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from nwchem_handler import Handler as Handler
 from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
 import pickle
 import time
@@ -23,7 +22,7 @@ try:
 except:
     import Queue as queue
 
-esc_handler = Handler()
+# esc_handler = Handler()
 general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
 
@@ -144,6 +143,7 @@ class BrillouinWindow(QtGui.QDialog):
 
         self.mayavi_widget.set_path(self.k_path)
         self.mayavi_widget.plot_path()
+
 
 class MayaviQWidget(QtGui.QWidget):
     def __init__(self, crystal_structure, parent=None):
@@ -647,7 +647,8 @@ class ChooseEngineWindow(QtGui.QDialog):
         item = self.treeview.itemFromIndex(indexes[0])
         bs_name = item.text(0)
 
-        self.selected_handler = self.handlers[bs_name]
+        self.selected_handler = self.handlers[bs_name]()
+        self.selected_handler_class = self.handlers[bs_name]
         text = bs_name+' supports:\n\n'+'\n'.join(self.selected_handler.supported_methods)
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
@@ -658,7 +659,8 @@ class ChooseEngineWindow(QtGui.QDialog):
             return
         global esc_handler
         esc_handler = self.selected_handler
-
+        global Handler
+        Handler = self.selected_handler_class
         self.close()
 
     def reject_own(self):
@@ -979,6 +981,7 @@ class KsStateWindow(QtGui.QDialog):
     def calculate_electron_density(self):
         esc_handler.calculate_electron_density(self.parent.crystal_structure)
         self.current_calc_properties['type'] = 'density'
+        self.current_calc_properties['label'] = self.label_entry.get_text()
         QtCore.QTimer.singleShot(100, self.check_engine)
 
 

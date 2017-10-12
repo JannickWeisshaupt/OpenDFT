@@ -125,11 +125,13 @@ Default: 	GGA_PBE"""
         self.gw_options_tooltip['nbgw'] = 'Upper band index for GW output.'
 
         self.phonons_options = {'do':'fromscratch','ngridq':'2 2 2'}
+        self.phonons_options_tooltip = {}
 
         self.optical_spectrum_options = {'xstype':'BSE','intv':'-0.5 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
                                          ,'nempty_screeing':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.01',
                                          'gqmax':"0.0",'vkloff':"0.0 0.0 0.0"}
 
+        self.optical_spectrum_options_tooltip = {}
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
