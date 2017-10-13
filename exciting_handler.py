@@ -38,10 +38,10 @@ class Handler:
         self.engine_name = 'exciting'
         self.default_extension = '.xml'
         self._engine_command = ["excitingser"]
-        self._working_dirctory = '/exciting_files/'
+        self.working_dirctory = '/exciting_files/'
         self.pseudo_directory = None
         self.engine_process = None
-        self._info_file = 'INFO.OUT'
+        self.info_file = 'INFO.OUT'
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
                            'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
 
@@ -186,7 +186,7 @@ Default: 	GGA_PBE"""
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
         try:
-            os.remove(self.project_directory + self._working_dirctory + '/INFO.OUT')
+            os.remove(self.project_directory + self.working_dirctory + '/INFO.OUT')
         except Exception as e:
             print(e)
         self._read_timestamps()
@@ -252,7 +252,7 @@ Default: 	GGA_PBE"""
         self._start_engine()
 
     def load_relax_structure(self):
-        file = self.project_directory+self._working_dirctory + 'geometry_opt.xml'
+        file = self.project_directory+self.working_dirctory + 'geometry_opt.xml'
         if not os.path.isfile(file):
             return None
         if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
@@ -263,7 +263,7 @@ Default: 	GGA_PBE"""
 
     def read_scf_status(self):
         try:
-            f = open(self.project_directory + self._working_dirctory + self._info_file, 'r')
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
             return None
         info_text = f.read()
@@ -287,7 +287,7 @@ Default: 	GGA_PBE"""
 
     def read_bandstructure(self):
         try:
-            e = xml.etree.ElementTree.parse(self.project_directory + self._working_dirctory + 'bandstructure.xml').getroot()
+            e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:
             return None
 
@@ -326,7 +326,7 @@ Default: 	GGA_PBE"""
 
     def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
         band_structure = self.read_bandstructure()
-        band_qp = np.loadtxt(self.project_directory + self._working_dirctory + filename)
+        band_qp = np.loadtxt(self.project_directory + self.working_dirctory + filename)
         k_qp = band_qp[:, 0]
         E_qp = band_qp[:, 1]*hartree
 
@@ -351,9 +351,9 @@ Default: 	GGA_PBE"""
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
     def read_optical_spectrum(self):
-        eps_11 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
-        eps_22 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
-        eps_33 = np.loadtxt(self.project_directory + self._working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
+        eps_11 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
+        eps_22 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
+        eps_33 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
 
 
         list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
@@ -364,7 +364,7 @@ Default: 	GGA_PBE"""
 
     def read_ks_state(self):
         self._convert_3d_plot()
-        l_data = np.genfromtxt(self.project_directory + self._working_dirctory + 'WF3D.xsf', skip_header=9, skip_footer=2, dtype=np.float)
+        l_data = np.genfromtxt(self.project_directory + self.working_dirctory + 'WF3D.xsf', skip_header=9, skip_footer=2, dtype=np.float)
         n_grid = l_data.shape[1]
         # data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
         data = np.zeros((n_grid,n_grid,n_grid))
@@ -499,12 +499,12 @@ Default: 	GGA_PBE"""
 
     def _read_timestamps(self):
         for task,filename in self._filenames_tasks.items():
-            if os.path.isfile(self.project_directory+self._working_dirctory+filename):
-                self._timestamp_tasks[task]=os.path.getmtime(self.project_directory + self._working_dirctory + filename)
+            if os.path.isfile(self.project_directory+self.working_dirctory+filename):
+                self._timestamp_tasks[task]=os.path.getmtime(self.project_directory + self.working_dirctory + filename)
 
     def _check_if_scf_is_finished(self):
         try:
-            f = open(self.project_directory + self._working_dirctory + self._info_file, 'r')
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
             return False
         info_text = f.read()
@@ -517,16 +517,16 @@ Default: 	GGA_PBE"""
             return True
 
     def _write_input_file(self, tree):
-        if not os.path.isdir(self.project_directory + self._working_dirctory):
-            os.mkdir(self.project_directory + self._working_dirctory)
+        if not os.path.isdir(self.project_directory + self.working_dirctory):
+            os.mkdir(self.project_directory + self.working_dirctory)
         xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
-        with open(self.project_directory + self._working_dirctory + self._input_filename, "w") as f:
+        with open(self.project_directory + self.working_dirctory + self._input_filename, "w") as f:
             f.write(xmlstr)
 
             # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
 
     def _start_engine(self):
-        os.chdir(self.project_directory + self._working_dirctory)
+        os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash',self.custom_command]
             # if tasks is not None:
@@ -555,10 +555,10 @@ Default: 	GGA_PBE"""
                 continue
             filename = self._filenames_tasks[task]
             # filenames[task] = filename
-            file_exists = os.path.isfile(self.project_directory + self._working_dirctory + filename)
+            file_exists = os.path.isfile(self.project_directory + self.working_dirctory + filename)
             # files_exists[task] = file_exists
             if file_exists:
-                timestamp = os.path.getmtime(self.project_directory + self._working_dirctory + filename)
+                timestamp = os.path.getmtime(self.project_directory + self.working_dirctory + filename)
                 try:
                     file_is_old_bool = timestamp == self._timestamp_tasks[task]
                 except KeyError:
@@ -583,7 +583,7 @@ Default: 	GGA_PBE"""
         return l2
 
     def _convert_3d_plot(self):
-        os.chdir(self.project_directory + self._working_dirctory)
+        os.chdir(self.project_directory + self.working_dirctory)
         command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
         self.helper_process = subprocess.call(command,shell=True)
 

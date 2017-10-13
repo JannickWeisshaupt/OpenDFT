@@ -1,18 +1,10 @@
 import numpy as np
 import solid_state_tools as sst
-import xml.etree.ElementTree as ET
-import xml
-from xml.dom import minidom
 import periodictable as pt
 import subprocess
 import os
-import time
 import re
-import threading
-from six import string_types
-from collections import OrderedDict
-import pandas as pd
-import signal
+
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}

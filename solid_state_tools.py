@@ -2,14 +2,12 @@ from __future__ import division
 import numpy as np
 import re
 import periodictable as pt
-import sys
 from bisect import bisect
 import time
 from scipy.spatial import ConvexHull,Voronoi
 
 bohr = 0.52917721067
 
-# from CifFile import ReadCif
 cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -113,7 +111,7 @@ class CrystalStructure(object):
             conv_points[i,:] = np.dot(self.inv_lattice_vectors.T,band_structure_points[i,:])/(2*np.pi/a)
         return conv_points
 
-class BandStructure:
+class BandStructure(object):
     def __init__(self,bands,special_k_points=None,bs_type='electronic'):
         self.bands = bands
         self.bandgap,self.k_bandgap = self._find_bandgap(bands)

@@ -1,8 +1,5 @@
 import numpy as np
 import solid_state_tools as sst
-import xml.etree.ElementTree as ET
-import xml
-from xml.dom import minidom
 import periodictable as pt
 import subprocess
 import os
@@ -10,9 +7,7 @@ import time
 import re
 import threading
 from six import string_types
-from collections import OrderedDict
-import pandas as pd
-import signal
+
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -446,17 +441,19 @@ if __name__ == '__main__':
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
     # handler.scf_options['ecutwfc'] = 20.0
-    # band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
-    # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
-    #
-    # coords = [x[0] for x in band_structure_points]
-    # labels = [x[1] for x in band_structure_points]
-    # new_coords = crystal_structure.convert_to_tpiba(coords)
-    # band_structure_points_conv = zip(new_coords, labels)
-    #
-    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
+    band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
+    handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
+
+    coords = [x[0] for x in band_structure_points]
+    labels = [x[1] for x in band_structure_points]
+    new_coords = crystal_structure.convert_to_tpiba(coords)
+    band_structure_points_conv = zip(new_coords, labels)
+
+    band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
     # handler.calculate_ks_density(None,[1,1])
     # while handler.is_engine_running():
     #     time.sleep(0.1)
     # ks = handler.read_ks_state()
-    out = handler.load_relax_structure()
+    # out = handler.load_relax_structure()
+
+    # bs = handler.read_bandstructure()
