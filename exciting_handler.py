@@ -19,8 +19,10 @@ hartree = 27.211
 
 if os.name == 'nt':
     shell_bool = True
+    search_command = 'where'
 else:
     shell_bool = False
+    search_command = 'which'
 
 
 def convert_greek(input):
@@ -135,7 +137,7 @@ Default: 	GGA_PBE"""
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen(['which', 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
+        p = subprocess.Popen([search_command, 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
