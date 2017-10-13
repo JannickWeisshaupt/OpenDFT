@@ -1872,5 +1872,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-    QtCore.QTimer.singleShot(1000,main.open_brillouin_window)
+
     app.exec_()
