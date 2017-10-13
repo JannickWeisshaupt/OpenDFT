@@ -651,9 +651,9 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.selected_handler_class = self.handlers[bs_name]
 
         if general_handler.is_handler_available(bs_name):
-            install_text = '<p style="color:Green;">{} installation found</p>'.format(bs_name)
+            install_text = '<p style="color:Green;font-weight:bold">{} installation found</p>'.format(bs_name)
         else:
-            install_text = '<p style="color:Red;">No {} installation found</p>'.format(bs_name)
+            install_text = '<p style="color:Red;font-weight:bold">No {} installation found</p>'.format(bs_name)
 
         text = install_text+'Supported methods:\n\n - '+'\n - '.join(self.selected_handler.supported_methods)
 
