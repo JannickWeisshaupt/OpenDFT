@@ -649,7 +649,14 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         self.selected_handler = self.handlers[bs_name]()
         self.selected_handler_class = self.handlers[bs_name]
-        text = bs_name+' supports:\n\n'+'\n'.join(self.selected_handler.supported_methods)
+
+        if general_handler.is_handler_available(bs_name):
+            install_text = '<p style="color:Green;">{} installation found</p>'.format(bs_name)
+        else:
+            install_text = '<p style="color:Red;">No {} installation found</p>'.format(bs_name)
+
+        text = install_text+'Supported methods:\n\n - '+'\n - '.join(self.selected_handler.supported_methods)
+
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
 
@@ -665,7 +672,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
     def reject_own(self):
         sys.exit()
-        self.reject()
+        # self.reject()
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
