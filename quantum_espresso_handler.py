@@ -43,6 +43,7 @@ class Handler:
         self.working_dirctory = '/quantum_espresso_files/'
         self.pseudo_directory = '/pseudos/'
         self.engine_process = None
+
         self.info_file = 'scf.out'
         self._filenames_tasks = {}
         self._timestamp_tasks = {}

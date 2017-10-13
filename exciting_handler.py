@@ -39,7 +39,7 @@ class Handler:
         self.default_extension = '.xml'
         self._engine_command = ["excitingser"]
         self._working_dirctory = '/exciting_files/'
-        self.pseudo_dirctory = None
+        self.pseudo_directory = None
         self.engine_process = None
         self._info_file = 'INFO.OUT'
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
