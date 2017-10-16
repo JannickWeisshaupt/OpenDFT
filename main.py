@@ -593,6 +593,7 @@ class PlotWithTreeview(QtGui.QWidget):
     def do_select_event(self):
         self.update_tree()
 
+
 class ChooseEngineWindow(QtGui.QDialog):
     def __init__(self, parent, defaults):
         super(ChooseEngineWindow, self).__init__(parent=parent)
@@ -666,7 +667,7 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.selected_handler_class = self.handlers[bs_name]
 
         if general_handler.is_handler_available(bs_name):
-            install_text = '<p style="color:Green;font-weight:bold">{} installation found</p>'.format(bs_name)
+            install_text = '<p style="color:Green;font-weight:bold">{} installation found</p> at {}'.format(bs_name,self.selected_handler.find_engine_folder())
         else:
             install_text = '<p style="color:Red;font-weight:bold">No {} installation found</p>'.format(bs_name)
 
@@ -679,10 +680,20 @@ class ChooseEngineWindow(QtGui.QDialog):
     def accept_own(self):
         if self.selected_handler is None:
             return
+
+        if not general_handler.is_handler_available(self.selected_handler.engine_name):
+            reply = QtGui.QMessageBox.question(self, 'Engine not installed', "The selected dft engine seems not to be installed. "
+                                  "The program will not be able to calculate any properties. "
+                                  "You can however still visualize structures. Are you sure to proceed?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+            if reply == QtGui.QMessageBox.No:
+                return
+
         global esc_handler
         esc_handler = self.selected_handler
         global Handler
         Handler = self.selected_handler_class
+
+
         if self.remember_checkbox.checkState():
             self.defaults['default engine'] = esc_handler.engine_name
         self.success = True
@@ -694,6 +705,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
     def closeEvent(self, event):
         event.accept()
+
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
