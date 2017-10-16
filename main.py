@@ -496,8 +496,7 @@ class InfoWindow(QtGui.QWidget):
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        self.text_widget = QtGui.QTextEdit(parent=self)
-        self.text_widget.setReadOnly(True)
+        self.text_widget = QtGui.QTextBrowser(parent=self)
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
         self.last_text = ''
