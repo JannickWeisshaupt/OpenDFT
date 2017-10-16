@@ -63,7 +63,7 @@ At the same time continued development is needed to enable NWChem to effectively
             ['non-periodic', 'scf','relax'])
 
         self.project_directory = None
-        self._input_filename = 'scf.in'
+        self.input_filename = 'scf.in'
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
@@ -275,8 +275,6 @@ At the same time continued development is needed to enable NWChem to effectively
         labels = ['' for i,energie in enumerate(energies)]
         return sst.EnergyDiagram(energies,labels,occupations=occupations)
 
-
-
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError
 
@@ -348,6 +346,14 @@ At the same time continued development is needed to enable NWChem to effectively
 
     def will_scf_run(self):
         return True
+
+    def reset_to_defaults(self):
+        default_handler = Handler()
+        self.scf_options.update(default_handler.scf_options)
+        self.gw_options.update(default_handler.gw_options)
+        self.optical_spectrum_options.update(default_handler.optical_spectrum_options)
+        self.relax_options.update(default_handler.relax_options)
+        self.phonons_options.update(default_handler.phonons_options)
 
     def is_engine_running(self, tasks=None):
         if self.custom_command_active:

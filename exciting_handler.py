@@ -66,7 +66,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self._timestamp_tasks = {}
 
         self.project_directory = None
-        self._input_filename = 'input.xml'
+        self.input_filename = 'input.xml'
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
@@ -427,6 +427,14 @@ Default: 	GGA_PBE"""
         else:
             return True
 
+    def reset_to_defaults(self):
+        default_handler = Handler()
+        self.scf_options.update(default_handler.scf_options)
+        self.gw_options.update(default_handler.gw_options)
+        self.optical_spectrum_options.update(default_handler.optical_spectrum_options)
+        self.relax_options.update(default_handler.relax_options)
+        self.phonons_options.update(default_handler.phonons_options)
+
     def _make_tree(self):
         root = ET.Element("input")
         tree = ET.ElementTree(root)
@@ -536,7 +544,7 @@ Default: 	GGA_PBE"""
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
         xmlstr = minidom.parseString(ET.tostring(tree.getroot())).toprettyxml(indent="   ")
-        with open(self.project_directory + self.working_dirctory + self._input_filename, "w") as f:
+        with open(self.project_directory + self.working_dirctory + self.input_filename, "w") as f:
             f.write(xmlstr)
 
             # tree.write(self.project_directory+self.working_dirctory+self.input_filename)

@@ -312,6 +312,9 @@ class StructureParser:
 class ComputationalMethods(object):
     def __init__(self,methods):
         all_methods = ['periodic','non-periodic','scf','gw','optical spectrum','phonons','relax']
+        self.descriptions = {'periodic': 'Periodic structures (crystals)','non-periodic':'Non periodic structures (molecules)',
+                             'scf':'Ground state properties','gw':'The gw method for many body-corrections','optical spectrum':'Calculation of optical spectra',
+                             'phonons':'Phonon properties','relax':'Structure relaxation'}
 
         if methods is None:
             methods = all_methods
@@ -319,6 +322,9 @@ class ComputationalMethods(object):
             if method not in all_methods:
                 raise ValueError('methods: ' +str(method)+' is not known. Available methods are '+', '.join(all_methods))
         self.methods = methods
+
+    def get_description(self,item):
+        return self.descriptions[item]
 
     def __getitem__(self, item):
         return self.methods[item]

@@ -59,7 +59,7 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
         self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'relax'])
 
         self.project_directory = None
-        self._input_filename = 'input.xml'
+        self.input_filename = 'scf.in'
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
@@ -200,7 +200,6 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
             return None
         return res
 
-
     def read_bandstructure(self,special_k_points=None):
         try:
             f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
@@ -272,9 +271,6 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
 
         return sst.BandStructure(bands,special_k_points=special_k_points_out)
 
-
-
-
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError
 
@@ -342,6 +338,14 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
 
     def will_scf_run(self):
         return True
+
+    def reset_to_defaults(self):
+        default_handler = Handler()
+        self.scf_options.update(default_handler.scf_options)
+        self.gw_options.update(default_handler.gw_options)
+        self.optical_spectrum_options.update(default_handler.optical_spectrum_options)
+        self.relax_options.update(default_handler.relax_options)
+        self.phonons_options.update(default_handler.phonons_options)
 
     def _make_input_file(self,filename='scf.in'):
         if not os.path.isdir(self.project_directory + self.working_dirctory):

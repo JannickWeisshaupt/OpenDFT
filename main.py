@@ -401,7 +401,7 @@ class DftEngineWindow(QtGui.QWidget):
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
             error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
+                e) + '<br><br>Try following:<br> 1.Check if the selected dft engine is correctly installed<br>' \
                      '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
             self.execute_error_dialog.showMessage(error_message)
         else:
@@ -501,11 +501,24 @@ class InfoWindow(QtGui.QWidget):
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
         self.last_text = ''
 
+        self.combobox = QtGui.QComboBox(self)
+        layout.addWidget(self.combobox)
+        self.combobox.addItem('Output')
+        self.combobox.addItem('Input')
+
+        self.combobox.setCurrentIndex(0)
+        self.combobox.currentIndexChanged.connect(self.do_select_event)
+        self.combobox.setMaximumWidth(150)
+
+
     def do_select_event(self):
         try:
-            self.update_text(esc_handler.project_directory+esc_handler.working_dirctory+esc_handler.info_file)
-        except Exception:
-            pass
+            files = [esc_handler.info_file,esc_handler.input_filename]
+            file = files[self.combobox.currentIndex()]
+            self.update_text(esc_handler.project_directory+esc_handler.working_dirctory+file)
+        except IOError:
+            self.text_widget.setHtml('')
+            self.last_text = ''
 
     def update_text(self,filename):
         cur_pos = self.vertical_scrollbar.value()
@@ -515,6 +528,11 @@ class InfoWindow(QtGui.QWidget):
             return
 
         self.last_text = text
+
+        if filename.endswith('.xml'):
+            import cgi
+            text = cgi.escape(text)
+
         text = text.replace('\n','<br>')
         self.text_widget.setHtml(text)
         self.vertical_scrollbar.setValue(cur_pos)
@@ -601,7 +619,7 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.defaults = defaults
 
         self.parent = parent
-        self.resize(800,500)
+        self.resize(900,700)
         self.handlers = general_handler.handlers
         self.selected_handler = None
         self.success = False
@@ -670,7 +688,8 @@ class ChooseEngineWindow(QtGui.QDialog):
         else:
             install_text = '<p style="color:Red;font-weight:bold">No {} installation found</p>'.format(bs_name)
 
-        text = install_text+'Supported methods:\n\n - '+'\n - '.join(self.selected_handler.supported_methods)+'\n\n'+self.selected_handler.info_text
+        method_descriptions = [self.selected_handler.supported_methods.get_description(x) for x in self.selected_handler.supported_methods]
+        text = install_text+'Supported methods:\n\n - '+'\n - '.join(method_descriptions)+'\n\n'+self.selected_handler.info_text
 
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
@@ -681,7 +700,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         if not general_handler.is_handler_available(self.selected_handler.engine_name):
             reply = QtGui.QMessageBox.question(self, 'Engine not installed', "The selected dft engine seems not to be installed. "
-                                  "The program will not be able to calculate any properties. "
+                                  "The program will not be able to calculate any electronic properties. "
                                   "You can however still visualize structures. Are you sure to proceed?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.No:
                 return
@@ -706,6 +725,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
     def link(self, linkStr):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(linkStr))
+
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1500,23 +1520,22 @@ class CentralWindow(QtGui.QWidget):
             # self.load_saved_results()
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
 
-
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
 
-    def overwrite_handler(self):
-        # TODO this is horrible maybe totally redo
-        esc_handler_new = Handler()
-        for method in dir(esc_handler_new):
-            command = 'type(esc_handler_new.'+method+')'
-            new_type = eval(command)
-            if new_type == dict:
-                eval('esc_handler.'+method+'.clear()')
-                eval('esc_handler.'+method+'.update(esc_handler_new.'+method+')')
-            else:
-                pass
-                # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
-        esc_handler.dft_installation_folder = esc_handler.find_engine_folder()
+    # def overwrite_handler(self):
+    #     # TODO this is horrible maybe totally redo
+    #     esc_handler_new = Handler()
+    #     for method in dir(esc_handler_new):
+    #         command = 'type(esc_handler_new.'+method+')'
+    #         new_type = eval(command)
+    #         if new_type == dict:
+    #             eval('esc_handler.'+method+'.clear()')
+    #             eval('esc_handler.'+method+'.update(esc_handler_new.'+method+')')
+    #         else:
+    #             pass
+    #             # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
+    #     esc_handler.dft_installation_folder = esc_handler.find_engine_folder()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
@@ -1538,7 +1557,7 @@ class CentralWindow(QtGui.QWidget):
 
     def reset_results_and_plots(self):
         self.crystal_structure = None
-        self.overwrite_handler()
+        esc_handler.reset_to_defaults()
         self.project_properties.clear()
         for key, value in self.band_structures.items():
             del self.band_structures[key]
@@ -1812,7 +1831,7 @@ class CentralWindow(QtGui.QWidget):
                 if self.scf_data is not None:
                     self.scf_window.scf_widget.plot(self.scf_data)
             elif selected_tab_index == 5:
-                self.info_window.update_text(esc_handler.project_directory + esc_handler.working_dirctory + esc_handler.info_file)
+                self.info_window.do_select_event()
             QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True,tasks=tasks)
             if 'relax' in tasks:
