@@ -311,6 +311,9 @@ At the same time continued development is needed to enable NWChem to effectively
         l_data = np.array(total_res)
         data = l_data.reshape(n_grid,order='C')
 
+        if data.min() == data.max():
+            return None
+
         data = data / data.max()
         return sst.MolecularDensity(data,lattice_vecs,origin)
 
@@ -424,7 +427,7 @@ At the same time continued development is needed to enable NWChem to effectively
             for i in range(3):
                 coord = coords[:,i]
                 tr_range = coord.max()-coord.min()
-                if tr_range == 0:
+                if tr_range < 0.5:
                     tr_range = 5
                 limits[i,:] = [coord.min()-tr_range*edge,coord.max()+tr_range*edge,100]
 

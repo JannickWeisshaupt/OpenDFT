@@ -44,8 +44,8 @@ class Handler:
         self.pseudo_directory = None
         self.engine_process = None
         self.info_file = 'INFO.OUT'
-        self.info_text = """exciting is an all-electron full-potential computer package [GUL-2014] for first-principles calculations, based on (linearized) augmented planewave + local orbital [(L)APW+lo] methods. 
-        This family of basis sets is known as the most precise numerical scheme to solve the Kohn-Sham equations of density-functional theory (DFT), reaching extremely high - up to μHartree - precision [GUL-2014], [LEJ-2016]. Different schemes are available to account for van der Waals forces.
+        self.info_text = """<a href="http://exciting-code.org/">exciting</a> is an all-electron full-potential computer package <a href="http://iopscience.iop.org/0953-8984/26/36/363202">[GUL-2014]</a> for first-principles calculations, based on (linearized) augmented planewave + local orbital [(L)APW+lo] methods. 
+        This family of basis sets is known as the most precise numerical scheme to solve the Kohn-Sham equations of density-functional theory (DFT), reaching extremely high - up to muHartree - precision <a href="http://iopscience.iop.org/0953-8984/26/36/363202">[GUL-2014]</a>, <a href="http://science.sciencemag.org/content/sci/351/6280/aad3000.full.pdf?ijkey=teUZMpwU49vhY&keytype=ref&siteid=sci">[LEJ-2016]</a>. Different schemes are available to account for van der Waals forces.
 
 As suggested by its name, exciting has a major focus on excited-state properties. It includes a module for time-dependent DFT (TDDFT) in the linear-response regime [SAG-2009], implementing a number of static and dynamical exchange-correlation kernels[SAG-2009], [RIG-2015]. TDDFT is preferably adopted to compute absorption and electron-loss spectra of materials with weak electron-hole interaction, such as small molecules and metals, also at finite momentum transfer [ALK-2013]. 
 For systems with pronounced correlation effects, exciting offers a rich spectroscopy module based on many-body perturbation theory. 

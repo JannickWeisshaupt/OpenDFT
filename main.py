@@ -595,6 +595,7 @@ class PlotWithTreeview(QtGui.QWidget):
 
 
 class ChooseEngineWindow(QtGui.QDialog):
+
     def __init__(self, parent, defaults):
         super(ChooseEngineWindow, self).__init__(parent=parent)
         self.setWindowTitle('Please choose a DFT engine')
@@ -620,8 +621,9 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.update_tree()
         layout.addWidget(self.treeview)
 
-        self.text_widget = QtGui.QTextEdit(parent=self)
-        self.text_widget.setReadOnly(True)
+        self.text_widget = QtGui.QTextBrowser(parent=self)
+        self.text_widget.setOpenExternalLinks(True)
+        # self.text_widget.setReadOnly(True)
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
 
@@ -639,8 +641,6 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         self.buttonBox.accepted.connect(self.accept_own)
         self.buttonBox.rejected.connect(self.reject_own)
-
-
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
@@ -667,7 +667,7 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.selected_handler_class = self.handlers[bs_name]
 
         if general_handler.is_handler_available(bs_name):
-            install_text = '<p style="color:Green;font-weight:bold">{} installation found</p> at {}'.format(bs_name,self.selected_handler.find_engine_folder())
+            install_text = '<p style="color:Green;font-weight:bold">{} installation found in: {}</p>'.format(bs_name,self.selected_handler.find_engine_folder())
         else:
             install_text = '<p style="color:Red;font-weight:bold">No {} installation found</p>'.format(bs_name)
 
@@ -675,7 +675,6 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
-
 
     def accept_own(self):
         if self.selected_handler is None:
@@ -706,6 +705,8 @@ class ChooseEngineWindow(QtGui.QDialog):
     def closeEvent(self, event):
         event.accept()
 
+    def link(self, linkStr):
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl(linkStr))
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
