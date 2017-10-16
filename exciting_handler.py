@@ -44,6 +44,20 @@ class Handler:
         self.pseudo_directory = None
         self.engine_process = None
         self.info_file = 'INFO.OUT'
+        self.info_text = """exciting is an all-electron full-potential computer package [GUL-2014] for first-principles calculations, based on (linearized) augmented planewave + local orbital [(L)APW+lo] methods. 
+        This family of basis sets is known as the most precise numerical scheme to solve the Kohn-Sham equations of density-functional theory (DFT), reaching extremely high - up to μHartree - precision [GUL-2014], [LEJ-2016]. Different schemes are available to account for van der Waals forces.
+
+As suggested by its name, exciting has a major focus on excited-state properties. It includes a module for time-dependent DFT (TDDFT) in the linear-response regime [SAG-2009], implementing a number of static and dynamical exchange-correlation kernels[SAG-2009], [RIG-2015]. TDDFT is preferably adopted to compute absorption and electron-loss spectra of materials with weak electron-hole interaction, such as small molecules and metals, also at finite momentum transfer [ALK-2013]. 
+For systems with pronounced correlation effects, exciting offers a rich spectroscopy module based on many-body perturbation theory. 
+To compute quasi-particle band structures, the GW approach is implemented in the single-shot G0W0 approximation [NAB-2016]. 
+Recent developments of the PBE0 hybrid functional and of the LDA-1/2 method provide improved starting points for G0W0 calculations [PEL-2016]. 
+The solution of the Bethe-Salpeter equation (BSE) offers an accurate description of excitations in the valence [SAG-2009] and in the core region [VOR-2017] on the same footing. 
+Specific modules of exciting are dedicated to advanced light-matter interaction processes, such as Raman scattering, second-harmonic generation [SHA-2004], and the magneto-optic Kerr effect [GUL-2014].
+
+exciting is an open-source, GPL-licensed code, written in a clean and fully documented programming style, with a modern source-code management, a dynamical build system, and automated tests. 
+It is equipped with a detailed documentation of current developments, including an interactive Input Reference webpage and over 30 Tutorials illustrating basic and advanced features. 
+The interface with pre- and post-processing tools integrates the capabilities of exciting for specific tasks, such as calculating elastic constants [GOL-2013] and optical coefficients [VOR-2016], as well as performing a cluster expansion for, e.g., thermoelectric materials with large parent cells [TRO-2017]."""
+
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
                            'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
 

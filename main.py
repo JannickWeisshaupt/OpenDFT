@@ -22,7 +22,7 @@ try:
 except:
     import Queue as queue
 
-# esc_handler = Handler()
+
 general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
 
@@ -226,7 +226,7 @@ class OptionFrame(QtGui.QGroupBox):
         for text,function in buttons:
             button = QtGui.QPushButton(text)
             button.clicked.connect(function)
-            # button.setFixedWidth(100)
+            button.setFixedHeight(30)
             self.buttons.append(button)
             self.layout.addWidget(button, counter // self.widgets_per_line, counter % self.widgets_per_line)
             counter += 1
@@ -594,13 +594,16 @@ class PlotWithTreeview(QtGui.QWidget):
         self.update_tree()
 
 class ChooseEngineWindow(QtGui.QDialog):
-    def __init__(self, parent=None):
-        super(ChooseEngineWindow, self).__init__(parent)
+    def __init__(self, parent, defaults):
+        super(ChooseEngineWindow, self).__init__(parent=parent)
+        self.setWindowTitle('Please choose a DFT engine')
+        self.defaults = defaults
 
         self.parent = parent
-
+        self.resize(800,500)
         self.handlers = general_handler.handlers
         self.selected_handler = None
+        self.success = False
 
         main_layout = QtGui.QVBoxLayout(self)
 
@@ -621,6 +624,13 @@ class ChooseEngineWindow(QtGui.QDialog):
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
 
+        options_widget = QtGui.QWidget(parent=self)
+        main_layout.addWidget(options_widget)
+
+        options_layout = QtGui.QHBoxLayout(options_widget)
+        self.remember_checkbox = QtGui.QCheckBox('Remember choice', parent=options_widget)
+        options_layout.addWidget(self.remember_checkbox)
+
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
@@ -638,7 +648,12 @@ class ChooseEngineWindow(QtGui.QDialog):
     def update_tree(self):
         self.treeview.clear()
         for key,value in self.handlers.items():
-            self.add_result_key(key)
+            item = self.add_result_key(key)
+            if general_handler.is_handler_available(key):
+                color = QtGui.QColor("green")
+            else:
+                color = QtGui.QColor("red")
+            item.setForeground(0, QtGui.QBrush(color))
 
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
@@ -655,7 +670,7 @@ class ChooseEngineWindow(QtGui.QDialog):
         else:
             install_text = '<p style="color:Red;">No {} installation found</p>'.format(bs_name)
 
-        text = install_text+'Supported methods:\n\n - '+'\n - '.join(self.selected_handler.supported_methods)
+        text = install_text+'Supported methods:\n\n - '+'\n - '.join(self.selected_handler.supported_methods)+'\n\n'+self.selected_handler.info_text
 
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
@@ -668,11 +683,17 @@ class ChooseEngineWindow(QtGui.QDialog):
         esc_handler = self.selected_handler
         global Handler
         Handler = self.selected_handler_class
+        if self.remember_checkbox.checkState():
+            self.defaults['default engine'] = esc_handler.engine_name
+        self.success = True
         self.close()
 
     def reject_own(self):
         sys.exit()
         # self.reject()
+
+    def closeEvent(self, event):
+        event.accept()
 
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1398,9 +1419,17 @@ class CentralWindow(QtGui.QWidget):
 
         self.load_defaults()
 
-        if self.defaults['ask engine']:
-            choose_engine_window = ChooseEngineWindow(parent=self)
+        if self.defaults['default engine'] is None:
+            choose_engine_window = ChooseEngineWindow(self,self.defaults)
             choose_engine_window.exec_()
+            if not choose_engine_window.success:
+                sys.exit()
+        else:
+            global esc_handler
+            global Handler
+            bs_name = self.defaults['default engine']
+            esc_handler = general_handler.handlers[bs_name]()
+            Handler = general_handler.handlers[bs_name]
 
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
@@ -1622,10 +1651,8 @@ class CentralWindow(QtGui.QWidget):
             b = {}
 
         default_engine = b.pop('default engine',None)
-        ask_engine = b.pop('ask engine',True)
 
         self.defaults['default engine'] = default_engine
-        self.defaults['ask engine'] = ask_engine
 
     def save_defaults(self):
         with open(self.installation_folder + '/defaults.pkl', 'wb') as handle:
