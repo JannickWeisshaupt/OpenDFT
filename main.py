@@ -497,6 +497,7 @@ class InfoWindow(QtGui.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.text_widget = QtGui.QTextBrowser(parent=self)
+        self.text_widget.setFontFamily('monospace')
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
         self.last_text = ''
@@ -529,12 +530,8 @@ class InfoWindow(QtGui.QWidget):
 
         self.last_text = text
 
-        if filename.endswith('.xml'):
-            import cgi
-            text = cgi.escape(text)
-
-        text = text.replace('\n','<br>')
-        self.text_widget.setHtml(text)
+        # text = text.replace('\n','<br>')
+        self.text_widget.setPlainText(text)
         self.vertical_scrollbar.setValue(cur_pos)
 
 
