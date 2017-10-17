@@ -1603,13 +1603,14 @@ class CentralWindow(QtGui.QWidget):
             self.project_loaded = True
 
     def save_results(self):
+        # TODO save options for each handler seperately
         try:
             self.dft_engine_window.read_all_option_widgets()
             a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,
                  'properties': self.project_properties,'scf_options':esc_handler.scf_options,
                  'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
                  'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options,'ks densities':self.ks_densities}
+                 'gw options':esc_handler.gw_options,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -1670,6 +1671,10 @@ class CentralWindow(QtGui.QWidget):
                 if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
                     for key,value in load_optical_spectrum_options.items():
                         esc_handler.optical_spectrum_options[key] = value
+
+                k_path = b['k path']
+                if k_path is not None:
+                    self.dft_engine_window.band_structure_points = k_path
 
                 self.project_properties.update(b['properties'])
                 ## Update esc_handler ! DANGER ZONE !

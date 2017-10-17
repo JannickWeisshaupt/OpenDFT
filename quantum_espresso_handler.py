@@ -457,6 +457,9 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
         atoms_names = [p_table[atom] for atom in atoms]
         installation_folder = os.path.dirname(__file__)
 
+        if not os.path.isdir(self.project_directory+self.pseudo_directory):
+            os.mkdir(self.project_directory+self.pseudo_directory)
+
         for atom in atoms_names:
             file = atom+'.pseudo'
             filepath = self.project_directory+self.pseudo_directory+file
