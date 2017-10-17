@@ -75,6 +75,10 @@ class BrillouinWindow(QtGui.QDialog):
         button_layout.addWidget(remove_selected_button)
         remove_selected_button.clicked.connect(self.remove_point)
 
+        add_atom_button = QtGui.QPushButton('Add point',parent=button_widget)
+        button_layout.addWidget(add_atom_button)
+        add_atom_button.clicked.connect(self.add_atom)
+
     def clear_path(self):
         for i in range(len(self.k_path)):
             del self.k_path[0]
@@ -113,17 +117,27 @@ class BrillouinWindow(QtGui.QDialog):
         self.mayavi_widget.set_path(k_path)
         self.update_table()
 
+    def add_atom(self):
+        self.disconnect_tables()
+        n = self.table.rowCount()
+        self.table.setRowCount(n+1)
+        for i in range(4):
+            item = QtGui.QTableWidgetItem()
+            self.table.setItem(n+1,i,item)
+        self.connect_tables()
 
     def read_table(self):
         n_k = self.table.rowCount()
         k_points = []
         for i in range(n_k):
-            coords = np.array([float(self.table.item(i,j).text()) for j in range(3)])
-            k_point = [coords,str(self.table.item(i,3).text())]
-            k_points.append(k_point)
+            try:
+                coords = np.array([float(self.table.item(i,j).text()) for j in range(3)])
+                k_point = [coords,str(self.table.item(i,3).text())]
+                k_points.append(k_point)
+            except Exception:
+                pass
 
         return k_points
-
 
     def disconnect_tables(self):
         try:
@@ -1913,12 +1927,15 @@ class CentralWindow(QtGui.QWidget):
     def open_brillouin_window(self):
         if type(self.crystal_structure) is not sst.CrystalStructure:
             return
-        self.brillouin_window.show()
+
         if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure and type(self.crystal_structure):
+            self.brillouin_window.close() # This is a hack because for some reason the picker is broken when you update the plot
+            self.brillouin_window = BrillouinWindow(self)
             self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
             self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
             self.brillouin_window.mayavi_widget.update_plot()
 
+        self.brillouin_window.show()
 
 
 if __name__ == "__main__":
