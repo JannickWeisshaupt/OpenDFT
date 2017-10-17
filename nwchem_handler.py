@@ -5,7 +5,6 @@ import subprocess
 import os
 import re
 
-
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
@@ -92,7 +91,6 @@ At the same time continued development is needed to enable NWChem to effectively
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
-
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
         file.close()

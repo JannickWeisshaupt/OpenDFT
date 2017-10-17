@@ -7,6 +7,7 @@ import time
 import re
 import threading
 from six import string_types
+from shutil import copyfile
 
 
 atomic_mass = pt.mass
@@ -94,6 +95,7 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
         if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
 
+        self._copy_default_pseudos(crystal_structure)
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
         file.close()
@@ -124,7 +126,7 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
     def start_relax(self, crystal_structure):
         if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
-
+        self._copy_default_pseudos(crystal_structure)
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure,calculation='relax')
         file.close()
@@ -449,6 +451,17 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
     def _correct_types(self):
         for key,value in self.scf_options_non_string_type.items():
             self.scf_options[key] = value(self.scf_options[key])
+
+    def _copy_default_pseudos(self,crystal_structure):
+        atoms = set(crystal_structure.atoms[:,3])
+        atoms_names = [p_table[atom] for atom in atoms]
+        installation_folder = os.path.dirname(__file__)
+
+        for atom in atoms_names:
+            file = atom+'.pseudo'
+            filepath = self.project_directory+self.pseudo_directory+file
+            if not os.path.isfile(filepath):
+                copyfile(installation_folder+'/data/pseudos/'+file,filepath)
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])

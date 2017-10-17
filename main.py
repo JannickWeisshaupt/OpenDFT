@@ -1253,9 +1253,9 @@ class EditStructureWindow(QtGui.QDialog):
     def apply(self):
         if self.anything_changed:
             crystal_structure = self.read_tables()
-            main.crystal_structure = crystal_structure
-            # self.handle_change() # Probably unnecessary
-            # self.handle_change() # Probably unnecessary
+            if crystal_structure is not None:
+                main.crystal_structure = crystal_structure
+
 
     def accept(self):
         self.apply()
@@ -1380,13 +1380,16 @@ class EditStructureWindow(QtGui.QDialog):
             logging.exception(e)
             scale = 1.0
         if self.periodic_checkbox.checkState():
-            unit_cell = np.zeros((3,3))
-            for i in range(3):
-                for j in range(3):
-                    item = self.unit_cell_table.item(i,j)
-                    unit_cell[i,j] = float(item.text())
+            try:
+                unit_cell = np.zeros((3,3))
+                for i in range(3):
+                    for j in range(3):
+                        item = self.unit_cell_table.item(i,j)
+                        unit_cell[i,j] = float(item.text())
 
-            unit_cell = unit_cell*scale
+                unit_cell = unit_cell*scale
+            except Exception:
+                return None
         else:
             unit_cell = None
 
@@ -1428,8 +1431,9 @@ class EditStructureWindow(QtGui.QDialog):
     def handle_change(self):
         self.anything_changed = True
         crystal_structure = self.read_tables()
-        main.mayavi_widget.update_crystal_structure(crystal_structure)
-        main.mayavi_widget.update_plot()
+        if crystal_structure is not None:
+            main.mayavi_widget.update_crystal_structure(crystal_structure)
+            main.mayavi_widget.update_plot()
 
 
 class CentralWindow(QtGui.QWidget):
