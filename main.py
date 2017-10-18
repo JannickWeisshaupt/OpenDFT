@@ -378,11 +378,24 @@ class DftEngineWindow(QtGui.QWidget):
     def do_select_event(self):
         pass
 
+    def check_engine_for_compatibility(self,tasks):
+        struc_type = type(self.parent.crystal_structure)
+        if struc_type == sst.MolecularStructure:
+            sym_type = 'non-periodic'
+        elif struc_type == sst.CrystalStructure:
+            sym_type = 'periodic'
+        else:
+            raise ValueError('bad type: '+ str(struc_type)+' for structure object')
+        if sym_type not in esc_handler.supported_methods:
+            raise Exception(sym_type+' structures are not supported in the selected dft engine')
+        for task in tasks:
+            if task not in esc_handler.supported_methods:
+                raise Exception(task + ' is not supported by the selected dft engine')
+
     def check_if_engine_is_running_and_warn_if_so(self):
         if esc_handler.custom_command_active:
             return
         if esc_handler.is_engine_running():
-            self.execute_error_dialog.showMessage('Engine is already running')
             raise Exception('Engine is already running')
 
     def read_all_option_widgets(self):
@@ -422,9 +435,9 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_relax(self):
-        self.prepare_start()
         tasks = ['relax']
         try:
+            self.prepare_start(tasks)
             esc_handler.start_relax(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
@@ -436,8 +449,6 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_gw(self):
-        self.prepare_start()
-
         tasks = []
         if esc_handler.will_scf_run():
             tasks.append('scf')
@@ -446,6 +457,7 @@ class DftEngineWindow(QtGui.QWidget):
             tasks.append('bandstructure')
         tasks.extend(['g0w0','g0w0 bands'])
         try:
+            self.prepare_start(tasks)
             esc_handler.start_gw(self.parent.crystal_structure,self.band_structure_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
@@ -457,10 +469,9 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_phonons(self):
-        self.prepare_start()
-
         tasks = ['phonons']
         try:
+            self.prepare_start(tasks)
             esc_handler.start_phonon(self.parent.crystal_structure, self.band_structure_points)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
@@ -472,10 +483,9 @@ class DftEngineWindow(QtGui.QWidget):
             self.parent.status_bar.set_engine_status(True)
 
     def start_optical_spectrum_calculation(self):
-        self.prepare_start()
-
         tasks = ['optical spectrum']
         try:
+            self.prepare_start(tasks)
             esc_handler.start_optical_spectrum(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
@@ -1856,6 +1866,7 @@ class CentralWindow(QtGui.QWidget):
                 self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
+            print(type(message))
             if ('error' in message.lower() or len(err)>0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',"<br>")+'<br>Error:<br>'+err.replace('\n','<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
