@@ -311,10 +311,10 @@ class StructureParser:
 
 class ComputationalMethods(object):
     def __init__(self,methods):
-        all_methods = ['periodic','non-periodic','scf','gw','optical spectrum','phonons','relax']
+        all_methods = ['periodic','non-periodic','scf','g0w0','optical spectrum','phonons','relax','bandstructure']
         self.descriptions = {'periodic': 'Periodic structures (crystals)','non-periodic':'Non periodic structures (molecules)',
-                             'scf':'Ground state properties','gw':'The gw method for many body-corrections','optical spectrum':'Calculation of optical spectra',
-                             'phonons':'Phonon properties','relax':'Structure relaxation'}
+                             'scf':'Ground state properties','g0w0':'The gw method for many body-corrections','optical spectrum':'Calculation of optical spectra',
+                             'phonons':'Phonon properties','relax':'Structure relaxation','bandstructure':'Calculation of the band structure'}
 
         if methods is None:
             methods = all_methods

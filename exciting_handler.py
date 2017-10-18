@@ -61,7 +61,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
                            'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
 
-        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'gw', 'optical spectrum', 'phonons', 'relax'])
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax','bandstructure'])
 
         self._timestamp_tasks = {}
 
@@ -355,12 +355,11 @@ Default: 	GGA_PBE"""
         for i in range(N_bands):
             bands_qp.append(np.array([k_qp[:,i],E_qp[:,i]]).T )
 
-        bandgap,k_bandgap = self._find_bandgap(bands_qp)
         if filename == 'PHDISP.OUT':
             bs_type = 'phonon'
         else:
             bs_type = 'gw'
-        return sst.BandStructure(bands_qp,bandgap,k_bandgap,special_k_points=band_structure.special_k_points)
+        return sst.BandStructure(bands_qp,special_k_points=band_structure.special_k_points)
 
     def read_phonon_bandstructure(self):
 

@@ -57,7 +57,7 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
         self._filenames_tasks = {}
         self._timestamp_tasks = {}
 
-        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'relax'])
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'relax','bandstructure'])
 
         self.project_directory = None
         self.input_filename = 'scf.in'

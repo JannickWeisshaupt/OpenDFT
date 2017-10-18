@@ -378,7 +378,10 @@ class DftEngineWindow(QtGui.QWidget):
     def do_select_event(self):
         pass
 
-    def check_engine_for_compatibility(self,tasks):
+    def check_engine_for_compatibility(self,tasks_in):
+        tasks = [x for x in tasks_in]
+        if 'g0w0 bands' in tasks:
+            tasks.remove('g0w0 bands')
         struc_type = type(self.parent.crystal_structure)
         if struc_type == sst.MolecularStructure:
             sym_type = 'non-periodic'
@@ -1866,7 +1869,6 @@ class CentralWindow(QtGui.QWidget):
                 self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
-            print(type(message))
             if ('error' in message.lower() or len(err)>0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',"<br>")+'<br>Error:<br>'+err.replace('\n','<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
