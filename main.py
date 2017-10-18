@@ -392,14 +392,13 @@ class DftEngineWindow(QtGui.QWidget):
         self.bs_option_widget.read_all_entries()
         self.optical_spectrum_option_widget.read_all_entries()
 
-    def prepare_start(self):
+    def prepare_start(self,tasks):
         self.abort_bool = False
         self.check_if_engine_is_running_and_warn_if_so()
+        self.check_engine_for_compatibility(tasks)
         self.read_all_option_widgets()
 
     def start_ground_state_calculation(self):
-        self.prepare_start()
-
         tasks = []
         if esc_handler.will_scf_run():
             tasks.append('scf')
@@ -411,6 +410,7 @@ class DftEngineWindow(QtGui.QWidget):
         else:
             bs_points = None
         try:
+            self.prepare_start(tasks)
             esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
@@ -1461,6 +1461,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra = {}
         self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
+        self.esc_handler_options = {}
 
         self.installation_folder = os.path.dirname(__file__)
 
@@ -1538,20 +1539,6 @@ class CentralWindow(QtGui.QWidget):
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
 
-    # def overwrite_handler(self):
-    #     # TODO this is horrible maybe totally redo
-    #     esc_handler_new = Handler()
-    #     for method in dir(esc_handler_new):
-    #         command = 'type(esc_handler_new.'+method+')'
-    #         new_type = eval(command)
-    #         if new_type == dict:
-    #             eval('esc_handler.'+method+'.clear()')
-    #             eval('esc_handler.'+method+'.update(esc_handler_new.'+method+')')
-    #         else:
-    #             pass
-    #             # exec('esc_handler.' + method + ' = esc_handler_new.'+method)
-    #     esc_handler.dft_installation_folder = esc_handler.find_engine_folder()
-
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
         if len(folder_name) > 1:
@@ -1606,11 +1593,13 @@ class CentralWindow(QtGui.QWidget):
         # TODO save options for each handler seperately
         try:
             self.dft_engine_window.read_all_option_widgets()
-            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,
-                 'properties': self.project_properties,'scf_options':esc_handler.scf_options,
-                 'dft engine':esc_handler.engine_name,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
+
+            option_dic_specific_handler = {'scf_options':esc_handler.scf_options,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
                  'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
+                 'gw options':esc_handler.gw_options}
+            self.esc_handler_options[esc_handler.engine_name] = option_dic_specific_handler
+            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,'esc handler options': self.esc_handler_options,
+                 'properties': self.project_properties,'dft engine':esc_handler.engine_name,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -1621,58 +1610,63 @@ class CentralWindow(QtGui.QWidget):
         try:
             with open(self.project_directory + '/save.pkl', 'rb') as handle:
                 b = pickle.load(handle)
-                b = no_error_dictionary(b)
-                self.crystal_structure = b['crystal structure']
+
+                self.crystal_structure = b.pop('crystal structure',None)
                 if self.crystal_structure is not None:
                     self.mayavi_widget.update_crystal_structure(self.crystal_structure)
                     self.mayavi_widget.update_plot()
 
-                loaded_bandstructure_dict = b['band structure']
+                loaded_bandstructure_dict = b.pop('band structure',None)
                 if type(loaded_bandstructure_dict) == dict:
                     for key,value in loaded_bandstructure_dict.items():
                         self.band_structures[key] = value
 
-                loaded_optical_spectra_dict = b['optical spectra']
+                loaded_optical_spectra_dict = b.pop('optical spectra',None)
                 if type(loaded_optical_spectra_dict) == dict:
                     for key,value in loaded_optical_spectra_dict.items():
                         self.optical_spectra[key] = value
 
-                loaded_ksdens_dict = b['ks densities']
+                loaded_ksdens_dict = b.pop('ks densities',None)
                 if type(loaded_ksdens_dict ) == dict:
                     for key,value in loaded_ksdens_dict.items():
                         self.ks_densities[key] = value
 
-                load_scf_options = b['scf_options']
-                if load_scf_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_scf_options.items():
-                        esc_handler.scf_options[key] = value
+                self.esc_handler_options = b.pop('esc handler options',None)
 
-                load_general_options = b['general options']
-                if load_general_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_general_options.items():
-                        esc_handler.general_options[key] = value
+                option_dic_specific_handler = self.esc_handler_options.pop(esc_handler.engine_name,None)
+                if option_dic_specific_handler is not None:
 
-                load_bs_options = b['bs options']
-                if load_bs_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_bs_options.items():
-                        esc_handler.bs_options[key] = value
+                    load_scf_options = option_dic_specific_handler.pop('scf_options', None)
+                    if load_scf_options is not None:
+                        for key,value in load_scf_options.items():
+                            esc_handler.scf_options[key] = value
 
-                load_phonon_options = b['phonon options']
-                if load_phonon_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_phonon_options.items():
-                        esc_handler.phonons_options[key] = value
+                    load_general_options = option_dic_specific_handler.pop('general options',None)
+                    if load_general_options is not None:
+                        for key,value in load_general_options.items():
+                            esc_handler.general_options[key] = value
 
-                load_gw_options = b['gw options']
-                if load_gw_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_gw_options.items():
-                        esc_handler.gw_options[key] = value
+                    load_bs_options = option_dic_specific_handler.pop('bs options',None)
+                    if load_bs_options is not None:
+                        for key,value in load_bs_options.items():
+                            esc_handler.bs_options[key] = value
 
-                load_optical_spectrum_options = b['optical spectrum options']
-                if load_optical_spectrum_options is not None and b['dft engine'] == esc_handler.engine_name:
-                    for key,value in load_optical_spectrum_options.items():
-                        esc_handler.optical_spectrum_options[key] = value
+                    load_phonon_options = option_dic_specific_handler.pop('phonon options',None)
+                    if load_phonon_options is not None:
+                        for key,value in load_phonon_options.items():
+                            esc_handler.phonons_options[key] = value
 
-                k_path = b['k path']
+                    load_gw_options = option_dic_specific_handler.pop('gw options',None)
+                    if load_gw_options is not None:
+                        for key,value in load_gw_options.items():
+                            esc_handler.gw_options[key] = value
+
+                    load_optical_spectrum_options = option_dic_specific_handler.pop('optical spectrum options',None)
+                    if load_optical_spectrum_options is not None:
+                        for key,value in load_optical_spectrum_options.items():
+                            esc_handler.optical_spectrum_options[key] = value
+
+                k_path = b.pop('k path', None)
                 if k_path is not None:
                     self.dft_engine_window.band_structure_points = k_path
 
