@@ -79,6 +79,8 @@ At the same time continued development is needed to enable NWChem to effectively
         self.phonons_options = {}
         self.phonons_options_tooltip = {}
         self.optical_spectrum_options = {}
+        self.optical_spectrum_options_tooltip = {}
+
 
         self.relax_file_timestamp = None
 

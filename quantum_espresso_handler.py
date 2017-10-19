@@ -161,6 +161,7 @@ performed in this run"""}
         self.phonons_options = {}
         self.phonons_options_tooltip = {}
         self.optical_spectrum_options = {}
+        self.optical_spectrum_options_tooltip = {}
 
         self.relax_file_timestamp = None
 
