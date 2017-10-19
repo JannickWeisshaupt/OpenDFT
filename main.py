@@ -591,6 +591,13 @@ class PlotWithTreeview(QtGui.QWidget):
         del self.data_dictionary[bs_name]
         self.update_tree()
 
+    def export_selected_item(self):
+        # TODO make this actually work
+        index = self.treeview.selectedIndexes()[0]
+        item = self.treeview.itemFromIndex(index)
+        bs_name = item.text(0)
+        # self.plot_widget.export(filename,self.data_dictionary[bs_name])
+
     # def rename_selected_item(self):
     #     index = self.treeview.selectedIndexes()[0]
     #     item = self.treeview.itemFromIndex(index)
@@ -609,6 +616,7 @@ class PlotWithTreeview(QtGui.QWidget):
 
         menu = QtGui.QMenu()
         menu.addAction('Delete',self.delete_selected_item)
+        menu.addAction('Export', self.export_selected_item)
         # menu.addAction('Rename', self.rename_selected_item)
         menu.exec_(self.treeview.viewport().mapToGlobal(position))
 
