@@ -68,11 +68,94 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
                             'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7',"restart_mode":'from_scratch','nstep':'50'}
 
 
-        self.scf_options_tooltip = {}
+        self.scf_options_tooltip = {'ecutwfc':'kinetic energy cutoff (Ry) for wavefunctions','ecutrho':"""Kinetic energy cutoff (Ry) for charge density and potential
+For norm-conserving pseudopotential you should stick to the
+default value, you can reduce it by a little but it will
+introduce noise especially on forces and stress.
+If there are ultrasoft PP, a larger value than the default is
+often desirable (ecutrho = 8 to 12 times ecutwfc, typically).
+PAW datasets can often be used at 4*ecutwfc, but it depends
+on the shape of augmentation charge: testing is mandatory.
+The use of gradient-corrected functional, especially in cells
+with vacuum, or for pseudopotential without non-linear core
+correction, usually requires an higher values of ecutrho
+to be accurately converged.""",
+                                    'input_dft':"""Exchange-correlation functional: eg 'PBE', 'BLYP' etc
+See Modules/funct.f90 for allowed values.
+Overrides the value read from pseudopotential files.
+Use with care and if you know what you are doing!""",
+                                    'k points': 'Number of k points: n1 n2 n3 \nn must be an natural number',
+                                    'k point shift':'K point offset: offset1 offse2 offset3\noffset must be either 0 or 1',
+                                    'k points band':'Number of points in the band structure between each two points',
+                                    'nbnd':'Number of bands to be calculated (at least 0.5 per electron)',
+                                    'diagonalization':"""Diagonalization method
+'david' :
+
+    Davidson iterative diagonalization with overlap matrix
+    (default). Fast, may in some rare cases fail.
+                
+
+'cg' :
+
+    Conjugate-gradient-like band-by-band diagonalization.
+    Typically slower than 'david' but it uses less memory
+    and is more robust (it seldom fails).
+                
+
+""",
+                                    'conv_thr':"""Convergence threshold for selfconsistency:
+   estimated energy error < conv_thr
+(note that conv_thr is extensive, like the total energy).""",
+                                    'mixing_mode':"""Mixing mode for scf cycle. 
+Available options are:
+            
+
+'plain' :
+
+     charge density Broyden mixing
+                
+
+'TF' :
+
+    as above, with simple Thomas-Fermi screening
+    (for highly homogeneous systems)
+                
+
+'local-TF' :
+
+    as above, with local-density-dependent TF screening
+    (for highly inhomogeneous systems""",
+                                    'mixing_beta':'mixing factor for self-consistency',
+                                    'restart_mode':"""
+
+     Available options are:
+                
+
+    'from_scratch' :
+
+        From scratch. This is the normal way to perform a PWscf calculation
+                    
+
+    'restart' :
+
+        From previous interrupted run. Use this switch only if you want to
+        continue an interrupted calculation, not to start a new one, or to
+        perform non-scf calculations.  Works only if the calculation was
+        cleanly stopped using variable max_seconds, or by user request
+        with an "exit file" (i.e.: create a file "prefix".EXIT, in directory
+        "outdir"; see variables prefix, outdir).  Overrides startingwfc
+        and startingpot.
+                    
+
+""",
+                                    'nstep':"""number of molecular-dynamics or structural optimization steps
+performed in this run"""}
 
         self.general_options = {'title': 'title'}
         self.bs_options = {}
         self.relax_options = {}
+        self.relax_options_tooltip = {}
+
         self.gw_options = {}
         self.gw_options_tooltip = {}
         self.phonons_options = {}

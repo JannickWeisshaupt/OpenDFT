@@ -71,8 +71,11 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
-        self.scf_options_tooltip = {'do':r'Decides if the ground state is calculated starting from scratch, '
-                                         'using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.'}
+        self.scf_options_tooltip = {'do':"""Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
+Type: 	choose from:
+fromscratch
+fromfile
+skip"""}
 
         self.scf_options_tooltip['rgkmax'] = """The parameter rgkmax implicitly determines the number of basis functions and is one of the crucial parameters for the accuracy of the calculation. 
         It represents the product of two quantities: RMT,Min, the smallest of all muffin-tin radii, and |G+k|max, the maximum length for the G+k vectors. 
@@ -131,6 +134,7 @@ Default: 	GGA_PBE"""
         self.general_options = {'title': 'title'}
         self.bs_options = {'steps': '300'}
         self.relax_options = {'method':'bfgs'}
+        self.relax_options_tooltip = {}
 
         self.gw_options = {'nempty':'0','ngridq':"2 2 2",'ibgw':'1','nbgw':'0'}
 
@@ -144,10 +148,39 @@ Default: 	GGA_PBE"""
         self.phonons_options_tooltip = {}
 
         self.optical_spectrum_options = {'xstype':'BSE','intv':'-0.5 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
-                                         ,'nempty_screeing':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.01',
+                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.01',
                                          'gqmax':"0.0",'vkloff':"0.0 0.0 0.0"}
+        self.optical_spectrum_options_tooltip = {'nstlbse':'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
+                                                 'nempty_screening':'Number of empty states.',
+                                                 'vkloff':'k-point offset for screening Type: floats\n Do not use negative numbers',
+                                                 'intv':'energy interval lower and upper limits (in hartree)',
+                                                 'gqmax':'|G+q| cutoff for Kohn-Sham response function, screening and for expansion of Coulomb potential',
+                                                 'ngridq':'q-point grid sizes','ngridk':'k-point grid size',
+                                                 'broad':'Lorentzian broadening for all spectra (in hartree)',
+                                                 'screentype':"""Defines which type of screening is to be used.
+Type:   choose from:
+full
+diag
+noinvdiag
+longrange
+""",
+                                                 'nempty':"""Number of empty states. This parameter determines the energy cutoff for the excitation spectra. For determining the number of states related to an energy cutoff, perform one iteration of a SCF calculation, setting nempty to a higher value and check the EIGVAL.OUT.
+Type: 	integer
+"""  ,
+                                                 'xstype':"""Attribute: xstype
 
-        self.optical_spectrum_options_tooltip = {}
+Should TDDFT be used or BSE.
+Type: 	choose from:
+TDDFT
+BSE""",
+                                                 'use gw':'use gw band structure as basis (true or false)',
+                                                 'bsetype':"""Defines which parts of the BSE Hamiltonian are to be considered.
+Type: 	choose from:
+IP (Independent particles)
+RPA (random phase approximation)
+singlet
+triplet"""}
+
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
@@ -504,7 +537,7 @@ Default: 	GGA_PBE"""
                            vkloff=self.optical_spectrum_options['vkloff'])
         ewindow = ET.SubElement(xs, "energywindow",intv = self.optical_spectrum_options['intv'],points = self.optical_spectrum_options['points'])
         screening = ET.SubElement(xs, "screening",screentype = self.optical_spectrum_options['screentype'],
-                                  nempty=self.optical_spectrum_options['nempty_screeing'])
+                                  nempty=self.optical_spectrum_options['nempty_screening'])
         BSE = ET.SubElement(xs, "BSE", bsetype = self.optical_spectrum_options['bsetype'],nstlbse = self.optical_spectrum_options['nstlbse'])
         qpointset = ET.SubElement(xs,'qpointset')
         qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'

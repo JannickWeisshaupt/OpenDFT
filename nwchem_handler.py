@@ -72,6 +72,8 @@ At the same time continued development is needed to enable NWChem to effectively
         self.general_options = {'title': 'title'}
         self.bs_options = {}
         self.relax_options = {}
+        self.relax_options_tooltip = {}
+
         self.gw_options = {}
         self.gw_options_tooltip = {}
         self.phonons_options = {}

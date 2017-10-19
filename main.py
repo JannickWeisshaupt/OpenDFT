@@ -301,16 +301,16 @@ class DftEngineWindow(QtGui.QWidget):
         self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]],buttons=[['Choose k-path',self.parent.open_brillouin_window]])
         myform.addRow(self.bs_option_widget)
 
-        self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options')
+        self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options',tooltips=esc_handler.relax_options_tooltip)
         myform.addRow(self.relax_option_widget)
 
         self.gw_option_widget = OptionFrame(self,esc_handler.gw_options,title='GW options',tooltips=esc_handler.gw_options_tooltip)
         myform.addRow(self.gw_option_widget)
 
-        self.phonons_option_widget = OptionFrame(self,esc_handler.phonons_options,title='Phonon options')
+        self.phonons_option_widget = OptionFrame(self,esc_handler.phonons_options,title='Phonon options',tooltips=esc_handler.phonons_options_tooltip)
         myform.addRow(self.phonons_option_widget)
 
-        self.optical_spectrum_option_widget = OptionFrame(self,esc_handler.optical_spectrum_options,title='Excited states options')
+        self.optical_spectrum_option_widget = OptionFrame(self,esc_handler.optical_spectrum_options,title='Excited states options',tooltips=esc_handler.optical_spectrum_options_tooltip)
         myform.addRow(self.optical_spectrum_option_widget)
 
         mygroupbox.setLayout(myform)
@@ -413,6 +413,8 @@ class DftEngineWindow(QtGui.QWidget):
         self.check_if_engine_is_running_and_warn_if_so()
         self.check_engine_for_compatibility(tasks)
         self.read_all_option_widgets()
+
+
 
     def start_ground_state_calculation(self):
         tasks = []
@@ -627,9 +629,11 @@ class PlotWithTreeview(QtGui.QWidget):
         self.treeview.clear()
 
     def update_tree(self):
+        self.treeview.itemSelectionChanged.disconnect()
         self.treeview.clear()
         for key,value in OrderedDict(sorted(self.data_dictionary.items())).items():
             self.add_result_key(key)
+        self.treeview.itemSelectionChanged.connect(self.handle_item_changed)
 
     def do_select_event(self):
         self.update_tree()
@@ -1599,6 +1603,7 @@ class CentralWindow(QtGui.QWidget):
             esc_handler.project_directory = self.project_directory
             self.load_saved_results()
             self.dft_engine_window.update_all()
+            self.tab_is_changed(self.tabWidget.currentIndex())
             self.window.setWindowTitle("OpenDFT - "+self.project_directory)
             self.project_loaded = True
 
@@ -1649,35 +1654,29 @@ class CentralWindow(QtGui.QWidget):
                 option_dic_specific_handler = self.esc_handler_options.pop(esc_handler.engine_name,None)
                 if option_dic_specific_handler is not None:
 
+                    def set_esc_handler_dic_to_loaded_dic(esc_dic,loaded_dic):
+                        if loaded_dic is not None:
+                            for key, value in loaded_dic.items():
+                                if key in esc_dic.keys():
+                                    esc_dic[key] = value
+
                     load_scf_options = option_dic_specific_handler.pop('scf_options', None)
-                    if load_scf_options is not None:
-                        for key,value in load_scf_options.items():
-                            esc_handler.scf_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.scf_options,load_scf_options)
 
                     load_general_options = option_dic_specific_handler.pop('general options',None)
-                    if load_general_options is not None:
-                        for key,value in load_general_options.items():
-                            esc_handler.general_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.general_options,load_general_options)
 
                     load_bs_options = option_dic_specific_handler.pop('bs options',None)
-                    if load_bs_options is not None:
-                        for key,value in load_bs_options.items():
-                            esc_handler.bs_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.bs_options,load_bs_options)
 
                     load_phonon_options = option_dic_specific_handler.pop('phonon options',None)
-                    if load_phonon_options is not None:
-                        for key,value in load_phonon_options.items():
-                            esc_handler.phonons_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.phonons_options,load_phonon_options)
 
                     load_gw_options = option_dic_specific_handler.pop('gw options',None)
-                    if load_gw_options is not None:
-                        for key,value in load_gw_options.items():
-                            esc_handler.gw_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.gw_options,load_gw_options)
 
                     load_optical_spectrum_options = option_dic_specific_handler.pop('optical spectrum options',None)
-                    if load_optical_spectrum_options is not None:
-                        for key,value in load_optical_spectrum_options.items():
-                            esc_handler.optical_spectrum_options[key] = value
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.optical_spectrum_options,load_optical_spectrum_options)
 
                 k_path = b.pop('k path', None)
                 if k_path is not None:
