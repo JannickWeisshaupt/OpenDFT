@@ -565,7 +565,7 @@ class InfoWindow(QtGui.QWidget):
 
 
 class PlotWithTreeview(QtGui.QWidget):
-    def __init__(self,Visualizer,data_dictionary,parent=None):
+    def __init__(self,Visualizer,data_dictionary,parent=None,selection_mode=None):
         QtGui.QWidget.__init__(self)
         self.parent = parent
         self.data_dictionary = data_dictionary
@@ -575,7 +575,8 @@ class PlotWithTreeview(QtGui.QWidget):
         self.treeview.setMaximumWidth(200)
         self.treeview.setHeaderHidden(True)
         self.treeview.itemSelectionChanged.connect(self.handle_item_changed)
-
+        if selection_mode == 'multiple':
+            self.treeview.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.treeview.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.treeview.customContextMenuRequested.connect(self.openMenu)
 
@@ -591,12 +592,15 @@ class PlotWithTreeview(QtGui.QWidget):
         del self.data_dictionary[bs_name]
         self.update_tree()
 
-    def export_selected_item(self):
+    def export_selected_item(self,code=False):
         # TODO make this actually work
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        # self.plot_widget.export(filename,self.data_dictionary[bs_name])
+        filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')[0]
+        if filename:
+            self.plot_widget.export(filename,self.data_dictionary[bs_name],code=code)
+
 
     # def rename_selected_item(self):
     #     index = self.treeview.selectedIndexes()[0]
@@ -617,6 +621,7 @@ class PlotWithTreeview(QtGui.QWidget):
         menu = QtGui.QMenu()
         menu.addAction('Delete',self.delete_selected_item)
         menu.addAction('Export', self.export_selected_item)
+        menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
         # menu.addAction('Rename', self.rename_selected_item)
         menu.exec_(self.treeview.viewport().mapToGlobal(position))
 
@@ -625,9 +630,16 @@ class PlotWithTreeview(QtGui.QWidget):
         indexes = self.treeview.selectedIndexes()
         if len(indexes) == 0:
             return
-        item = self.treeview.itemFromIndex(indexes[0])
-        bs_name = item.text(0)
-        self.plot_widget.plot(self.data_dictionary[bs_name])
+
+        data_list = []
+        name_list = []
+        for index in indexes:
+            item = self.treeview.itemFromIndex(index)
+            bs_name = item.text(0)
+            data = self.data_dictionary[bs_name]
+            data_list.append(data)
+            name_list.append(bs_name)
+        self.plot_widget.plot(data_list,name_list=name_list)
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
@@ -1511,7 +1523,7 @@ class CentralWindow(QtGui.QWidget):
 
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
         self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization, data_dictionary=self.band_structures, parent=self)
-        self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization, data_dictionary=self.optical_spectra, parent=self)
+        self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization, data_dictionary=self.optical_spectra, parent=self,selection_mode='multiple')
         self.dft_engine_window = DftEngineWindow(self)
         self.scf_window = ScfWindow(parent=self)
         self.info_window = InfoWindow(parent=self)

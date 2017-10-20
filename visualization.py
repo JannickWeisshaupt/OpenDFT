@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import division
 from __future__ import generators
 
@@ -455,6 +456,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
         super(OpticalSpectrumVisualization, self).__init__()
         self.first_plot_bool = True
+        self.last_optical_spectrum = None
         # a figure instance to plot on
         self.figure = plt.figure(1)
         plt.close(plt.figure(1))
@@ -472,7 +474,30 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
-        # layout.addWidget(self.button)
+
+        option_widget = QtGui.QWidget()
+        option_widget.setFixedHeight(60)
+        option_layout = QtGui.QHBoxLayout(option_widget)
+        option_layout.setAlignment(QtCore.Qt.AlignLeft)
+        layout.addWidget(option_widget)
+        from main import EntryWithLabel
+
+        self.Emin_entry = EntryWithLabel(option_widget,'Emin')
+        self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        option_layout.addWidget(self.Emin_entry)
+
+        self.Emax_entry = EntryWithLabel(option_widget,'Emax')
+        self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        option_layout.addWidget(self.Emax_entry)
+
+        self.eps_min_entry = EntryWithLabel(option_widget,u"ε min")
+        self.eps_min_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        option_layout.addWidget(self.eps_min_entry)
+
+        self.eps_max_entry = EntryWithLabel(option_widget,u"ε max")
+        self.eps_max_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        option_layout.addWidget(self.eps_max_entry)
+
         self.setLayout(layout)
         self.show()
 
@@ -482,15 +507,77 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
             self.first_plot_bool = True
             self.canvas.draw()
 
-    def plot(self,optical_spectrum):
+    def read_entries(self):
+        try:
+            Emin = float(self.Emin_entry.get_text())
+        except Exception:
+            Emin = None
+
+        try:
+            Emax = float(self.Emax_entry.get_text())
+        except Exception:
+            Emax = None
+
+        try:
+            eps_max = float(self.eps_max_entry.get_text())
+        except Exception:
+            eps_max = None
+
+        try:
+            eps_min = float(self.eps_min_entry.get_text())
+        except Exception:
+            eps_min = None
+
+        return {'Emin':Emin,'Emax':Emax,'eps min':eps_min,'eps max':eps_max}
+
+    def plot(self, optical_spectrum_list,*args,**kwargs):
+        name_list = kwargs.pop('name_list',None)
+        if optical_spectrum_list is None:
+            return
+
+        if type(optical_spectrum_list) is not list:
+            optical_spectrum_list = [optical_spectrum_list]
+
+        self.last_optical_spectrum = optical_spectrum_list
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
         self.ax.cla()
 
-        self.ax.plot(optical_spectrum.energy,optical_spectrum.epsilon2,linewidth=2,color='k')
-        self.ax.set_xlim(optical_spectrum.energy.min(),optical_spectrum.energy.max())
+        entry_values = self.read_entries()
+        Emin = entry_values['Emin']
+        Emax= entry_values['Emax']
+        eps_min = entry_values['eps min']
+        eps_max =entry_values['eps max']
+
+        if Emin is not None:
+            self.ax.set_xlim(left=Emin)
+        else:
+            self.ax.set_xlim(left=optical_spectrum_list[0].energy.min())
+
+        if Emax is not None:
+            self.ax.set_xlim(right=Emax)
+        else:
+            self.ax.set_xlim(right=optical_spectrum_list[0].energy.max())
+
+        if eps_min is not None:
+            self.ax.set_ylim(bottom=eps_min)
+        if eps_max is not None:
+            self.ax.set_ylim(top=eps_max)
+
+        if name_list is None:
+            name_list = len(optical_spectrum_list)*['']
+
+        handles = []
+        for optical_spectrum,name in zip(optical_spectrum_list,name_list):
+            p, = self.ax.plot(optical_spectrum.energy, optical_spectrum.epsilon2, linewidth=2,label=name)
+            handles.append(p)
+
         self.ax.set_xlabel('Energy [eV]')
         self.ax.set_ylabel(r'Dielectric function $\varepsilon(\omega)$')
+
+        if name_list is not None and len(optical_spectrum_list)>1:
+            self.ax.legend(loc='best')
+
         if self.first_plot_bool:
             self.first_plot_bool = False
             self.figure.tight_layout()
@@ -512,8 +599,6 @@ class BandStructureVisualization(QtGui.QWidget):
 
         color = self.palette().color(QtGui.QPalette.Base)
         self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
-        # self.figure.patch.set_alpha(1.0)
-        # self.figure.patch.set_facecolor('blue')
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -541,9 +626,11 @@ class BandStructureVisualization(QtGui.QWidget):
             self.ax.cla()
             self.canvas.draw()
 
-    def plot(self,band_structure):
+    def plot(self,band_structure,*args,**kwargs):
         if band_structure is None:
             return
+        if type(band_structure) is list:
+            band_structure = band_structure[0]
         self.last_bandstructure = band_structure
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
@@ -602,7 +689,6 @@ class BandStructureVisualization(QtGui.QWidget):
 
         self.ax.set_ylabel("Energy eV")
         self.ax.set_title('Energy diagram. Homo-Lumo gap = {0:1.2f} eV'.format(gap))
-
 
     def plot_bandstructure(self,band_structure):
         self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f} eV'.format(
@@ -672,6 +758,27 @@ class BandStructureVisualization(QtGui.QWidget):
         if gap<0:
             gap = 0
         return [E,gap]
+
+    def export(self,filename,band_structure,code=False):
+        bands = band_structure.bands
+        data = np.zeros((bands[0].shape[0],len(bands)+1))
+        data[:,0] = bands[0][:,0]
+        for i,band in enumerate(bands):
+            data[:,i+1] = band[:,1]
+        np.savetxt(filename,data)
+
+        if code:
+            #TODO do this!
+            code_string = """
+import numpy as np
+import matplotlib.pyplot as plt
+
+            
+self.first_plot_bool = True
+self.figure = plt.figure(1)
+plt.close(plt.figure(1))
+self.ax = None
+self.last_bandstructure = None"""
 
 
 class ScfVisualization(QtGui.QWidget):
