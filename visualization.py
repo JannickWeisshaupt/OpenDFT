@@ -483,20 +483,33 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         from main import EntryWithLabel
 
         self.Emin_entry = EntryWithLabel(option_widget,'Emin')
-        self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emin_entry)
 
         self.Emax_entry = EntryWithLabel(option_widget,'Emax')
-        self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emax_entry)
 
         self.eps_min_entry = EntryWithLabel(option_widget,u"ε min")
-        self.eps_min_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        self.eps_min_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_min_entry)
 
         self.eps_max_entry = EntryWithLabel(option_widget,u"ε max")
-        self.eps_max_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum))
+        self.eps_max_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_max_entry)
+
+        self.broadening_entry = EntryWithLabel(option_widget,u"Γ")
+        self.broadening_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
+        option_layout.addWidget(self.broadening_entry)
+
+        self.broadening_mode_cb = QtGui.QComboBox(self)
+        option_layout.addWidget(self.broadening_mode_cb)
+        self.broadening_mode_cb.addItem('Lorentzian')
+        self.broadening_mode_cb.addItem('Gaussian')
+
+        self.broadening_mode_cb.setCurrentIndex(0)
+        self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
+        self.broadening_mode_cb.setMaximumWidth(150)
 
         self.setLayout(layout)
         self.show()
@@ -528,7 +541,14 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         except Exception:
             eps_min = None
 
-        return {'Emin':Emin,'Emax':Emax,'eps min':eps_min,'eps max':eps_max}
+        try:
+            gamma = float(self.broadening_entry.get_text())
+        except Exception:
+            gamma = None
+
+        broaden_mode = self.broadening_mode_cb.currentText().lower()
+
+        return {'Emin':Emin,'Emax':Emax,'eps min':eps_min,'eps max':eps_max,'Gamma':gamma,'broaden mode':broaden_mode}
 
     def plot(self, optical_spectrum_list,*args,**kwargs):
         name_list = kwargs.pop('name_list',None)
@@ -538,7 +558,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         if type(optical_spectrum_list) is not list:
             optical_spectrum_list = [optical_spectrum_list]
 
-        self.last_optical_spectrum = optical_spectrum_list
+        self.last_optical_spectrum = [optical_spectrum_list,name_list]
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
         self.ax.cla()
@@ -548,6 +568,8 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         Emax= entry_values['Emax']
         eps_min = entry_values['eps min']
         eps_max =entry_values['eps max']
+        gamma = entry_values['Gamma']
+        broaden_mode = entry_values['broaden mode']
 
         if Emin is not None:
             self.ax.set_xlim(left=Emin)
@@ -569,7 +591,14 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         handles = []
         for optical_spectrum,name in zip(optical_spectrum_list,name_list):
-            p, = self.ax.plot(optical_spectrum.energy, optical_spectrum.epsilon2, linewidth=2,label=name)
+            E_plot = optical_spectrum.energy
+            epsilon = optical_spectrum.epsilon2
+            if gamma is None:
+                epsilon_plot = epsilon
+            else:
+                E_plot,epsilon_plot = self.broaden_spectrum(E_plot,epsilon,width=gamma,mode=broaden_mode)
+
+            p, = self.ax.plot(E_plot, epsilon_plot, linewidth=2,label=name)
             handles.append(p)
 
         self.ax.set_xlabel('Energy [eV]')
@@ -583,6 +612,27 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
             self.figure.tight_layout()
         self.canvas.draw()
 
+    def broaden_spectrum(self,energy,epsilon,width,mode='lorentzian'):
+
+        if mode == 'lorentzian':
+            def broaden_function(x, width):
+                return width**2/(x**2+width**2)
+        elif mode == 'gaussian':
+            def broaden_function(x, width):
+                return np.exp(-x ** 2 / (2 * width ** 2))
+
+        E_range = energy.max() - energy.min()
+        dx = E_range / len(energy)
+
+        conv_range = 10*width
+        gx = np.arange(-conv_range/2, conv_range/2, dx)
+        broadenarray = broaden_function(gx, width)
+        broadenarray = broadenarray / np.sum(broadenarray)
+
+        epsilon_out = np.convolve(epsilon, broadenarray, mode="full")
+        energy_out = np.linspace(energy.min()-conv_range/2,energy.max()+conv_range/2,len(epsilon_out))
+
+        return energy_out,epsilon_out
 
 class BandStructureVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
