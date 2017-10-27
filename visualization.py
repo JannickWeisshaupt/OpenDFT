@@ -506,6 +506,8 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         option_layout.addWidget(self.broadening_mode_cb)
         self.broadening_mode_cb.addItem('Lorentzian')
         self.broadening_mode_cb.addItem('Gaussian')
+        self.broadening_mode_cb.addItem('None')
+
 
         self.broadening_mode_cb.setCurrentIndex(0)
         self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
@@ -620,6 +622,8 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         elif mode == 'gaussian':
             def broaden_function(x, width):
                 return np.exp(-x ** 2 / (2 * width ** 2))
+        elif mode == 'none':
+            return energy,epsilon
 
         E_range = energy.max() - energy.min()
         dx = E_range / len(energy)

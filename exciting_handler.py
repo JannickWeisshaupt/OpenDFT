@@ -67,6 +67,10 @@ The interface with pre- and post-processing tools integrates the capabilities of
 
         self.project_directory = None
         self.input_filename = 'input.xml'
+
+        self.current_input_file = self.input_filename
+        self.current_output_file = self.info_file
+
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
@@ -147,9 +151,9 @@ Default: 	GGA_PBE"""
         self.phonons_options = {'do':'fromscratch','ngridq':'2 2 2'}
         self.phonons_options_tooltip = {}
 
-        self.optical_spectrum_options = {'xstype':'BSE','intv':'-0.5 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
-                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.01',
-                                         'gqmax':"0.0",'vkloff':"0.0 0.0 0.0"}
+        self.optical_spectrum_options = {'xstype':'BSE','intv':'0.0 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
+                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.005',
+                                         'gqmax':"3.0",'vkloff':"0.231 0.151 0.432"}
         self.optical_spectrum_options_tooltip = {'nstlbse':'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
                                                  'nempty_screening':'Number of empty states.',
                                                  'vkloff':'k-point offset for screening Type: floats\n Do not use negative numbers',
@@ -239,6 +243,9 @@ triplet"""}
         except Exception as e:
             print(e)
         self._read_timestamps()
+        self.current_output_file = 'INFO.OUT'
+
+
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
         if band_structure_points is not None:
@@ -250,6 +257,8 @@ triplet"""}
     def start_optical_spectrum(self,crystal_structure):
         self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
         self._read_timestamps()
+        self.current_output_file = 'INFOXS.OUT'
+
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
         self._add_optical_spectrum_to_tree(tree)
@@ -259,6 +268,7 @@ triplet"""}
 
     def start_gw(self,crystal_structure,band_structure_points=None):
         self._read_timestamps()
+        self.current_output_file = 'GW_INFO.OUT'
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
         self._add_gw_to_tree(tree, taskname='g0w0')

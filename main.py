@@ -543,7 +543,7 @@ class InfoWindow(QtGui.QWidget):
 
     def do_select_event(self):
         try:
-            files = [esc_handler.info_file,esc_handler.input_filename]
+            files = [esc_handler.current_output_file,esc_handler.current_input_file]
             file = files[self.combobox.currentIndex()]
             self.update_text(esc_handler.project_directory+esc_handler.working_dirctory+file)
         except IOError:

@@ -61,6 +61,10 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
 
         self.project_directory = None
         self.input_filename = 'scf.in'
+
+        self.current_input_file = self.input_filename
+        self.current_output_file = self.info_file
+
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
