@@ -628,7 +628,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         E_range = energy.max() - energy.min()
         dx = E_range / len(energy)
 
-        conv_range = 10*width
+        conv_range = 50*width
         gx = np.arange(-conv_range/2, conv_range/2, dx)
         broadenarray = broaden_function(gx, width)
         broadenarray = broadenarray / np.sum(broadenarray)

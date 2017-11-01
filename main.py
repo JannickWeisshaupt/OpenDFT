@@ -1500,7 +1500,7 @@ class CentralWindow(QtGui.QWidget):
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
         self.esc_handler_options = {}
 
-        self.installation_folder = os.path.dirname(__file__)
+        self.temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
         self.load_defaults()
 
@@ -1721,7 +1721,7 @@ class CentralWindow(QtGui.QWidget):
         self.defaults = {}
 
         try:
-            with open(self.installation_folder + '/defaults.pkl', 'rb') as handle:
+            with open(self.temp_folder + '/defaults.pkl', 'rb') as handle:
                 b = pickle.load(handle)
         except IOError:
             logging.info('Default file not found')
@@ -1732,7 +1732,7 @@ class CentralWindow(QtGui.QWidget):
         self.defaults['default engine'] = default_engine
 
     def save_defaults(self):
-        with open(self.installation_folder + '/defaults.pkl', 'wb') as handle:
+        with open(self.temp_folder + '/defaults.pkl', 'wb') as handle:
             pickle.dump(self.defaults, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def update_structure_plot(self):
@@ -1976,12 +1976,16 @@ if __name__ == "__main__":
     current_time_string = [str(x) for x in current_time[:3]]
 
     installation_folder = os.path.dirname(__file__)
+    temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
-    if not os.path.exists(installation_folder + "/logfiles/"):
-        os.makedirs(installation_folder + "/logfiles/")
+    if not os.path.exists(temp_folder):
+        os.makedirs(temp_folder)
+
+    if not os.path.exists(temp_folder + "/logfiles/"):
+        os.makedirs(temp_folder + "/logfiles/")
 
     logging.basicConfig(level=logging.DEBUG,
-                        filename=installation_folder + "/logfiles/" + "_".join(current_time_string) + ".log")
+                        filename=temp_folder + "/logfiles/" + "_".join(current_time_string) + ".log")
     logging.info('Program started')
 
     app = QtGui.QApplication.instance()
