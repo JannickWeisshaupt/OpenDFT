@@ -716,6 +716,7 @@ class ChooseEngineWindow(QtGui.QDialog):
         main_layout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept_own)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.buttonBox.rejected.connect(self.reject_own)
 
     def add_result_key(self, title):
@@ -752,6 +753,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(True)
 
     def accept_own(self):
         if self.selected_handler is None:

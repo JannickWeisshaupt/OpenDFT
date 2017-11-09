@@ -195,10 +195,10 @@ class BrillouinVisualization(HasTraits):
 
         self.plot_unit_vectors()
 
-        # self.outline = self.scene.mlab.outline(line_width=3,figure=self.scene.mayavi_scene)
-        # self.outline.outline_mode = 'cornered'
-        #
-        # self.outline.bounds = ( - 0.001, + 0.001, - 0.001,  + 0.001,- 0.001,  + 0.001)
+        self.outline = self.scene.mlab.outline(line_width=3,figure=self.scene.mayavi_scene)
+        self.outline.outline_mode = 'cornered'
+
+        self.outline.bounds = ( - 0.001, + 0.001, - 0.001,  + 0.001,- 0.001,  + 0.001)
 
     def picker_callback(self,picker):
         """ Picker callback: this get called when on pick events.
