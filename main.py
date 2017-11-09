@@ -505,6 +505,15 @@ class DftEngineWindow(QtGui.QWidget):
         self.abort_bool = True
         esc_handler.kill_engine()
 
+    def configure_buttons(self,disable_all=False):
+        button_list = [self.start_ground_state_calculation_button,self.start_gw_button,self.start_optical_spectrum_button,self.start_phonon_button,self.start_relax_button,self.abort_calculation_button]
+        if disable_all:
+            for button in button_list:
+                button.setEnabled(False)
+        else:
+            for button in button_list:
+                button.setEnabled(True)
+
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -542,6 +551,8 @@ class InfoWindow(QtGui.QWidget):
 
 
     def do_select_event(self):
+        if esc_handler.project_directory is None:
+            return
         try:
             files = [esc_handler.current_output_file,esc_handler.current_input_file]
             file = files[self.combobox.currentIndex()]
@@ -979,6 +990,7 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.verticalLayout.addWidget(self.opacity_slider)
 
         self.contours_entry = EntryWithLabel(self,'Contours:','10')
+        self.contours_entry.connect_editFinished(self.parent.handle_item_changed)
         self.verticalLayout.addWidget(self.contours_entry)
 
         self.transparent_checkbox = QtGui.QCheckBox('Transparent')
@@ -1564,6 +1576,8 @@ class CentralWindow(QtGui.QWidget):
 
         self.window.show()
 
+        self.configure_buttons(disable_all=True)
+
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
@@ -1585,6 +1599,8 @@ class CentralWindow(QtGui.QWidget):
             self.project_directory = folder_name
             esc_handler.project_directory = self.project_directory
             self.initialize_project()
+            self.configure_buttons()
+
 
     def initialize_project(self):
         self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
@@ -1626,6 +1642,7 @@ class CentralWindow(QtGui.QWidget):
             self.tab_is_changed(self.tabWidget.currentIndex())
             self.window.setWindowTitle("OpenDFT - "+self.project_directory)
             self.project_loaded = True
+            self.configure_buttons()
 
     def save_results(self):
         # TODO save options for each handler seperately
@@ -1786,43 +1803,43 @@ class CentralWindow(QtGui.QWidget):
         load_project_action.triggered.connect(self.load_project)
         self.file_menu.addAction(load_project_action)
 
-        save_project_action = QtGui.QAction("Save project", self.window)
-        save_project_action.setShortcut("Ctrl+s")
-        save_project_action.setStatusTip('Save project')
-        save_project_action.triggered.connect(self.save_results)
-        self.file_menu.addAction(save_project_action)
+        self.save_project_action = QtGui.QAction("Save project", self.window)
+        self.save_project_action.setShortcut("Ctrl+s")
+        self.save_project_action.setStatusTip('Save project')
+        self.save_project_action.triggered.connect(self.save_results)
+        self.file_menu.addAction(self.save_project_action)
 
         self.file_menu.addSeparator()
 
-        new_structure_action = QtGui.QAction("New structure", self.window)
-        new_structure_action.setShortcut('Ctrl+Shift+n')
-        new_structure_action.setStatusTip('Make new structure by hand')
-        new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
-        self.file_menu.addAction(new_structure_action)
+        self.new_structure_action = QtGui.QAction("New structure", self.window)
+        self.new_structure_action.setShortcut('Ctrl+Shift+n')
+        self.new_structure_action.setStatusTip('Make new structure by hand')
+        self.new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
+        self.file_menu.addAction(self.new_structure_action)
 
-        edit_structure_action = QtGui.QAction("Edit structure", self.window)
-        edit_structure_action.setShortcut('Ctrl+Shift+e')
-        edit_structure_action.setStatusTip('Edit existing structure by hand')
-        edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
-        self.file_menu.addAction(edit_structure_action)
+        self.edit_structure_action = QtGui.QAction("Edit structure", self.window)
+        self.edit_structure_action.setShortcut('Ctrl+Shift+e')
+        self.edit_structure_action.setStatusTip('Edit existing structure by hand')
+        self.edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
+        self.file_menu.addAction(self.edit_structure_action)
 
-        import_structure_menu = self.file_menu.addMenu('Import structure from')
+        self.import_structure_menu = self.file_menu.addMenu('Import structure from')
 
         open_structure_action_exciting = QtGui.QAction("exciting input file", self.window)
         open_structure_action_exciting.setStatusTip('Load crystal structure from exciting xml')
         open_structure_action_exciting.triggered.connect(lambda: self.load_crystal_structure('exciting'))
-        import_structure_menu.addAction(open_structure_action_exciting)
+        self.import_structure_menu.addAction(open_structure_action_exciting)
 
         open_structure_action_quantum_espresso = QtGui.QAction("quantum_espresso input file", self.window)
         open_structure_action_quantum_espresso.setStatusTip('Load crystal structure from quantum espresso input file')
         open_structure_action_quantum_espresso.triggered.connect(lambda: self.load_crystal_structure('quantum espresso'))
-        import_structure_menu.addAction(open_structure_action_quantum_espresso)
+        self.import_structure_menu.addAction(open_structure_action_quantum_espresso)
 
         open_structure_action_cif = QtGui.QAction("cif", self.window)
         open_structure_action_cif.setShortcut('Ctrl+Shift+c')
         open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
-        import_structure_menu.addAction(open_structure_action_cif)
+        self.import_structure_menu.addAction(open_structure_action_cif)
 
         self.file_menu.addSeparator()
 
@@ -1968,6 +1985,20 @@ class CentralWindow(QtGui.QWidget):
 
         self.brillouin_window.show()
 
+    def configure_buttons(self,disable_all=False):
+        self.dft_engine_window.configure_buttons(disable_all=disable_all)
+        if self.project_directory is None:
+            self.save_project_action.setEnabled(False)
+            self.edit_structure_action.setEnabled(False)
+            self.new_structure_action.setEnabled(False)
+            self.import_structure_menu.setEnabled(False)
+            self.vis_menu.setEnabled(False)
+        else:
+            self.save_project_action.setEnabled(True)
+            self.edit_structure_action.setEnabled(True)
+            self.new_structure_action.setEnabled(True)
+            self.import_structure_menu.setEnabled(True)
+            self.vis_menu.setEnabled(True)
 
 if __name__ == "__main__":
     DEBUG = True
