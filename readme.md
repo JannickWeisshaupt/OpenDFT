@@ -1,12 +1,14 @@
+# OpenDFT
+
 OpenDFT is a free and open source software that brings cutting edge solid state research to the people. It is a graphical program that interacts with various scientific terminal based solid state software packages. It visualizes inputs, such as the crystal structure and visualizes outputs, such as band structures and optical spectra. OpenDFT is designed to be DFT engine agnostic so that you can easily switch between different scientific codes and compare results seamlessly.
 
-Installation:
+### Installing
 
 OpenDFT runs on windows and linux and python versions 2 and 3. In order to be able to run it you need to install its dependencies.
 
 Ubuntu, Linux Mint, etc. (linux distros with aptitude package manager):
 
-sudo apt-get install python-numpy
+sudo apt-get install python-numpy <br>
 sudo apt-get install python-pip
 sudo apt-get install python-scipy
 sudo apt-get install python-matplotlib
@@ -28,3 +30,6 @@ cd ordner/in/den/es/installiert/werden/soll
 git clone https://github.com/JannickWeisshaupt/OpenDFT.git
 cd OpenDFT
 ./main.py 
+
+
+## Getting Started
