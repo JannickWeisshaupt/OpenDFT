@@ -203,7 +203,6 @@ class BrillouinVisualization(HasTraits):
     def picker_callback(self,picker):
         """ Picker callback: this get called when on pick events.
         """
-        print('picker starting')
         if picker.actor in self.plot_of_vertices.actor.actors:
             # Find which data point corresponds to the point picked:
             # we have to account for the fact that each data point is
