@@ -9,27 +9,27 @@ OpenDFT runs on windows and linux and python versions 2 and 3. In order to be ab
 Ubuntu, Linux Mint, etc. (linux distros with aptitude package manager):
 
 sudo apt-get install python-numpy <br>
-sudo apt-get install python-pip
-sudo apt-get install python-scipy
-sudo apt-get install python-matplotlib
-sudo apt-get install python-dev
-sudo apt-get install python-qt4
-sudo apt-get install python-vtk python-wxgtk2.6 python-setuptools python-configobj
-pip install mayavi (falls das nicht geht: "sudo pip install mayavi" und im folgenden immer sudo pip)
-pip install pyface
-pip install six
-pip install traitsui
-pip install pygments
-pip install periodictable
-sudo apt-get install git
+sudo apt-get install python-pip <br>
+sudo apt-get install python-scipy <br>
+sudo apt-get install python-matplotlib <br>
+sudo apt-get install python-dev <br>
+sudo apt-get install python-qt4 <br>
+sudo apt-get install python-vtk python-wxgtk2.6 python-setuptools python-configobj <br>
+pip install mayavi (falls das nicht geht: "sudo pip install mayavi" und im folgenden immer sudo pip) <br>
+pip install pyface <br>
+pip install six <br>
+pip install traitsui <br>
+pip install pygments <br>
+pip install periodictable <br>
+sudo apt-get install git <br>
 
-sudo apt-get install nwchem
-sudo apt-get install quantum-espresso
+sudo apt-get install nwchem <br>
+sudo apt-get install quantum-espresso <br>
 
-cd ordner/in/den/es/installiert/werden/soll
-git clone https://github.com/JannickWeisshaupt/OpenDFT.git
-cd OpenDFT
-./main.py 
+cd ordner/in/den/es/installiert/werden/soll <br>
+git clone https://github.com/JannickWeisshaupt/OpenDFT.git <br>
+cd OpenDFT <br>
+./main.py <br>
 
 
 ## Getting Started
