@@ -5,10 +5,11 @@ import periodictable as pt
 from bisect import bisect
 import time
 from scipy.spatial import ConvexHull,Voronoi
+import os
 
 bohr = 0.52917721067
 
-cov_radii = np.loadtxt('./data/cov_radii.dat')/bohr
+cov_radii = np.loadtxt(os.path.dirname(__file__)+'/data/cov_radii.dat')/bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}

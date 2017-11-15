@@ -33,7 +33,7 @@ sudo pip install six <br>
 sudo pip install periodictable <br>
 sudo apt-get install git <br>
 
-cd folder/where/you/want/to/install/opendft <br>
+cd folder/where/you/want/to/install/ <br>
 git clone https://github.com/JannickWeisshaupt/OpenDFT.git <br>
 cd OpenDFT <br>
 ./main.py <br>
@@ -80,4 +80,13 @@ git clone https://github.com/JannickWeisshaupt/OpenDFT.git <br>
 cd OpenDFT <br>
 python main.py <br>
 
+Add following command to your ~/.bashrc in order to be able to open 
+OpenDFT everywhere from the terminal
+
+alias OpenDFT=/directory/where/you/where/you/want/to/install/OpenDFT/main.py <br>
+
+Now you can start OpenDFT with the command "OpenDFT" in the terminal.
+
 ## Getting Started
+
+### Example 1: Diamond band structure with quantum espresso
