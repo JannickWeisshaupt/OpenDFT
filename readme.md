@@ -20,21 +20,17 @@ OpenDFT runs on windows and linux and python versions 2 and 3. In order to be ab
 One of the dependencies (mayavi) is not easy to install for python3 on linux . Therefore we
 recommend to use python2. Here is a step-by-step instruction how to install OpenDFT:
 
-sudo apt-get install python-numpy <br>
-sudo apt-get install python-pip <br>
-sudo apt-get install python-scipy <br>
-sudo apt-get install python-matplotlib <br>
-sudo apt-get install python-dev <br>
+sudo apt-get  update
+sudo apt-get install python-numpy python-pip python-scipy python-matplotlib<br>
+sudo apt-get install python-dev -y <br>
 sudo apt-get install python-qt4 <br>
-sudo apt-get install python-vtk python-wxgtk2.6 python-setuptools python-configobj <br>
-pip install mayavi (if its not working: "sudo pip install mayavi" or "pip install --user mayavi". 
+sudo apt-get install python-vtk python-setuptools python-configobj <br>
+sudo pip install mayavi (or "pip install --user mayavi". 
 Then always do this for the following commmand) <br>
 
-pip install pyface <br>
-pip install six <br>
-pip install traitsui <br>
-pip install pygments <br>
-pip install periodictable <br>
+sudo apt-get install python-pyside <br>
+sudo pip install six <br>
+sudo pip install periodictable <br>
 sudo apt-get install git <br>
 
 cd folder/where/you/want/to/install/opendft <br>
