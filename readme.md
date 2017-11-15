@@ -20,7 +20,7 @@ OpenDFT runs on windows and linux and python versions 2 and 3. In order to be ab
 One of the dependencies (mayavi) is not easy to install for python3 on linux . Therefore we
 recommend to use python2. Here is a step-by-step instruction how to install OpenDFT:
 
-sudo apt-get  update
+sudo apt-get update<br>
 sudo apt-get install python-numpy python-pip python-scipy python-matplotlib<br>
 sudo apt-get install python-dev -y <br>
 sudo apt-get install python-qt4 <br>
