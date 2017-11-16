@@ -798,6 +798,7 @@ class StatusBar(QtGui.QWidget):
         self.layout = QtGui.QVBoxLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignRight)
         self.status_label = QtGui.QLabel(self.not_running_text)
+        self.status_label.setStyleSheet("color: green;font:bold 14px")
         # self.status_label.setMaximumHeight(20)
         self.layout.addWidget(self.status_label)
         self.show()
@@ -806,12 +807,14 @@ class StatusBar(QtGui.QWidget):
         if status:
             if tasks:
                 tasks_string = ', '.join(tasks)
-                tasks_string2 = ' with Tasks: '+tasks_string
+                tasks_string2 = ' with tasks: '+tasks_string
             else:
                 tasks_string2 = ''
             self.status_label.setText(self.running_text+tasks_string2)
+            self.status_label.setStyleSheet("color: red;font:bold 14px")
         else:
             self.status_label.setText(self.not_running_text)
+            self.status_label.setStyleSheet("color: green;font:bold 14px")
 
 
 class EngineOptionsDialog(QtGui.QDialog):
@@ -1842,6 +1845,22 @@ class CentralWindow(QtGui.QWidget):
         open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
         self.import_structure_menu.addAction(open_structure_action_cif)
+
+        self.file_menu.addSeparator()
+
+        self.import_results_menu = self.file_menu.addMenu('Import results')
+
+        import_result_action_bandstructure = QtGui.QAction("bandstructure", self.window)
+        self.import_results_menu.addAction(import_result_action_bandstructure)
+
+        import_result_action_gw_bandstructure = QtGui.QAction("gw bandstructure", self.window)
+        self.import_results_menu.addAction(import_result_action_gw_bandstructure)
+
+        import_result_action_optical_spectrum = QtGui.QAction("optical spectrum", self.window)
+        self.import_results_menu.addAction(import_result_action_optical_spectrum)
+
+        import_result_action_phonon_bandstructure = QtGui.QAction("phonon bandstructure", self.window)
+        self.import_results_menu.addAction(import_result_action_phonon_bandstructure)
 
         self.file_menu.addSeparator()
 
