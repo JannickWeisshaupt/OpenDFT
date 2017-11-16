@@ -213,6 +213,33 @@ class EntryWithLabel(QtGui.QWidget):
             self.editFinished_command()
         self.textbox.setModified(False)
 
+class LoadResultsWindow(QtGui.QDialog):
+    def __init__(self,parent,tasks):
+        super(LoadResultsWindow, self).__init__(parent)
+        self.setWindowTitle('Edit Structure')
+        self.setFixedSize(300, 100)
+        self.parent = parent
+        self.tasks = tasks
+
+        main_layout = QtGui.QVBoxLayout(self)
+
+        self.result_name_entry = EntryWithLabel(self,'name')
+        main_layout.addWidget(self.result_name_entry)
+
+        self.buttonBox = QtGui.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        main_layout.addWidget(self.buttonBox)
+
+        self.buttonBox.accepted.connect(self.accept_own)
+        self.buttonBox.rejected.connect(self.reject_own)
+
+    def accept_own(self):
+        self.parent.load_results_from_engine(self.tasks,title=self.result_name_entry.get_text())
+        self.close()
+
+    def reject_own(self):
+        self.reject()
 
 class OptionFrame(QtGui.QGroupBox):
     def __init__(self, parent,options,title='',tooltips={},checkbuttons=[],buttons=[]):
@@ -1851,15 +1878,19 @@ class CentralWindow(QtGui.QWidget):
         self.import_results_menu = self.file_menu.addMenu('Import results')
 
         import_result_action_bandstructure = QtGui.QAction("bandstructure", self.window)
+        import_result_action_bandstructure.triggered.connect(lambda: self.open_load_result_window(['bandstructure']))
         self.import_results_menu.addAction(import_result_action_bandstructure)
 
         import_result_action_gw_bandstructure = QtGui.QAction("gw bandstructure", self.window)
+        import_result_action_gw_bandstructure.triggered.connect(lambda: self.open_load_result_window(['g0w0']))
         self.import_results_menu.addAction(import_result_action_gw_bandstructure)
 
         import_result_action_optical_spectrum = QtGui.QAction("optical spectrum", self.window)
+        import_result_action_optical_spectrum.triggered.connect(lambda: self.open_load_result_window(['optical spectrum']))
         self.import_results_menu.addAction(import_result_action_optical_spectrum)
 
         import_result_action_phonon_bandstructure = QtGui.QAction("phonon bandstructure", self.window)
+        import_result_action_phonon_bandstructure.triggered.connect(lambda: self.open_load_result_window(['phonons']))
         self.import_results_menu.addAction(import_result_action_phonon_bandstructure)
 
         self.file_menu.addSeparator()
@@ -1896,12 +1927,13 @@ class CentralWindow(QtGui.QWidget):
             logging.info('Program stopped normally')
             sys.exit()
 
+    def check_relax(self):
+        new_struc = esc_handler.load_relax_structure()
+        if new_struc is not None:
+            self.crystal_structure = new_struc
+            self.update_structure_plot()
+
     def check_engine(self,tasks):
-        def check_relax():
-            new_struc = esc_handler.load_relax_structure()
-            if new_struc is not None:
-                self.crystal_structure = new_struc
-                self.update_structure_plot()
 
         tasks = [x.lower() for x in tasks]
         if self.dft_engine_window.abort_bool:
@@ -1919,61 +1951,68 @@ class CentralWindow(QtGui.QWidget):
             QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True,tasks=tasks)
             if 'relax' in tasks:
-                check_relax()
+                self.check_relax()
         else:
             self.scf_data = esc_handler.read_scf_status()
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
-            if ('error' in message.lower() or len(err)>0):
-                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',"<br>")+'<br>Error:<br>'+err.replace('\n','<br>') \
+            if ('error' in message.lower() or len(err) > 0):
+                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
+                                                                                                    "<br>") + '<br>Error:<br>' + err.replace(
+                    '\n', '<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)
 
-            if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
-                energy_diagram = esc_handler.read_energy_diagram()
-                if energy_diagram is not None:
-                    self.band_structures[esc_handler.general_options['title']] = energy_diagram
-
-            if 'bandstructure' in tasks or 'g0w0' in tasks:
-                read_bandstructures = []
-                titles = [esc_handler.general_options['title']]
-                if 'bandstructure' in tasks:
-                    if esc_handler.engine_name == 'quantum espresso':
-                        coords = [x[0] for x in self.dft_engine_window.band_structure_points]
-                        labels = [x[1] for x in self.dft_engine_window.band_structure_points]
-                        new_coords = self.crystal_structure.convert_to_tpiba(coords)
-                        band_structure_points = zip(new_coords,labels)
-                        read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
-                    else:
-                        read_bandstructure = esc_handler.read_bandstructure()
-                    read_bandstructures.append(read_bandstructure)
-
-                if 'g0w0' in tasks:
-                    read_bandstructures.append(esc_handler.read_gw_bandstructure())
-                if 'bandstructure' in tasks and 'g0w0' in tasks:
-                    titles.append(esc_handler.general_options['title']+'_gw')
+            self.load_results_from_engine(tasks)
 
 
-                for read_bandstructure,title in zip(read_bandstructures,titles):
-                    if read_bandstructure is None:
-                        continue
-                    self.band_structures[title] = read_bandstructure
-                    self.band_structure_window.update_tree()
-                if len(read_bandstructures)!=0 and self.band_structure_window.plot_widget.first_plot_bool:
-                    self.band_structure_window.plot_widget.plot(self.band_structures[esc_handler.general_options['title']])
-            if 'relax' in tasks:
-                check_relax()
-            if 'phonons' in tasks:
-                read_bandstructure = esc_handler.read_phonon_bandstructure()
-                self.band_structures[esc_handler.general_options['title'] + '_phonon'] = read_bandstructure
+    def load_results_from_engine(self,tasks,title=None):
+        if title is None:
+            title = esc_handler.general_options['title']
+        if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
+            energy_diagram = esc_handler.read_energy_diagram()
+            if energy_diagram is not None:
+                self.band_structures[title] = energy_diagram
+
+        if 'bandstructure' in tasks or 'g0w0' in tasks:
+            read_bandstructures = []
+            titles = [title]
+            if 'bandstructure' in tasks:
+                if esc_handler.engine_name == 'quantum espresso':
+                    coords = [x[0] for x in self.dft_engine_window.band_structure_points]
+                    labels = [x[1] for x in self.dft_engine_window.band_structure_points]
+                    new_coords = self.crystal_structure.convert_to_tpiba(coords)
+                    band_structure_points = zip(new_coords, labels)
+                    read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
+                else:
+                    read_bandstructure = esc_handler.read_bandstructure()
+                read_bandstructures.append(read_bandstructure)
+
+            if 'g0w0' in tasks:
+                read_bandstructures.append(esc_handler.read_gw_bandstructure())
+            if 'bandstructure' in tasks and 'g0w0' in tasks:
+                titles.append(title + '_gw')
+
+            for read_bandstructure, title in zip(read_bandstructures, titles):
+                if read_bandstructure is None:
+                    continue
+                self.band_structures[title] = read_bandstructure
                 self.band_structure_window.update_tree()
-            if 'optical spectrum' in tasks:
-                read_spectrum = esc_handler.read_optical_spectrum()
-                self.optical_spectra[esc_handler.general_options['title']] = read_spectrum
-                self.optical_spectra_window.update_tree()
+            if len(read_bandstructures) != 0 and self.band_structure_window.plot_widget.first_plot_bool:
+                self.band_structure_window.plot_widget.plot(self.band_structures[title])
+        if 'relax' in tasks:
+            self.check_relax()
+        if 'phonons' in tasks:
+            read_bandstructure = esc_handler.read_phonon_bandstructure()
+            self.band_structures[title + '_phonon'] = read_bandstructure
+            self.band_structure_window.update_tree()
+        if 'optical spectrum' in tasks:
+            read_spectrum = esc_handler.read_optical_spectrum()
+            self.optical_spectra[title] = read_spectrum
+            self.optical_spectra_window.update_tree()
 
     def open_engine_option_window(self):
         self.engine_option_window.update_all()
@@ -2005,6 +2044,11 @@ class CentralWindow(QtGui.QWidget):
             self.brillouin_window.mayavi_widget.update_plot()
 
         self.brillouin_window.show()
+
+    def open_load_result_window(self,task):
+        result_window = LoadResultsWindow(self,task)
+        result_window.show()
+
 
     def configure_buttons(self,disable_all=False):
         self.dft_engine_window.configure_buttons(disable_all=disable_all)
