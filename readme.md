@@ -38,6 +38,13 @@ git clone https://github.com/JannickWeisshaupt/OpenDFT.git <br>
 cd OpenDFT <br>
 ./main.py <br>
 
+Add following command to your ~/.bashrc in order to be able to open 
+OpenDFT everywhere from the terminal
+
+alias OpenDFT=/directory/where/you/where/you/want/to/install/OpenDFT/main.py <br>
+
+Now you can start OpenDFT with the command "OpenDFT" in the terminal.
+
 For the full functionality of OpenDFT you also need to install scientific solid state packages
 that will perform the calculations.
 
@@ -79,13 +86,6 @@ cd folder/where/you/want/to/install/opendft <br>
 git clone https://github.com/JannickWeisshaupt/OpenDFT.git <br>
 cd OpenDFT <br>
 python main.py <br>
-
-Add following command to your ~/.bashrc in order to be able to open 
-OpenDFT everywhere from the terminal
-
-alias OpenDFT=/directory/where/you/where/you/want/to/install/OpenDFT/main.py <br>
-
-Now you can start OpenDFT with the command "OpenDFT" in the terminal.
 
 ## Getting Started
 
