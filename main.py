@@ -977,12 +977,13 @@ class SliderWithEntry(QtGui.QWidget):
         self.horizontalSlider.setMinimumWidth(200)
         self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
         self.horizontalSlider.setValue((self.value-limits[0])/limit_range*100)
-        QtCore.QObject.connect(self.horizontalSlider, QtCore.SIGNAL('valueChanged(int)'), self.change_text)
+        self.horizontalSlider.valueChanged.connect(self.change_text)
 
         self.horizontalLayout.addWidget(self.horizontalSlider,0,counter)
 
         self.lineEdit = QtGui.QLineEdit(self)
         self.lineEdit.setText("{0:1.1f}".format(self.value))
+        self.lineEdit.textChanged.connect(self.change_slider)
         self.horizontalLayout.addWidget(self.lineEdit,0,1+counter)
         self.horizontalLayout.setColumnStretch(0+counter, 3)
         self.horizontalLayout.setColumnStretch(1+counter, 1)
@@ -990,16 +991,21 @@ class SliderWithEntry(QtGui.QWidget):
 
     def change_text(self):
         val = self.horizontalSlider.value()*(self.limits[1]-self.limits[0])/100+self.limits[0]
+        self.lineEdit.textChanged.disconnect()
         self.lineEdit.setText("{0:1.1f}".format(val))
+        self.lineEdit.textChanged.connect(self.change_slider)
+
         self.value = val
 
-    # def change_slider(self):
-    #     try:
-    #         val = float(self.lineEdit.text())
-    #     except:
-    #         return
-    #     self.value = val
-    #     self.horizontalSlider.setValue(val)
+    def change_slider(self):
+        try:
+            val = float(self.lineEdit.text())
+        except:
+            return
+        self.value = (val-self.limits[0])/(self.limits[1]-self.limits[0])*100
+        self.horizontalSlider.valueChanged.disconnect()
+        self.horizontalSlider.setValue(self.value)
+        self.horizontalSlider.valueChanged.connect(self.change_text)
 
     def get_value(self):
         try:

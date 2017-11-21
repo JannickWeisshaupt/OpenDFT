@@ -46,7 +46,7 @@ for i in range(71,80):
     colors[i] = (0,1,1)
 
 try:
-    with open('./data/colormaps.dat') as f:
+    with open(os.path.dirname(__file__)+'/data/colormaps.dat') as f:
         t = f.read()
         t = t.replace("'",'')
         s = t.split()
