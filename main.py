@@ -1972,8 +1972,11 @@ class CentralWindow(QtGui.QWidget):
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.error_dialog.showMessage(error_message)
 
-            self.load_results_from_engine(tasks)
-
+            try:
+                self.load_results_from_engine(tasks)
+            except Exception as e:
+                error_message_load = 'Reading of the results of the calculation failed with error' + repr(e)
+                self.error_dialog.showMessage(error_message_load)
 
     def load_results_from_engine(self,tasks,title=None):
         if title is None:
