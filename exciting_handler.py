@@ -74,7 +74,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '7.0', 'ngridk': '1 1 1','frozencore':'false','xctype':'GGA_PBE'}
+        self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5','frozencore':'false','xctype':'GGA_PBE'}
         self.scf_options_tooltip = {'do':"""Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
 Type: 	choose from:
 fromscratch
@@ -123,7 +123,11 @@ none
 Default: 	GGA_PBE"""
 
         self.scf_options_tooltip['ngridk'] = """Number of k grid points along the basis vector directions. 
+        This parameter is critical for the convergence of the results!
         Alternatively give autokpt and radkpt, or nktot. In the latter cases any value given for ngridk is not used. 
+        
+        For molecules you can use 1 1 1. For medium size cells something around 4 4 4 should suffice. For very small unit cells, like e.g. diamond, something like 7 7 7
+        should be ok.  
         
         Notes: Phonon calculations using supercells adjust the k-grid according to the supercell size; if the element xs is given, 
         the present attribute is overwritten by the value in xs for xs-related groundstate calculations; 
