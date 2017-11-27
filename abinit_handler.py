@@ -42,7 +42,7 @@ class Handler:
         self.working_dirctory = '/abinit_files/'
         self.pseudo_directory = '/pseudos/'
         self.engine_process = None
-        self.info_file = 'scf.out'
+        self.info_file = 'input.log'
         self.info_text = """ """
 
         self._filenames_tasks = {}
@@ -59,7 +59,7 @@ class Handler:
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'ecut':'10.0','nkpt':'100'}
+        self.scf_options = {'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30'}
 
         self.scf_options_tooltip = {}
 
@@ -88,24 +88,13 @@ class Handler:
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
         # pseudos = self._copy_default_pseudos(crystal_structure)
-        pseudos = ['h.pseudo']
+        pseudos = ['C.pseudo']
         self._make_files_file(pseudos)
         file = self._make_input_file()
-        self._add_scf_to_file(file, crystal_structure)
+        self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points)
         file.close()
         self._start_engine()
 
-        # if band_structure_points is not None:
-        #     def run_bs():
-        #         while self.is_engine_running():
-        #             time.sleep(0.001)
-        #         file = self._make_input_file(filename='bands.in')
-        #         self._add_scf_to_file(file, crystal_structure, calculation='bands', band_points=band_structure_points)
-        #         file.close()
-        #         self._start_engine(filename='bands.in')
-        #
-        #     t = threading.Thread(target=run_bs)
-        #     t.start()
 
     def start_optical_spectrum(self, crystal_structure):
         raise NotImplementedError
@@ -182,14 +171,14 @@ class Handler:
             return None
         info_text = f.read()
         f.close()
-
+        iteration_number = []
         scf_energy_list = []
-        matches = re.findall(r"total energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+        matches = re.findall(r"ETOT[\s\t]*\d+[\s\t]*[-+]?\d*\.\d+", info_text)
         for match in matches:
-            ms = match.split('=')
-            scf_energy_list.append(float(ms[1]))
-
-        res = np.array(zip(range(1, len(scf_energy_list) + 1), scf_energy_list))
+            ms = match.split()
+            scf_energy_list.append(float(ms[2]))
+            iteration_number.append(int(ms[1]))
+        res = np.array(zip(iteration_number, scf_energy_list))
         if len(res) < 2:
             return None
         return res
@@ -350,13 +339,17 @@ class Handler:
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _add_scf_to_file(self, file, crystal_structure, calculation='scf', band_points=None):
-        if calculation == 'bands' and band_points is None:
-            raise Exception('If calculation is bands you need to supply band points')
+    def _add_scf_to_file(self, file, crystal_structure, band_points=None):
+
+        if band_points is not None:
+            file.write('ndtset 2\n')
+        else:
+            file.write('ndtset 1\n')
+
 
         file.write('# Definition of the unit cell\n')
         file.write('acell {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(crystal_structure.scale,crystal_structure.scale,crystal_structure.scale))
-        file.write('rprim {0:1.10f} {1:1.10f} {2:1.10f} {3:1.10f} {4:1.10f} {5:1.10f} {6:1.10f} {7:1.10f} {8:1.10f}\n\n'.format(*np.reshape(crystal_structure.lattice_vectors,9)))
+        file.write('rprim {0:1.10f} {1:1.10f} {2:1.10f}   {3:1.10f} {4:1.10f} {5:1.10f}   {6:1.10f} {7:1.10f} {8:1.10f}\n\n'.format(*np.reshape(crystal_structure.lattice_vectors,9)))
 
         atom_species = set(crystal_structure.atoms[:,3])
         n_atom = crystal_structure.atoms.shape[0]
@@ -373,10 +366,36 @@ class Handler:
         for i in range(n_atom):
             file.write('{0:d} '.format(list(atom_species).index(crystal_structure.atoms[i,3])+1))
         file.write('\n')
-        file.write('xcart\n')
+        file.write('xred\n')
         for i in range(n_atom):
             file.write('{0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*crystal_structure.atoms[i,:3]))
-        
+
+        file.write('\n# Definition of the k grid\n')
+        file.write('kptopt1 1\n')
+        file.write('nshiftk1 4\n')
+        file.write("""shiftk1 0.5 0.5 0.5
+       0.5 0.0 0.0
+       0.0 0.5 0.0
+       0.0 0.0 0.5\n""")
+        file.write('\n# All other options\n')
+        for key,value in self.scf_options.items():
+            if key not in ['nband','ndivk']:
+                file.write(key+' '+value+'\n')
+
+        file.write('prtden 1\n')
+
+        if band_points is not None:
+            file.write("""\n#Dataset 2 : the band structure
+iscf2    -2
+getden2  -1
+""")
+            file.write('kptopt2 -{0:d}\n'.format(len(band_points)-1))
+            file.write('nband2 ' + self.scf_options['nband']+'\n')
+            file.write('ndivk2 ' + (len(band_points)-1) *(self.scf_options['ndivk']+' '))
+            file.write('\nkptbounds2 ')
+            for band_point in band_points:
+                file.write('    {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*band_point[0]))
+            file.write("""tolwfr2  1.0d-12\nenunit2  1   """)
 
 
     def _start_engine(self, filename='input.files'):
@@ -428,15 +447,18 @@ class Handler:
 
 
 if __name__ == '__main__':
-    atoms = np.array([[0, 0, 0, 1], [0.25, 0.25, 0.25, 1]])
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = np.array([[0.5, 0.0, 0.5], [0.5, 0.5, 0.0], [0, 0.5, 0.5]])
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
     # handler.scf_options['ecutwfc'] = 20.0
-    band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'))
+    band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
     handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
+    while handler.is_engine_running():
+        time.sleep(0.3)
+    res = handler.read_scf_status()
 
     coords = [x[0] for x in band_structure_points]
     labels = [x[1] for x in band_structure_points]
