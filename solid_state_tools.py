@@ -344,8 +344,10 @@ class GeneralHandler():
         self.quantum_espresso_handler = Handler
         from nwchem_handler import Handler
         self.nwchem_handler = Handler
+        from abinit_handler import Handler
+        self.abinit_handler = Handler
 
-        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler}
+        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler,'abinit':self.abinit_handler}
 
 
     def is_handler_available(self,engine_name):

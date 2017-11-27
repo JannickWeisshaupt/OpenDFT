@@ -43,12 +43,17 @@ class Handler:
         self.pseudo_directory = '/pseudos/'
         self.engine_process = None
         self.info_file = 'input.log'
-        self.info_text = """ """
+        self.info_text = """ABINIT is a package whose main program allows one to find the total energy, charge density and electronic structure of systems made of electrons and nuclei (molecules and periodic solids) within Density Functional Theory (DFT), using pseudopotentials (or PAW atomic data) and a planewave basis. 
+        ABINIT also optimize the geometry according to the DFT forces and stresses, or perform molecular dynamics simulations using these forces, 
+        or generate phonons, Born effective charges, and dielectric tensors, based on Density-Functional Perturbation Theory, and many more properties. 
+        Excited states and spectra can be computed within the Many-Body Perturbation Theory (the GW approximation and the Bethe-Salpeter equation). 
+        DFT+U and Dynamical mean-field theory are available for strongly correlated materials. In addition to the main ABINIT code, different utility programs are provided.
+ABINIT keywords are : capabilities, reliability, portability, documentation, with a "free software license" (short presentation of the ABINIT project - pdf document)."""
 
         self._filenames_tasks = {}
         self._timestamp_tasks = {}
 
-        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'relax', 'bandstructure'])
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'bandstructure'])
 
         self.project_directory = None
         self.input_filename = 'scf.in'
@@ -185,21 +190,26 @@ class Handler:
 
     def read_bandstructure(self, special_k_points=None):
         try:
-            f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
+            f = open(self.project_directory + self.working_dirctory + '/scf_xo_DS2_EIG', 'r')
         except IOError:
             return None
-        text = f.read().replace('-', ' -')
+        text = f.read()
         f.close()
 
         k_points = []
         energy_values = []
         found_line = False
         special_k_point_initial = []
+        e_numbers = []
         for line in text.split('\n'):
             line = line.strip()
-            if line.strip().startswith('k ='):
+            if line.strip().startswith('kpt#'):
+                if len(e_numbers)>0:
+                    energy_values.append(e_numbers)
+
+                e_numbers = []
                 line_list = line.split()
-                read_k_point = [float(line_list[2]), float(line_list[3]), float(line_list[4])]
+                read_k_point = [float(line_list[7]), float(line_list[8]), float(line_list[9])]
                 k_points.append(read_k_point)
 
                 if special_k_points is not None:
@@ -207,19 +217,14 @@ class Handler:
                         if np.linalg.norm(np.array(read_k_point) - k_point) < 0.001:
                             special_k_point_initial.append([len(k_points) - 1, label])
                             break
-
                 found_line = True
-                e_numbers = []
                 continue
-            if found_line and len(line) > 0:
+            if len(line) > 0 and found_line:
                 e_split = line.split()
                 e_numbers.extend([float(x) for x in e_split])
-            elif found_line and len(line) == 0 and len(e_numbers) > 0:
-                energy_values.append(e_numbers)
-                found_line = False
 
-        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+', text)
-        n_electrons = int(float(matches[0].split('=')[1]))
+        if len(e_numbers) > 0:
+            energy_values.append(e_numbers)
 
         n_bands = len(energy_values[0])
         n_k_points = len(k_points)
@@ -239,18 +244,29 @@ class Handler:
         special_k_points_out = [[k_array[i], label] for i, label in special_k_point_initial]
 
         try:
-            valence_bands = [band for i, band in enumerate(bands) if i < n_electrons // 2]
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
+            info_text = f.read()
+            f.close()
+
+            matches = re.findall(r"nelect[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+            match = matches[0]
+
+            n_electrons = int(float(match.split('=')[1]))
+
+            valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
             cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
 
-            evalence = max([band[:, 1].max() for band in valence_bands])
-            econd = min([band[:, 1].min() for band in cond_bands])
+            evalence = max( [band[:,1].max() for band in valence_bands] )
+            econd = min([band[:,1].min() for band in cond_bands])
 
-            efermi = evalence + (econd - evalence) / 2
+            efermi = evalence + (econd-evalence)/2
             for band in bands:
                 band[:, 1] = band[:, 1] - efermi
 
-        except Exception:
+        except IOError:
             pass
+
+
 
         return sst.BandStructure(bands, special_k_points=special_k_points_out)
 
@@ -264,45 +280,14 @@ class Handler:
         raise NotImplementedError
 
     def read_ks_state(self):
+        raise NotImplementedError
 
-        with open(self.project_directory + self.working_dirctory + '/rho.dat') as f:
-            text = f.readlines()
-        total_res = []
-        for line in text[2:]:
-            res = line.split()
-            if not '.' in res[0]:
-                continue
-            numbers = [float(x) for x in res]
-            total_res.extend(numbers)
-
-        n_grid = [int(text[i].split()[0]) for i in range(3, 6)]
-
-        l_data = np.array(total_res)
-        data = l_data.reshape(n_grid, order='C')
-
-        data = data / data.max()
-        return sst.KohnShamDensity(data)
 
     def calculate_ks_density(self, crystal_structure, bs_point):
-        f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix': self.general_options['title'],
-                       'outdir': self.project_directory + self.working_dirctory, 'plot_num': 7, 'filplot': 'e_density',
-                       'kpoint(1)': bs_point[0], 'kband(1)': bs_point[1]}
-        self._write_block(f, '&inputpp', inputpp_dic)
-        plot_dic = {'iflag': 3, 'output_format': 6, 'fileout': 'rho.dat'}
-        self._write_block(f, '&plot', plot_dic)
-        f.close()
-        self._start_pp_process()
+        raise NotImplementedError
 
     def calculate_electron_density(self, crystal_structure):
-        f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix': self.general_options['title'],
-                       'outdir': self.project_directory + self.working_dirctory, 'plot_num': 0, 'filplot': 'e_density'}
-        self._write_block(f, '&inputpp', inputpp_dic)
-        plot_dic = {'iflag': 3, 'output_format': 6, 'fileout': 'rho.dat'}
-        self._write_block(f, '&plot', plot_dic)
-        f.close()
-        self._start_pp_process()
+        raise NotImplementedError
 
     def kill_engine(self):
         try:
@@ -348,7 +333,7 @@ class Handler:
 
 
         file.write('# Definition of the unit cell\n')
-        file.write('acell {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(crystal_structure.scale,crystal_structure.scale,crystal_structure.scale))
+        file.write('acell 1.0 1.0 1.0\n')
         file.write('rprim {0:1.10f} {1:1.10f} {2:1.10f}   {3:1.10f} {4:1.10f} {5:1.10f}   {6:1.10f} {7:1.10f} {8:1.10f}\n\n'.format(*np.reshape(crystal_structure.lattice_vectors,9)))
 
         atom_species = set(crystal_structure.atoms[:,3])
@@ -382,7 +367,7 @@ class Handler:
             if key not in ['nband','ndivk']:
                 file.write(key+' '+value+'\n')
 
-        file.write('prtden 1\n')
+        file.write('prtden1 1\n')
 
         if band_points is not None:
             file.write("""\n#Dataset 2 : the band structure
@@ -396,7 +381,6 @@ getden2  -1
             for band_point in band_points:
                 file.write('    {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*band_point[0]))
             file.write("""tolwfr2  1.0d-12\nenunit2  1   """)
-
 
     def _start_engine(self, filename='input.files'):
         os.chdir(self.project_directory + self.working_dirctory)
@@ -416,20 +400,6 @@ getden2  -1
     def _is_engine_running_custom_command(self, tasks):
         raise NotImplementedError
 
-    def _write_block(self, file, block_name, options):
-        file.write(block_name + '\n')
-        for key, value in options.items():
-            if type(value) == int:
-                file.write('   ' + key + '=' + str(value) + '\n')
-            elif type(value) == float:
-                file.write('   ' + key + '=' + '{0:1.16f}'.format(value) + '\n')
-            elif type(value) == str or isinstance(value, string_types):
-                file.write('   ' + key + '=' + "'" + value + "'" + '\n')
-            else:
-                raise Exception('bad type for option')
-
-        file.write('/\n')
-
     def _copy_default_pseudos(self, crystal_structure):
         raise NotImplementedError
 
@@ -448,28 +418,18 @@ getden2  -1
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = np.array([[0.5, 0.0, 0.5], [0.5, 0.5, 0.0], [0, 0.5, 0.5]])
+    unit_cell = np.array([[3.3, 0.0, 3.3], [3.3, 3.3, 0.0], [0, 3.3, 3.3]])
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
-    handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
-    while handler.is_engine_running():
-        time.sleep(0.3)
-    res = handler.read_scf_status()
 
-    coords = [x[0] for x in band_structure_points]
-    labels = [x[1] for x in band_structure_points]
-    new_coords = crystal_structure.convert_to_tpiba(coords)
-    band_structure_points_conv = zip(new_coords, labels)
 
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
-    # handler.calculate_ks_density(None,[1,1])
+    # handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
     # while handler.is_engine_running():
-    #     time.sleep(0.1)
-    # ks = handler.read_ks_state()
-    # out = handler.load_relax_structure()
+    #     time.sleep(0.3)
+    # res = handler.read_scf_status()
 
-    # bs = handler.read_bandstructure()
+    band_structure = handler.read_bandstructure(special_k_points=band_structure_points)

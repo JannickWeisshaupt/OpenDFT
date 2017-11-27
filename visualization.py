@@ -755,7 +755,7 @@ class BandStructureVisualization(QtGui.QWidget):
         self.ax.set_xlim(band[:, 0].min() - xlength / 800, band[:, 0].max())
         self.ax.plot([band[:, 0].min(), band[:, 0].max()], [0, 0], 'k--')
 
-        if band_structure.special_k_points is not None:
+        if band_structure.special_k_points is not None and len(band_structure.special_k_points)>0:
             for xc, xl in band_structure.special_k_points:
                 self.ax.axvline(x=xc, color='k', linewidth=1.5)
 

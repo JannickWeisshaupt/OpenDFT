@@ -1618,7 +1618,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                project_directory = r"/home/jannick/OpenDFT_projects/test_abinit/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -1996,6 +1996,8 @@ class CentralWindow(QtGui.QWidget):
                     new_coords = self.crystal_structure.convert_to_tpiba(coords)
                     band_structure_points = zip(new_coords, labels)
                     read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
+                elif esc_handler.engine_name == 'abinit':
+                    read_bandstructure = esc_handler.read_bandstructure(special_k_points=self.dft_engine_window.band_structure_points)
                 else:
                     read_bandstructure = esc_handler.read_bandstructure()
                 read_bandstructures.append(read_bandstructure)
