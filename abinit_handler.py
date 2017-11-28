@@ -53,6 +53,8 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         self._filenames_tasks = {}
         self._timestamp_tasks = {}
 
+        self._engine_version = self._get_engine_version()
+
         self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'bandstructure'])
 
         self.project_directory = None
@@ -92,8 +94,7 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
-        # pseudos = self._copy_default_pseudos(crystal_structure)
-        pseudos = ['C.pseudo']
+        pseudos = self._copy_default_pseudos(crystal_structure)
         self._make_files_file(pseudos)
         file = self._make_input_file()
         self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points)
@@ -400,8 +401,42 @@ getden2  -1
     def _is_engine_running_custom_command(self, tasks):
         raise NotImplementedError
 
+    def _get_engine_version(self):
+        p = subprocess.Popen(['abinit','--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell_bool)
+        res, err = p.communicate()
+        res = res.decode()
+        version_list = res.strip().split('.')
+        version_int_list = [int(x) for x in version_list]
+        return version_int_list
+
+
     def _copy_default_pseudos(self, crystal_structure):
-        raise NotImplementedError
+        atoms = set(crystal_structure.atoms[:,3])
+        atoms_names = [p_table[atom] for atom in atoms]
+        installation_folder = os.path.dirname(__file__)
+
+        if not os.path.isdir(self.project_directory+self.pseudo_directory):
+            os.mkdir(self.project_directory+self.pseudo_directory)
+
+        pseudo_files = []
+        for atom in atoms_names:
+            file = atom+'.psp8'
+            pseudo_files.append(file)
+            filepath = self.project_directory+self.pseudo_directory+file
+            if not os.path.isfile(filepath):
+                copyfile(installation_folder+'/data/pseudos/abinit/'+file,filepath)
+
+            if self._engine_version[0]<7 or (self._engine_version[0]==7 and self._engine_version[1]<10):
+                with open(filepath, 'r') as f:
+                    filedata = f.readlines()
+                filedata[5] = filedata[5].lstrip()
+                filedata[5] = '0' + filedata[5][1:]
+
+                with open(filepath, 'w') as f:
+                    f.writelines(filedata)
+
+        return pseudo_files
+
 
     def _make_files_file(self,pseudos):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
@@ -413,11 +448,11 @@ getden2  -1
             f.write('scf_xo \n')
             f.write('scf_x\n')
             for pseudo in pseudos:
-                f.write('./pseudos/'+pseudo)
+                f.write('../pseudos/'+pseudo+'\n')
 
 
 if __name__ == '__main__':
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    atoms = np.array([[0, 0, 0, 14], [0.25, 0.25, 0.25, 14]])
     unit_cell = np.array([[3.3, 0.0, 3.3], [3.3, 3.3, 0.0], [0, 3.3, 3.3]])
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
@@ -426,6 +461,7 @@ if __name__ == '__main__':
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
 
+    handler._copy_default_pseudos(crystal_structure)
 
     # handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
     # while handler.is_engine_running():
@@ -433,3 +469,4 @@ if __name__ == '__main__':
     # res = handler.read_scf_status()
 
     band_structure = handler.read_bandstructure(special_k_points=band_structure_points)
+    version = handler._get_engine_version()

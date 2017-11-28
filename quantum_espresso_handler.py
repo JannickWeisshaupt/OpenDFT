@@ -552,7 +552,7 @@ performed in this run"""}
             file = atom+'.pseudo'
             filepath = self.project_directory+self.pseudo_directory+file
             if not os.path.isfile(filepath):
-                copyfile(installation_folder+'/data/pseudos/'+file,filepath)
+                copyfile(installation_folder+'/data/pseudos/qe/'+file,filepath)
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
