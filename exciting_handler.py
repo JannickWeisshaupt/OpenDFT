@@ -348,7 +348,7 @@ triplet"""}
             return None
         return res
 
-    def read_bandstructure(self):
+    def read_bandstructure(self,crystal_structure=None,special_k_points=None):
         try:
             e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:

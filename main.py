@@ -1724,9 +1724,11 @@ class CentralWindow(QtGui.QWidget):
                     for key,value in loaded_ksdens_dict.items():
                         self.ks_densities[key] = value
 
-                self.esc_handler_options = b.pop('esc handler options',None)
+                self.esc_handler_options = b.pop('esc handler options',{})
 
                 option_dic_specific_handler = self.esc_handler_options.pop(esc_handler.engine_name,None)
+
+
                 if option_dic_specific_handler is not None:
 
                     def set_esc_handler_dic_to_loaded_dic(esc_dic,loaded_dic):
@@ -1997,7 +1999,7 @@ class CentralWindow(QtGui.QWidget):
                     band_structure_points = zip(new_coords, labels)
                     read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
                 elif esc_handler.engine_name == 'abinit':
-                    read_bandstructure = esc_handler.read_bandstructure(special_k_points=self.dft_engine_window.band_structure_points)
+                    read_bandstructure = esc_handler.read_bandstructure(special_k_points=self.dft_engine_window.band_structure_points,crystal_structure=self.crystal_structure)
                 else:
                     read_bandstructure = esc_handler.read_bandstructure()
                 read_bandstructures.append(read_bandstructure)

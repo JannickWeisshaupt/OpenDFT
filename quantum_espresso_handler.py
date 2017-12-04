@@ -290,7 +290,7 @@ performed in this run"""}
             return None
         return res
 
-    def read_bandstructure(self,special_k_points=None):
+    def read_bandstructure(self,special_k_points=None,crystal_structure=None):
         try:
             f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
         except IOError:

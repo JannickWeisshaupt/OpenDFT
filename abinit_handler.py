@@ -68,7 +68,41 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = {'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30'}
 
-        self.scf_options_tooltip = {}
+        self.scf_options_tooltip = {'ecut':""" Used for kinetic energy cutoff (in Hartree) which controls number of planewaves at given k point by:
+(1/2)[(2 Pi)*(k+Gmax)] 2 =ecut for Gmax.
+All planewaves inside this "basis sphere" centered at k are included in the basis (except if dilatmx is defined).
+This is the single parameter which can have an enormous effect on the quality of a calculation; 
+basically the larger ecut is, the better converged the calculation is. For fixed geometry, the total energy MUST always decrease as ecut is raised because of the variational nature of the problem.
+
+Usually one runs at least several calculations at various ecut to investigate the convergence needed for reliable results.
+ ""","nband":""" Gives number of bands, occupied plus possibly unoccupied, for which wavefunctions are being computed along with eigenvalues.
+Note : if the parameter occopt (see below) is not set to 2, nband is a scalar integer, but if the parameter occopt is set to 2, then nband must be an array nband(nkpt* nsppol) giving the number of bands explicitly for each k point. This option is provided in order to allow the number of bands treated to vary from k point to k point.
+For the values of occopt not equal to 0 or 2, nband can be omitted. The number of bands will be set up thanks to the use of the variable fband. The present Default will not be used.
+
+If nspinor is 2, nband must be even for each k point.
+
+In the case of a GW calculation (optdriver=3 or 4), nband gives the number of bands to be treated to generate the screening (susceptibility and dielectric matrix), as well as the self-energy. 
+However, to generate the _KSS file (see kssform) the relevant number of bands is given by nbandkss. """,
+'ngkpt1':"""Number of k-points used in the calculation""",
+'ndivk':""" Gives the number of divisions of each of the segments of the band structure, whose path is determined by kptopt and kptbounds. In this case, the absolute value of kptopt is the number of such segments.
+
+For example, suppose that the number of segment is just one (kptopt=-1), a value ndivk=4 will lead to the computation of points with relative coordinates 0.0, 0.25, 0.5, 0.75 and 1.0 , along the segment in consideration.
+
+Now, suppose that there are two segments (kptopt=-2), with ndivk(1)=4 and ndivk(2)=2, the computation of the eigenvalues will be done at 7 points, 5 belonging to the first segment, with relative coordinates 0.0, 0.25, 0.5, 0.75 and 1.0, the last one being also the starting point of the next segment, for which two other points must be computed, with relative coordinates 0.5 and 1.0 .
+
+It is easy to compute disconnected circuits (non-chained segments), by separating the circuits with the value ndivk=1 for the intermediate segment connecting the end of one circuit with the beginning of the next one (in which case no intermediate point is computed along this segment).
+
+Alternatively it is possible to generate automatically the array ndivk by just specifying the number of divisions for the smallest segment. See the related input variable ndivsm. """,
+'toldfe1':"""Sets a tolerance for absolute differences of total energy that, reached TWICE successively, will cause one SCF cycle to stop (and ions to be moved).
+Can be specified in Ha (the default), Ry, eV or Kelvin, since toldfe has the 'ENERGY' characteristics. (1 Ha=27.2113845 eV)
+If set to zero, this stopping condition is ignored.
+Effective only when SCF cycles are done (iscf>0).
+Because of machine precision, it is not worth to try to obtain differences in energy that are smaller than about 1.0d-12 of the total energy. To get accurate stresses may be quite demanding.
+When the geometry is optimized (relaxation of atomic positions or primitive vectors), the use of toldfe is to be avoided. The use of toldff or tolrff is by far preferable, in order to have a handle on the geometry characteristics. When all forces vanish by symmetry (e.g. optimization of the lattice parameters of a high-symmetry crystal), then place toldfe to 1.0d-12, or use (better) tolvrs.
+Since toldfe, toldff, tolrff, tolvrs and tolwfr are aimed at the same goal (causing the SCF cycle to stop), they are seen as a unique input variable at reading. 
+Hence, it is forbidden that two of these input variables have non-zero values for the same dataset, or generically (for all datasets). 
+However, a non-zero value for one such variable for one dataset will have precedence on the non-zero value for another input variable defined generically. """,
+"nstep":"Maximum number of scf steps"}
 
         self.general_options = {'title': 'title'}
         self.bs_options = {}
@@ -189,13 +223,18 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
             return None
         return res
 
-    def read_bandstructure(self, special_k_points=None):
+    def read_bandstructure(self, special_k_points=None,crystal_structure=None):
         try:
             f = open(self.project_directory + self.working_dirctory + '/scf_xo_DS2_EIG', 'r')
         except IOError:
             return None
         text = f.read()
         f.close()
+
+        if crystal_structure is None:
+            inv_lattice_vectors = np.eye(3,3)
+        else:
+            inv_lattice_vectors = crystal_structure.inv_lattice_vectors
 
         k_points = []
         energy_values = []
@@ -232,7 +271,9 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         bands = []
         k_array = np.zeros(n_k_points)
         for i in range(1, n_k_points):
-            k_array[i] = np.linalg.norm(np.array(k_points[i]) - np.array(k_points[i - 1])) + k_array[i - 1]
+            k1 = np.dot(inv_lattice_vectors,np.array(k_points[i - 1]))
+            k2 = np.dot(inv_lattice_vectors,np.array(k_points[i]))
+            k_array[i] = np.linalg.norm(k2-k1) + k_array[i - 1]
 
         for i in range(n_bands):
             band = np.zeros((n_k_points, 2))
@@ -468,5 +509,5 @@ if __name__ == '__main__':
     #     time.sleep(0.3)
     # res = handler.read_scf_status()
 
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points)
+    band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
     version = handler._get_engine_version()
