@@ -157,8 +157,8 @@ performed in this run"""}
 
         self.general_options = {'title': 'title'}
         self.bs_options = {}
-        self.relax_options = {}
-        self.relax_options_tooltip = {}
+        self.relax_options = {'type':'relax'}
+        self.relax_options_tooltip = {'type':'relax: fixed unit cell relaxation\nvc-relax: variable unit cell relaxation'}
 
         self.gw_options = {}
         self.gw_options_tooltip = {}
@@ -212,11 +212,14 @@ performed in this run"""}
         raise NotImplementedError
 
     def start_relax(self, crystal_structure):
+        if self.relax_options['type'] not in ['relax', 'md', 'vc-relax','vc-md']:
+            raise ValueError("Relax type must be relax, md, vc-relax or vc-md")
+
         if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
         self._copy_default_pseudos(crystal_structure)
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure,calculation='relax')
+        self._add_scf_to_file(file,crystal_structure,calculation=self.relax_options['type'])
         file.close()
         self._start_engine()
 
@@ -229,7 +232,8 @@ performed in this run"""}
         self.relax_file_timestamp = os.path.getmtime(file)
 
         with open(file) as f:
-            text = f.readlines()
+            text_full = f.read()
+            text = text_full.splitlines()
 
         matched_lines = [i for i,line in enumerate(text) if 'atomic_positions' in line.lower()]
         if len(matched_lines) == 0:
@@ -253,20 +257,15 @@ performed in this run"""}
             atoms[i,:3] = atom[1]
             atoms[i,3] = atom[0]
 
-        matched_line = [i for i, line in enumerate(text) if 'lattice parameter' in line.lower()]
-        line = text[matched_line[0]]
-        res = line.split('=')[1].replace('a.u.','')
-        a = float(res)
+        if 'CELL_PARAMETERS' in text_full:
+            calculation = 'vc-relax'
+        else:
+            calculation = 'relax'
 
-        matched_line = [i for i, line in enumerate(text) if 'a(1) =' in line.lower()][0]
-        lattice_vectors = np.zeros((3,3))
 
-        for i in range(matched_line,matched_line+3):
-            line = text[i]
-            res = line.split('=')[1]
-            res = res.replace('(','').replace(')','').split()
-            res = np.array([float(x) for x in res])
-            lattice_vectors[i-matched_line,:] = res*a
+        lattice_vectors = self._read_lattice_vectors(text,calculation=calculation)
+        if lattice_vectors is None:
+            return None
 
         return sst.CrystalStructure(lattice_vectors,atoms)
 
@@ -469,8 +468,11 @@ performed in this run"""}
         system_options['ntyp'] = len(n_typ)
         self._write_block(file,'&system',system_options)
         self._write_block(file,'&electrons',electron_options)
+
         if calculation in ['relax', 'md', 'vc-relax','vc-md']:
             self._write_block(file,'&ions',{})
+        if calculation in ['vc-relax','vc-md']:
+            self._write_block(file, '&cell', {})
 
         file.write('ATOMIC_SPECIES\n')
         for specie in n_typ:
@@ -496,6 +498,7 @@ performed in this run"""}
             file.write('  '+str(len(band_points))+'\n')
             for band_point,label in band_points:
                 file.write(' {0:1.5f} {1:1.5f} {2:1.5f} '.format(*band_point)+self.scf_options['k points band']+' !'+label+'\n')
+
 
     def _start_pp_process(self):
         command = 'exec pp.x<pp.in'
@@ -554,23 +557,69 @@ performed in this run"""}
             if not os.path.isfile(filepath):
                 copyfile(installation_folder+'/data/pseudos/qe/'+file,filepath)
 
+    def _read_lattice_vectors(self,text,calculation='relax'):
+
+        lattice_vectors = np.zeros((3, 3))
+
+        if calculation == 'relax':
+            matched_line = [i for i, line in enumerate(text) if 'lattice parameter' in line.lower()]
+            line = text[matched_line[0]]
+            res = line.split('=')[1].replace('a.u.','')
+            a = float(res)
+
+            matched_line = [i for i, line in enumerate(text) if 'a(1) =' in line.lower()][0]
+
+            for i in range(matched_line,matched_line+3):
+                line = text[i]
+                res = line.split('=')[1]
+                res = res.replace('(','').replace(')','').split()
+                res = np.array([float(x) for x in res])
+                lattice_vectors[i-matched_line,:] = res*a
+
+        elif calculation == 'vc-relax':
+            matched_lines = [i for i, line in enumerate(text) if 'cell_parameters' in line.lower()]
+            if len(matched_lines) == 0:
+                return None
+            highest_index = max(matched_lines)
+            coords = []
+            for line in text[highest_index + 1:]:
+                try:
+                    res = line.split()
+                    if len(res) == 0:
+                        continue
+                    coords.append(np.array([float(x) for x in res[:]]))
+                except Exception:
+                    if len(res) == 0:
+                        continue
+                    else:
+                        break
+            if len(coords) < 3:
+                return None
+
+            for i in range(3):
+                lattice_vectors[i,:] = coords[i]
+
+        else:
+            raise ValueError('calculation ' + str(calculation)+ ' is not allowed')
+        return lattice_vectors
+
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/test_qe"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
-    handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
+    # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
 
     coords = [x[0] for x in band_structure_points]
     labels = [x[1] for x in band_structure_points]
     new_coords = crystal_structure.convert_to_tpiba(coords)
     band_structure_points_conv = zip(new_coords, labels)
 
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
+    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points_conv)
     # handler.calculate_ks_density(None,[1,1])
     # while handler.is_engine_running():
     #     time.sleep(0.1)
@@ -578,3 +627,5 @@ if __name__ == '__main__':
     # out = handler.load_relax_structure()
 
     # bs = handler.read_bandstructure()
+
+    handler.load_relax_structure()

@@ -50,6 +50,12 @@ class BrillouinWindow(QtGui.QDialog):
         table_layout = QtGui.QVBoxLayout(table_widget)
 
         self.table =  QtGui.QTableWidget(table_widget)
+
+        copy_action = CopySelectedCellsAction(self.table)
+        self.table.addAction(copy_action)
+        paste_action = PasteIntoTable(self.table,self)
+        self.table.addAction(paste_action)
+
         self.table.setColumnCount(4)
         self.table.setRowCount(0)
         table_layout.addWidget(self.table)
@@ -123,7 +129,7 @@ class BrillouinWindow(QtGui.QDialog):
         self.table.setRowCount(n+1)
         for i in range(4):
             item = QtGui.QTableWidgetItem()
-            self.table.setItem(n+1,i,item)
+            self.table.setItem(n,i,item)
         self.connect_tables()
 
     def read_table(self):
@@ -401,6 +407,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.gw_option_widget.set_all_entries()
         self.bs_option_widget.set_all_entries()
         self.optical_spectrum_option_widget.set_all_entries()
+        self.relax_option_widget.set_all_entries()
 
     def do_select_event(self):
         pass
@@ -434,6 +441,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.gw_option_widget.read_all_entries()
         self.bs_option_widget.read_all_entries()
         self.optical_spectrum_option_widget.read_all_entries()
+        self.relax_option_widget.read_all_entries()
 
     def prepare_start(self,tasks):
         self.abort_bool = False
@@ -1689,7 +1697,7 @@ class CentralWindow(QtGui.QWidget):
 
             option_dic_specific_handler = {'scf_options':esc_handler.scf_options,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
                  'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options}
+                 'gw options':esc_handler.gw_options,'relax options':esc_handler.relax_options}
             self.esc_handler_options[esc_handler.engine_name] = option_dic_specific_handler
             a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,'esc handler options': self.esc_handler_options,
                  'properties': self.project_properties,'dft engine':esc_handler.engine_name,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
@@ -1754,6 +1762,10 @@ class CentralWindow(QtGui.QWidget):
 
                     load_optical_spectrum_options = option_dic_specific_handler.pop('optical spectrum options',None)
                     set_esc_handler_dic_to_loaded_dic(esc_handler.optical_spectrum_options,load_optical_spectrum_options)
+
+                    load_relax_options = option_dic_specific_handler.pop('relax options',None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.relax_options,load_relax_options)
+
 
                 k_path = b.pop('k path', None)
                 if k_path is not None:
