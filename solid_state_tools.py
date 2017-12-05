@@ -115,7 +115,10 @@ class CrystalStructure(object):
 class BandStructure(object):
     def __init__(self,bands,special_k_points=None,bs_type='electronic'):
         self.bands = bands
-        self.bandgap,self.k_bandgap = self._find_bandgap(bands)
+        try:
+            self.bandgap,self.k_bandgap = self._find_bandgap(bands)
+        except Exception:
+            self.bandgap,self.k_bandgap = (0,None)
         self.special_k_points = special_k_points
         self.bs_type = bs_type
 

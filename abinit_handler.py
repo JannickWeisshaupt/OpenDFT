@@ -226,7 +226,7 @@ However, a non-zero value for one such variable for one dataset will have preced
 
     def read_bandstructure(self, special_k_points=None,crystal_structure=None):
         try:
-            f = open(self.project_directory + self.working_dirctory + '/scf_xo_DS2_EIG', 'r')
+            f = open(self.project_directory + self.working_dirctory + u'/scf_xo_DS2_EIG', 'r')
         except IOError:
             return None
         text = f.read()
@@ -299,12 +299,13 @@ However, a non-zero value for one such variable for one dataset will have preced
             valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
             cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
 
-            evalence = max( [band[:,1].max() for band in valence_bands] )
-            econd = min([band[:,1].min() for band in cond_bands])
+            if len(valence_bands)>0 and len(cond_bands)>0:
+                evalence = max( [band[:,1].max() for band in valence_bands] )
+                econd = min([band[:,1].min() for band in cond_bands])
 
-            efermi = evalence + (econd-evalence)/2
-            for band in bands:
-                band[:, 1] = band[:, 1] - efermi
+                efermi = evalence + (econd-evalence)/2
+                for band in bands:
+                    band[:, 1] = band[:, 1] - efermi
 
         except IOError:
             pass
@@ -323,6 +324,14 @@ However, a non-zero value for one such variable for one dataset will have preced
         raise NotImplementedError
 
     def read_ks_state(self):
+        with open(self.project_directory+self.working_dirctory+'/density.out','r') as f:
+            text = f.read()
+
+        text_corr = text.replace('-',' -')
+        text_corr = text_corr.replace('E -','E-').replace('e -','e-')
+        with open(self.project_directory+self.working_dirctory+'/density.out','w') as f:
+            f.write(text_corr)
+
         data = np.loadtxt(self.project_directory+self.working_dirctory+'/density.out')
         if data.ndim == 2:
             data = data[:,3]
@@ -554,7 +563,7 @@ if __name__ == '__main__':
     #     time.sleep(0.3)
     # res = handler.read_scf_status()
 
-    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
+    band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
     # version = handler._get_engine_version()
     handler.calculate_ks_density(crystal_structure,[130,5])
     while handler.is_engine_running():
