@@ -1166,6 +1166,9 @@ class KsStateWindow(QtGui.QDialog):
         if ',' in k_band_str:
             tr = k_band_str.split(',')
             k = [int(x) for x in tr]
+        elif '-' in k_band_str:
+            k_split = k_band_str.split('-')
+            k = list(range(int(k_split[0]), 1 + int(k_split[1])))
         else:
             k = [int(k_band_str)]
 
@@ -1189,7 +1192,7 @@ class KsStateWindow(QtGui.QDialog):
         k,n_band,label = self.calc_queue.get()
         self.current_calc_properties = {'type':'ks density','k':k,'n_band':n_band,'label':label}
         esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
-        QtCore.QTimer.singleShot(100, self.check_engine)
+        QtCore.QTimer.singleShot(20, self.check_engine)
 
     def check_engine(self):
         tasks=['ks density']

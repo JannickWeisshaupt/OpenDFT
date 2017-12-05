@@ -1,3 +1,4 @@
+from __future__ import division,absolute_import,print_function,unicode_literals
 import numpy as np
 import solid_state_tools as sst
 import periodictable as pt
@@ -322,14 +323,58 @@ However, a non-zero value for one such variable for one dataset will have preced
         raise NotImplementedError
 
     def read_ks_state(self):
-        raise NotImplementedError
-
+        data = np.loadtxt(self.project_directory+self.working_dirctory+'/density.out')
+        if data.ndim == 2:
+            data = data[:,3]
+        n = int(round(len(data)**(1/3)))
+        r_data = data.reshape((n,n,n),order='c')
+        r_data = r_data/r_data.max()
+        return sst.KohnShamDensity(r_data)
 
     def calculate_ks_density(self, crystal_structure, bs_point):
-        raise NotImplementedError
+        with open(self.project_directory + self.working_dirctory + '/cut3d.in', 'w') as f:
+            f.write("""scf_xo_DS2_WFK
+1
+0
+{0:d}
+{1:d}
+0
+0
+5
+density
+0""".format(bs_point[0],bs_point[1]))
+
+        command = 'exec cut3d<cut3d.in>cut3d.log'
+        os.chdir(self.project_directory + self.working_dirctory)
+        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                               shell=True, preexec_fn=os.setpgrp)
+
+        def rename_result():
+            while self.is_engine_running():
+                time.sleep(0.001)
+            filename = '/density_k{0:d}_b{1:d}_s1'.format(*bs_point)
+            os.rename(self.project_directory+self.working_dirctory+filename,self.project_directory+self.working_dirctory+'/density.out')
+
+
+        t = threading.Thread(target=rename_result)
+        t.start()
+
+
+        os.chdir(self.project_directory)
 
     def calculate_electron_density(self, crystal_structure):
-        raise NotImplementedError
+        with open(self.project_directory+self.working_dirctory+'/cut3d.in','w') as f:
+            f.write("""scf_xo_DS1_DEN
+1
+5
+density.out
+0""")
+
+        command = 'exec cut3d<cut3d.in>cut3d.log'
+        os.chdir(self.project_directory + self.working_dirctory)
+        self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                               shell=True,preexec_fn=os.setpgrp)
+        os.chdir(self.project_directory)
 
     def kill_engine(self):
         try:
@@ -509,5 +554,9 @@ if __name__ == '__main__':
     #     time.sleep(0.3)
     # res = handler.read_scf_status()
 
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
-    version = handler._get_engine_version()
+    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
+    # version = handler._get_engine_version()
+    handler.calculate_ks_density(crystal_structure,[130,5])
+    while handler.is_engine_running():
+        time.sleep(0.01)
+    handler.read_ks_state()
