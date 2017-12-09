@@ -10,12 +10,13 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
 from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
+from TerminalClass import PythonTerminal
 import pickle
 import time
 import threading
 from collections import OrderedDict
 import logging
-
+import syntax
 
 try:
     import queue
@@ -25,6 +26,9 @@ except:
 
 general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
+
+
+
 
 
 class BrillouinWindow(QtGui.QDialog):
@@ -219,6 +223,46 @@ class EntryWithLabel(QtGui.QWidget):
             self.editFinished_command()
         self.textbox.setModified(False)
 
+
+class ConsoleWindow(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(ConsoleWindow, self).__init__(parent)
+
+        self.setMinimumSize(1000,800)
+
+        self.main_layout = QtGui.QVBoxLayout(self)
+
+        self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
+        self.main_layout.addWidget(self.splitter)
+
+        self.input_text_widget = QtGui.QTextEdit(self)
+        self.input_text_widget.setFontFamily('monospace')
+        highlight = syntax.PythonHighlighter(self.input_text_widget.document())
+        self.input_scrollbar = self.input_text_widget.verticalScrollBar()
+        self.splitter.addWidget(self.input_text_widget)
+
+        self.output_text_widget = QtGui.QTextBrowser(self)
+        self.output_text_widget.setFontFamily('monospace')
+        self.output_scrollbar = self.output_text_widget.verticalScrollBar()
+        self.splitter.addWidget(self.output_text_widget)
+
+        self.python_interpreter = PythonTerminal({})
+
+        self.button_frame = QtGui.QWidget(self)
+        self.main_layout.addWidget(self.button_frame)
+        self.button_layout = QtGui.QHBoxLayout(self.button_frame)
+
+        self.run_button = QtGui.QPushButton('Run')
+        self.run_button.clicked.connect(self.run_code)
+        self.button_layout.addWidget(self.run_button)
+
+
+    def run_code(self):
+        code_text = self.input_text_widget.toPlainText()
+        out = self.python_interpreter.run_code(code_text)
+        history = [item for sublist in self.python_interpreter.out_history for item in sublist]
+        self.output_text_widget.setPlainText('\n'.join(history))
+
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
         super(LoadResultsWindow, self).__init__(parent)
@@ -246,6 +290,7 @@ class LoadResultsWindow(QtGui.QDialog):
 
     def reject_own(self):
         self.reject()
+
 
 class OptionFrame(QtGui.QGroupBox):
     def __init__(self, parent,options,title='',tooltips={},checkbuttons=[],buttons=[]):
@@ -639,7 +684,6 @@ class PlotWithTreeview(QtGui.QWidget):
         self.update_tree()
 
     def export_selected_item(self,code=False):
-        # TODO make this actually work
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
@@ -1236,7 +1280,6 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class EditStructureWindow(QtGui.QDialog):
-    "TODO: Clean unit cell correctly for new structure. Make the buttons to really set the structure"
     def __init__(self,parent):
         super(EditStructureWindow, self).__init__(parent)
         self.setWindowTitle('Edit Structure')
@@ -1600,6 +1643,7 @@ class CentralWindow(QtGui.QWidget):
         self.ks_state_window = KsStateWindow(self)
         self.structure_window = EditStructureWindow(self)
         self.brillouin_window = BrillouinWindow(self)
+        self.console_window = ConsoleWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -1650,7 +1694,6 @@ class CentralWindow(QtGui.QWidget):
             self.initialize_project()
             self.configure_buttons()
 
-
     def initialize_project(self):
         self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
@@ -1694,7 +1737,6 @@ class CentralWindow(QtGui.QWidget):
             self.configure_buttons()
 
     def save_results(self):
-        # TODO save options for each handler seperately
         try:
             self.dft_engine_window.read_all_option_widgets()
 
@@ -1938,6 +1980,12 @@ class CentralWindow(QtGui.QWidget):
         dft_options_action.triggered.connect(self.open_engine_option_window)
         self.dft_menu.addAction(dft_options_action)
 
+        self.scripting_menu = self.menu_bar.addMenu('&Scripting')
+
+        open_console_action = QtGui.QAction("Open console", self.window)
+        open_console_action.triggered.connect(self.open_scripting_console)
+        self.scripting_menu.addAction(open_console_action)
+
     def close_application(self):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
@@ -2077,6 +2125,15 @@ class CentralWindow(QtGui.QWidget):
         result_window = LoadResultsWindow(self,task)
         result_window.show()
 
+    def open_scripting_console(self):
+        self.console_window.show()
+
+        def update_gui(structure):
+            self.mayavi_widget.update_crystal_structure(structure)
+            self.mayavi_widget.update_plot()
+
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'update_gui':update_gui}
+        self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):
         self.dft_engine_window.configure_buttons(disable_all=disable_all)

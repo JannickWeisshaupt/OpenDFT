@@ -335,8 +335,18 @@ However, a non-zero value for one such variable for one dataset will have preced
         data = np.loadtxt(self.project_directory+self.working_dirctory+'/density.out')
         if data.ndim == 2:
             data = data[:,3]
-        n = int(round(len(data)**(1/3)))
-        r_data = data.reshape((n,n,n),order='c')
+
+        with open(self.project_directory+self.working_dirctory+'/cut3d.log','r') as f:
+            log_lines = f.readlines()
+
+        for log_line in log_lines:
+            if log_line.strip().lower().startswith('grid density'):
+                log_split = log_line.split(':')
+                n_list = log_split[2].split()
+                n_list_int = [int(x) for x in n_list]
+
+
+        r_data = data.reshape(n_list_int,order='f')
         r_data = r_data/r_data.max()
         return sst.KohnShamDensity(r_data)
 
