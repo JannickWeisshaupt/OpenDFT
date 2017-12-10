@@ -231,6 +231,7 @@ class ConsoleWindow(QtGui.QDialog):
         self.setMinimumSize(1000,800)
 
         self.main_layout = QtGui.QVBoxLayout(self)
+        self.make_menubar()
 
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
@@ -251,17 +252,92 @@ class ConsoleWindow(QtGui.QDialog):
         self.button_frame = QtGui.QWidget(self)
         self.main_layout.addWidget(self.button_frame)
         self.button_layout = QtGui.QHBoxLayout(self.button_frame)
-
+        self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
         self.run_button = QtGui.QPushButton('Run')
         self.run_button.clicked.connect(self.run_code)
+        self.run_button.setFixedWidth(100)
         self.button_layout.addWidget(self.run_button)
 
+        self.saved_code = ''
+        self.saved_code_filename = None
+
+    def make_menubar(self):
+        self.menu_bar = QtGui.QMenuBar(self)
+        self.main_layout.addWidget(self.menu_bar)
+        self.menu_bar.setNativeMenuBar(False)
+        self.file_menu = self.menu_bar.addMenu('&File')
+
+        new_file_action = QtGui.QAction("New", self)
+        new_file_action.setShortcut("Ctrl+n")
+        new_file_action.triggered.connect(self.new_file)
+        self.file_menu.addAction(new_file_action)
+
+        load_file_action = QtGui.QAction("Load", self)
+        load_file_action.setShortcut("Ctrl+o")
+        load_file_action.triggered.connect(self.load_file)
+        self.file_menu.addAction(load_file_action)
+
+        save_file_action = QtGui.QAction("Save", self)
+        save_file_action.setShortcut("Ctrl+s")
+        save_file_action.triggered.connect(self.save_code)
+        self.file_menu.addAction(save_file_action)
+
+        save_as_file_action = QtGui.QAction("Save as", self)
+        save_as_file_action.setShortcut("Ctrl+shift+s")
+        save_as_file_action.triggered.connect(lambda: self.save_code(ask_filename=True))
+        self.file_menu.addAction(save_as_file_action)
 
     def run_code(self):
         code_text = self.input_text_widget.toPlainText()
         out = self.python_interpreter.run_code(code_text)
         history = [item for sublist in self.python_interpreter.out_history for item in sublist]
         self.output_text_widget.setPlainText('\n'.join(history))
+
+    def new_file(self):
+        if self.check_saved_progress():
+            self.input_text_widget.setPlainText('')
+        self.saved_code = ''
+        self.saved_code_filename = None
+
+    def check_saved_progress(self):
+        if self.saved_code != self.input_text_widget.toPlainText():
+            msg = "There is unsaved progress. Do you want to save before starting a new file?"
+            reply = QtGui.QMessageBox.question(self, 'Unsaved progress',
+                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.Cancel:
+                return False
+            elif reply == QtGui.QMessageBox.Yes:
+                self.save_code()
+        return True
+
+    def load_file(self):
+        if not self.check_saved_progress():
+            return
+
+        file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')
+        if not file_name:
+            return
+        with open(file_name[0],'r') as f:
+            text = f.read()
+        self.input_text_widget.setPlainText(text)
+        self.saved_code = text
+        self.saved_code_filename = file_name
+
+    def save_code(self,ask_filename=False):
+        if self.saved_code_filename is None or ask_filename:
+            file_name = QtGui.QFileDialog.getSaveFileName(self, 'Save File')
+        else:
+            file_name = self.saved_code_filename
+
+        if not file_name:
+            return
+        code = self.input_text_widget.toPlainText()
+        with open(file_name[0], 'w') as f:
+            f.write(code)
+        self.saved_code_filename = file_name
+        self.saved_code = code
+
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
@@ -2131,8 +2207,9 @@ class CentralWindow(QtGui.QWidget):
         def update_gui(structure):
             self.mayavi_widget.update_crystal_structure(structure)
             self.mayavi_widget.update_plot()
+            QtGui.QApplication.processEvents()
 
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'update_gui':update_gui}
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):
@@ -2171,5 +2248,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-
+    main.open_scripting_console()
     app.exec_()
