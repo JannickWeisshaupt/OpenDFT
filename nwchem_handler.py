@@ -4,6 +4,7 @@ import periodictable as pt
 import subprocess
 import os
 import re
+import time
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -98,11 +99,11 @@ At the same time continued development is needed to enable NWChem to effectively
     def parse_input_file(self, filename):
         raise NotImplementedError()
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None):
+    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
         file.close()
-        self._start_engine()
+        self._start_engine(blocking=blocking)
 
         # if band_structure_points is not None:
         #     def run_bs():
@@ -388,7 +389,7 @@ At the same time continued development is needed to enable NWChem to effectively
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _start_engine(self, filename='scf.in'):
+    def _start_engine(self, filename='scf.in',blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
@@ -402,6 +403,10 @@ At the same time continued development is needed to enable NWChem to effectively
         self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
         os.chdir(self.project_directory)
+        if blocking:
+            while self.is_engine_running():
+                time.sleep(0.1)
+
 
     def _add_geometry(self,file,crystal_structure,auto=False):
         if not auto:

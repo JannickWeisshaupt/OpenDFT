@@ -192,14 +192,16 @@ class MayaviQWidget(QtGui.QWidget):
 
 
 class EntryWithLabel(QtGui.QWidget):
-    def __init__(self, parent,label,value=None):
+    def __init__(self, parent,label,value=None,width_text=200,width_label=90):
         QtGui.QWidget.__init__(self, parent)
         self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
         self.layout = QtGui.QHBoxLayout(self)
         self.textbox = QtGui.QLineEdit(self)
-        self.textbox.setMaximumWidth(200)
+        if width_text:
+            self.textbox.setMaximumWidth(width_text)
         self.label_widget = QtGui.QLabel(label,parent=self)
-        self.label_widget.setMaximumWidth(90)
+        if width_label:
+            self.label_widget.setMaximumWidth(width_label)
         self.layout.setAlignment(QtCore.Qt.AlignLeft)
         self.layout.addWidget(self.label_widget)
         self.layout.addWidget(self.textbox)
@@ -246,6 +248,10 @@ class ConsoleWindow(QtGui.QDialog):
         self.output_text_widget.setStyleSheet('QTextBrowser { font-size: 10pt; font-family: monospace; }')
         self.output_scrollbar = self.output_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.output_text_widget)
+
+        self.interactive_text = EntryWithLabel(self,'>>',width_label=50,width_text=None)
+        self.interactive_text.textbox.returnPressed.connect(self.handle_interactive_text)
+        self.main_layout.addWidget(self.interactive_text)
 
         self.python_interpreter = PythonTerminal({})
 
@@ -294,6 +300,11 @@ class ConsoleWindow(QtGui.QDialog):
         run_code_action.triggered.connect(self.run_code)
         self.run_menu.addAction(run_code_action)
 
+        run_selection_action = QtGui.QAction("Run selection", self)
+        run_selection_action.setShortcut("F9")
+        run_selection_action.triggered.connect(self.run_selection)
+        self.run_menu.addAction(run_selection_action)
+
 
     def update_output(self):
         cur_pos = self.output_scrollbar.value()
@@ -302,16 +313,28 @@ class ConsoleWindow(QtGui.QDialog):
         else:
             final_pos = cur_pos
 
-        history = [item for sublist in self.python_interpreter.out_history for item in sublist] # collapse list of list to one linst
-        self.output_text_widget.setPlainText('\n'.join(history))
+        history = [item for sublist in self.python_interpreter.out_history for item in sublist if len(item)>0] # collapse list of list to one linst
+
+
+
+        history = [el.replace(u"\u2029",'\n') for el in history]
+        out_text = u'\n'.join(history)
+        # out_text_conv = ''.join([i if ord(i) < 128 else ' ' for i in out_text])
+        self.output_text_widget.setPlainText(out_text)
         if final_pos is None:
             final_pos = self.output_scrollbar.maximum()
         self.output_scrollbar.setValue(final_pos)
         QtGui.QApplication.processEvents()
 
-    def run_code(self):
-        self.python_interpreter.out_history.append(['------- Code execution started -------'])
+    def run_selection(self):
+        cursor = self.input_text_widget.textCursor()
+        code_text = cursor.selectedText().replace(u"\u2029",'\n')
+        out = self.python_interpreter.run_code(code_text)
         self.update_output()
+
+    def run_code(self):
+        # self.python_interpreter.out_history.append(['------- Code execution started -------'])
+        # self.update_output()
         code_text = self.input_text_widget.toPlainText()
         s_time = time.time()
         out = self.python_interpreter.run_code(code_text)
@@ -331,7 +354,12 @@ class ConsoleWindow(QtGui.QDialog):
         self.python_interpreter.out_history.append(['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time,unit)])
         self.update_output()
 
-
+    def handle_interactive_text(self):
+        code_text = self.interactive_text.get_text()
+        self.python_interpreter.out_history.append(['>> '+code_text])
+        self.interactive_text.set_text('')
+        out = self.python_interpreter.run_code(code_text)
+        self.update_output()
 
     def new_file(self):
         if self.check_saved_progress():

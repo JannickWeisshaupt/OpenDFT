@@ -128,13 +128,13 @@ However, a non-zero value for one such variable for one dataset will have preced
     def parse_input_file(self, filename):
         raise NotImplementedError()
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None):
+    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
         pseudos = self._copy_default_pseudos(crystal_structure)
         self._make_files_file(pseudos)
         file = self._make_input_file()
         self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points)
         file.close()
-        self._start_engine()
+        self._start_engine(blocking=blocking)
 
 
     def start_optical_spectrum(self, crystal_structure):
@@ -488,7 +488,7 @@ getden2  -1
                 file.write('    {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*band_point[0]))
             file.write("""tolwfr2  1.0d-12\nenunit2  1   """)
 
-    def _start_engine(self, filename='input.files'):
+    def _start_engine(self, filename='input.files',blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
@@ -502,6 +502,9 @@ getden2  -1
         self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
         os.chdir(self.project_directory)
+        if blocking:
+            while self.is_engine_running():
+                time.sleep(0.1)
 
     def _is_engine_running_custom_command(self, tasks):
         raise NotImplementedError

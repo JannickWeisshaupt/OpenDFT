@@ -241,7 +241,7 @@ triplet"""}
         crystal_structure = sst.CrystalStructure(crystal_base, atom_array,scale=scale)
         return crystal_structure
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None):
+    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
         try:
             os.remove(self.project_directory + self.working_dirctory + '/INFO.OUT')
         except Exception as e:
@@ -256,7 +256,7 @@ triplet"""}
             self._add_bs_to_tree(tree, band_structure_points)
         self._write_input_file(tree)
         time.sleep(0.05)
-        self._start_engine()
+        self._start_engine(blocking=blocking)
 
     def start_optical_spectrum(self,crystal_structure):
         self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
@@ -595,7 +595,7 @@ triplet"""}
 
             # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
 
-    def _start_engine(self):
+    def _start_engine(self,blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash',self.custom_command]
@@ -608,7 +608,9 @@ triplet"""}
 
         self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         os.chdir(self.project_directory)
-
+        if blocking:
+            while self.is_engine_running():
+                time.sleep(0.1)
     #
     # def read_engine_status(self):
     #     if not self.is_engine_running():

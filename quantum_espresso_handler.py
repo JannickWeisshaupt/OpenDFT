@@ -180,7 +180,7 @@ performed in this run"""}
     def parse_input_file(self, filename):
         raise NotImplementedError()
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None):
+    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
         if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
 
@@ -188,7 +188,7 @@ performed in this run"""}
         file = self._make_input_file()
         self._add_scf_to_file(file,crystal_structure)
         file.close()
-        self._start_engine()
+        self._start_engine(blocking=blocking)
 
         if band_structure_points is not None:
             def run_bs():
@@ -197,7 +197,7 @@ performed in this run"""}
                 file = self._make_input_file(filename='bands.in')
                 self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
                 file.close()
-                self._start_engine(filename='bands.in')
+                self._start_engine(filename='bands.in',blocking=blocking)
 
 
             t = threading.Thread(target=run_bs)
@@ -508,7 +508,7 @@ performed in this run"""}
                                                shell=True,preexec_fn=os.setpgrp)
         os.chdir(self.project_directory)
 
-    def _start_engine(self,filename='scf.in'):
+    def _start_engine(self,filename='scf.in',blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
@@ -522,6 +522,10 @@ performed in this run"""}
 
         self.engine_process = subprocess.Popen("exec "+final_command[0], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
         os.chdir(self.project_directory)
+        if blocking:
+            while self.is_engine_running():
+                time.sleep(0.1)
+
 
     def _is_engine_running_custom_command(self,tasks):
         raise NotImplementedError
