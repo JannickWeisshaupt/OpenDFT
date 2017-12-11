@@ -17,6 +17,7 @@ import threading
 from collections import OrderedDict
 import logging
 import syntax
+import re
 
 try:
     import queue
@@ -300,10 +301,24 @@ class ConsoleWindow(QtGui.QDialog):
         run_code_action.triggered.connect(self.run_code)
         self.run_menu.addAction(run_code_action)
 
+        run_selection_action = QtGui.QAction("Run cell", self)
+        run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
+        run_selection_action.setShortcut("F7")
+        run_selection_action.triggered.connect(self.run_cell)
+        self.run_menu.addAction(run_selection_action)
+
+        run_selection_action = QtGui.QAction("Run cell and jump", self)
+        run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
+        run_selection_action.setShortcut("F8")
+        run_selection_action.triggered.connect(lambda: self.run_cell(jump=True))
+        self.run_menu.addAction(run_selection_action)
+
         run_selection_action = QtGui.QAction("Run selection", self)
         run_selection_action.setShortcut("F9")
         run_selection_action.triggered.connect(self.run_selection)
         self.run_menu.addAction(run_selection_action)
+
+
 
 
     def update_output(self):
@@ -313,13 +328,8 @@ class ConsoleWindow(QtGui.QDialog):
         else:
             final_pos = cur_pos
 
-        history = [item for sublist in self.python_interpreter.out_history for item in sublist if len(item)>0] # collapse list of list to one linst
-
-
-
-        history = [el.replace(u"\u2029",'\n') for el in history]
+        history = [item.replace(u"\u2029",'\n') for sublist in self.python_interpreter.out_history for item in sublist if len(item)>0] # collapse list of list to one list
         out_text = u'\n'.join(history)
-        # out_text_conv = ''.join([i if ord(i) < 128 else ' ' for i in out_text])
         self.output_text_widget.setPlainText(out_text)
         if final_pos is None:
             final_pos = self.output_scrollbar.maximum()
@@ -331,6 +341,33 @@ class ConsoleWindow(QtGui.QDialog):
         code_text = cursor.selectedText().replace(u"\u2029",'\n')
         out = self.python_interpreter.run_code(code_text)
         self.update_output()
+
+    def run_cell(self,jump=False):
+        cursor = self.input_text_widget.textCursor()
+        code_text = self.input_text_widget.toPlainText()
+        cells = code_text.split('##')
+        y = cursor.blockNumber()
+        code_split = code_text.split('\n')
+        del_pos = [i for i,x in enumerate(code_split) if '##' in x]
+        tr = [i+1 for i,x in enumerate(del_pos) if x<=y]
+        if len(tr) == 0:
+            sel_cell = 0
+        else:
+            sel_cell = max(tr)
+        out = self.python_interpreter.run_code(cells[sel_cell])
+        self.update_output()
+        if jump:
+            index = 0
+            regex = QtCore.QRegExp('##')
+            for i in range(sel_cell+1):
+                res = regex.indexIn(code_text , index)
+                if res <0:
+                    break
+                else:
+                    index = res +2
+            cursor.setPosition(index)
+            self.input_text_widget.setTextCursor(cursor)
+
 
     def run_code(self):
         # self.python_interpreter.out_history.append(['------- Code execution started -------'])
