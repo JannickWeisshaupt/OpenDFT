@@ -229,7 +229,7 @@ class ConsoleWindow(QtGui.QDialog):
         super(ConsoleWindow, self).__init__(parent)
 
         self.setMinimumSize(1000,800)
-
+        self.parent = parent
         self.main_layout = QtGui.QVBoxLayout(self)
         self.make_menubar()
 
@@ -237,26 +237,27 @@ class ConsoleWindow(QtGui.QDialog):
         self.main_layout.addWidget(self.splitter)
 
         self.input_text_widget = QtGui.QTextEdit(self)
-        self.input_text_widget.setFontFamily('monospace')
+        self.input_text_widget.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
         highlight = syntax.PythonHighlighter(self.input_text_widget.document())
         self.input_scrollbar = self.input_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.input_text_widget)
 
         self.output_text_widget = QtGui.QTextBrowser(self)
-        self.output_text_widget.setFontFamily('monospace')
+        self.output_text_widget.setStyleSheet('QTextBrowser { font-size: 10pt; font-family: monospace; }')
         self.output_scrollbar = self.output_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.output_text_widget)
 
         self.python_interpreter = PythonTerminal({})
 
-        self.button_frame = QtGui.QWidget(self)
-        self.main_layout.addWidget(self.button_frame)
-        self.button_layout = QtGui.QHBoxLayout(self.button_frame)
-        self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
-        self.run_button = QtGui.QPushButton('Run')
-        self.run_button.clicked.connect(self.run_code)
-        self.run_button.setFixedWidth(100)
-        self.button_layout.addWidget(self.run_button)
+        # self.button_frame = QtGui.QWidget(self)
+        # self.main_layout.addWidget(self.button_frame)
+        # self.button_layout = QtGui.QHBoxLayout(self.button_frame)
+        # self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
+        # self.run_button = QtGui.QPushButton('Run')
+        # self.run_button.clicked.connect(self.run_code)
+        # self.run_button.setFixedWidth(100)
+        #
+        # self.button_layout.addWidget(self.run_button)
 
         self.saved_code = ''
         self.saved_code_filename = None
@@ -287,11 +288,50 @@ class ConsoleWindow(QtGui.QDialog):
         save_as_file_action.triggered.connect(lambda: self.save_code(ask_filename=True))
         self.file_menu.addAction(save_as_file_action)
 
-    def run_code(self):
-        code_text = self.input_text_widget.toPlainText()
-        out = self.python_interpreter.run_code(code_text)
-        history = [item for sublist in self.python_interpreter.out_history for item in sublist]
+        self.run_menu = self.menu_bar.addMenu('&Run')
+        run_code_action = QtGui.QAction("Run code", self)
+        run_code_action.setShortcut("F5")
+        run_code_action.triggered.connect(self.run_code)
+        self.run_menu.addAction(run_code_action)
+
+
+    def update_output(self):
+        cur_pos = self.output_scrollbar.value()
+        if cur_pos == self.output_scrollbar.maximum():
+            final_pos = None
+        else:
+            final_pos = cur_pos
+
+        history = [item for sublist in self.python_interpreter.out_history for item in sublist] # collapse list of list to one linst
         self.output_text_widget.setPlainText('\n'.join(history))
+        if final_pos is None:
+            final_pos = self.output_scrollbar.maximum()
+        self.output_scrollbar.setValue(final_pos)
+        QtGui.QApplication.processEvents()
+
+    def run_code(self):
+        self.python_interpreter.out_history.append(['------- Code execution started -------'])
+        self.update_output()
+        code_text = self.input_text_widget.toPlainText()
+        s_time = time.time()
+        out = self.python_interpreter.run_code(code_text)
+        run_time = time.time() - s_time
+        if run_time < 600:
+            unit = 's'
+            show_time = run_time
+        elif run_time < 6000:
+            show_time = run_time/60
+            unit = 'min'
+        elif run_time < 60**2*50:
+            show_time = run_time/60**2
+            unit = 'h'
+        else:
+            show_time = run_time/60**2/24
+            unit = 'days'
+        self.python_interpreter.out_history.append(['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time,unit)])
+        self.update_output()
+
+
 
     def new_file(self):
         if self.check_saved_progress():
@@ -1755,6 +1795,7 @@ class CentralWindow(QtGui.QWidget):
                 project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
+            QtCore.QTimer.singleShot(510, self.open_scripting_console)
 
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
@@ -2248,5 +2289,8 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-    main.open_scripting_console()
+
+    app.setWindowIcon(QtGui.QIcon('icon.ico'))
+    main.setWindowIcon(QtGui.QIcon('icon.ico'))
+
     app.exec_()
