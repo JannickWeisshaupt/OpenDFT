@@ -18,6 +18,7 @@ from collections import OrderedDict
 import logging
 import syntax
 import re
+import matplotlib.pyplot as plt
 
 try:
     import queue
@@ -239,7 +240,19 @@ class ConsoleWindow(QtGui.QDialog):
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
 
-        self.input_text_widget = QtGui.QTextEdit(self)
+        class CodingTextEdit(QtGui.QTextEdit):
+            # TODO replace tab be some nice functionality (4 spaces + multiselect)
+            def __init__(self,*args,**kwargs):
+                super(CodingTextEdit,self).__init__(*args,**kwargs)
+
+            # def keyPressEvent(self, event):
+            #     cursor = self.textCursor()
+            #     if event.key() == QtCore.Qt.Key_Tab:
+            #         event.accept()
+            #         print('tab was pressed')
+            #     event.accept()
+
+        self.input_text_widget = CodingTextEdit(self)
         self.input_text_widget.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
         highlight = syntax.PythonHighlighter(self.input_text_widget.document())
         self.input_scrollbar = self.input_text_widget.verticalScrollBar()
@@ -272,15 +285,54 @@ class ConsoleWindow(QtGui.QDialog):
 
         self.python_interpreter = PythonTerminal({})
 
-        # self.button_frame = QtGui.QWidget(self)
-        # self.main_layout.addWidget(self.button_frame)
-        # self.button_layout = QtGui.QHBoxLayout(self.button_frame)
-        # self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
-        # self.run_button = QtGui.QPushButton('Run')
-        # self.run_button.clicked.connect(self.run_code)
-        # self.run_button.setFixedWidth(100)
-        #
-        # self.button_layout.addWidget(self.run_button)
+        self.welcome_text = """# Welcome to the OpenDFT scripting console
+#
+# You can normally use python to script here in addition to OpenDFT objects that can be
+# used to calculate electronic properties and visualize them. The structure, engine options etc. are loaded, when the
+# scripting window is opened and can be changed within the script.
+#
+# Predefined variables:
+# 
+# engine: Dft engine object that can be used to calculate electronic properties 
+#
+# structure: crystal or molecular structure
+#
+# plot_structure()
+#
+# Following is an example how to find the optimal cell scale (with very few steps for faster run-time)
+#
+atoms = np.zeros((2,4)) # Define atomic positions in the structure
+atoms[0,:] = [0,0,0,14]
+atoms[1,:] = [0.25,0.25,0.25,14]
+
+energies = []
+scales = np.linspace(8,12,5) # Fcc cell scale in bohr
+scales_succes = []
+
+for scale in scales:
+  lattice_vectors = (np.ones((3,3))-np.eye(3))*0.5*scale # set lattice vectors
+  structure = CrystalStructure(lattice_vectors,atoms)
+  plot_structure(structure) # plot the structure in the main window
+  engine.start_ground_state(structure,blocking=True) # start the calculation
+
+  try:
+    scf_list = engine.read_scf_status() # Read the full list of scf energies
+    energies.append(scf_list[-1,1]) # append only the last to the energies list
+    scales_succes.append(scale)
+  except Exception as e:
+    print(repr(e))
+
+print('Emin = {0:1.2f}'.format(min(energies)))
+optimal_scale = scales_succes[energies.index(min(energies))]
+print('Optimal cell scale = {0:1.2f}'.format(optimal_scale))
+ 
+## Plot with matplotlib
+plt.figure(1)
+plt.clf()
+plt.plot(scales_succes,energies,'k',linewidth=2)
+plt.show()
+        """
+        self.input_text_widget.setPlainText(self.welcome_text)
 
         self.saved_code = ''
         self.saved_code_filename = None
@@ -335,8 +387,6 @@ class ConsoleWindow(QtGui.QDialog):
         run_selection_action.setShortcut("F9")
         run_selection_action.triggered.connect(self.run_selection)
         self.run_menu.addAction(run_selection_action)
-
-
 
     def update_output(self):
         cur_pos = self.output_scrollbar.value()
@@ -395,7 +445,6 @@ class ConsoleWindow(QtGui.QDialog):
                     index = res +2
             cursor.setPosition(index)
             self.input_text_widget.setTextCursor(cursor)
-
 
     def run_code(self):
         # self.python_interpreter.out_history.append(['------- Code execution started -------'])
@@ -2338,6 +2387,7 @@ class CentralWindow(QtGui.QWidget):
         result_window.show()
 
     def open_scripting_console(self):
+        self.dft_engine_window.read_all_option_widgets()
         self.console_window.show()
 
         def update_gui(structure):
@@ -2345,7 +2395,7 @@ class CentralWindow(QtGui.QWidget):
             self.mayavi_widget.update_plot()
             QtGui.QApplication.processEvents()
 
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui}
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):

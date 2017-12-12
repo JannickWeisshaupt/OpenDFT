@@ -557,7 +557,7 @@ performed in this run"""}
             os.mkdir(self.project_directory+self.pseudo_directory)
 
         for atom in atoms_names:
-            file = atom+'.pseudo'
+            file = atom.title()+'.pseudo'
             filepath = self.project_directory+self.pseudo_directory+file
             if not os.path.isfile(filepath):
                 copyfile(installation_folder+'/data/pseudos/qe/'+file,filepath)
