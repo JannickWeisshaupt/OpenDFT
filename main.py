@@ -250,8 +250,24 @@ class ConsoleWindow(QtGui.QDialog):
         self.output_scrollbar = self.output_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.output_text_widget)
 
-        self.interactive_text = EntryWithLabel(self,'>>',width_label=50,width_text=None)
-        self.interactive_text.textbox.returnPressed.connect(self.handle_interactive_text)
+        class InteractiveText(EntryWithLabel):
+            def __init__(self,*args,**kwargs):
+                super(InteractiveText,self).__init__(*args,**kwargs)
+                self.parent = args[0]
+
+            def keyPressEvent(self, event):
+                if event.key() in [QtCore.Qt.Key_Enter,QtCore.Qt.Key_Return]:
+                    self.parent.handle_interactive_text()
+                elif event.key() == QtCore.Qt.Key_Up:
+                    self.parent.history_move(1)
+                elif event.key() == QtCore.Qt.Key_Down:
+                    self.parent.history_move(-1)
+                else:
+                    event.accept()
+
+        self.interactive_text =InteractiveText(self,'>>',width_label=50,width_text=None)
+        # self.interactive_text.textbox.returnPressed.connect(self.handle_interactive_text)
+        self.interactive_text.textbox.setStyleSheet('font-size: 10pt; font-family: monospace; ')
         self.main_layout.addWidget(self.interactive_text)
 
         self.python_interpreter = PythonTerminal({})
@@ -268,6 +284,8 @@ class ConsoleWindow(QtGui.QDialog):
 
         self.saved_code = ''
         self.saved_code_filename = None
+        self.interactive_history = []
+        self.current_history_element = -1
 
     def make_menubar(self):
         self.menu_bar = QtGui.QMenuBar(self)
@@ -320,7 +338,6 @@ class ConsoleWindow(QtGui.QDialog):
 
 
 
-
     def update_output(self):
         cur_pos = self.output_scrollbar.value()
         if cur_pos == self.output_scrollbar.maximum():
@@ -335,6 +352,17 @@ class ConsoleWindow(QtGui.QDialog):
             final_pos = self.output_scrollbar.maximum()
         self.output_scrollbar.setValue(final_pos)
         QtGui.QApplication.processEvents()
+
+    def history_move(self,x):
+        self.current_history_element += x
+        if self.current_history_element <0:
+            self.current_history_element = -1
+        elif self.current_history_element >= len(self.interactive_history):
+            self.current_history_element = len(self.interactive_history) -1
+        if self.current_history_element < 0:
+            self.interactive_text.set_text('')
+        else:
+            self.interactive_text.set_text(self.interactive_history[self.current_history_element])
 
     def run_selection(self):
         cursor = self.input_text_widget.textCursor()
@@ -397,6 +425,8 @@ class ConsoleWindow(QtGui.QDialog):
         self.interactive_text.set_text('')
         out = self.python_interpreter.run_code(code_text)
         self.update_output()
+        self.interactive_history.insert(0,code_text)
+        self.current_history_element = -1
 
     def new_file(self):
         if self.check_saved_progress():
