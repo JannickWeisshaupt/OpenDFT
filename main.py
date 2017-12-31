@@ -293,13 +293,17 @@ class ConsoleWindow(QtGui.QDialog):
 #
 # Predefined variables:
 # 
-# engine: Dft engine object that can be used to calculate electronic properties 
+# engine:           Dft engine object that can be used to calculate electronic properties. 
 #
-# structure: crystal or molecular structure
+# structure:        crystal or molecular structure from the main application. 
+#                   If you defined a structure with the main window you can directly use it here.
 #
-# plot_structure()
+# plot_structure:   Function that updates the plot in the main window.
 #
-# Following is an example how to find the optimal cell scale (with very few steps for faster run-time)
+# Use the help function to learn more about the variables, 
+# e.g. help(engine) and help(engine.start_ground_state) should be quite helpful
+#
+# Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
 #
 atoms = np.zeros((2,4)) # Define atomic positions in the structure
 atoms[0,:] = [0,0,0,14]
@@ -334,7 +338,7 @@ plt.show()
         """
         self.input_text_widget.setPlainText(self.welcome_text)
 
-        self.saved_code = ''
+        self.saved_code = self.welcome_text
         self.saved_code_filename = None
         self.interactive_history = []
         self.current_history_element = -1
@@ -2395,7 +2399,8 @@ class CentralWindow(QtGui.QWidget):
             self.mayavi_widget.update_plot()
             QtGui.QApplication.processEvents()
 
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure}
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure,
+                       'MolecularStructure':sst.MolecularStructure}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):

@@ -36,6 +36,7 @@ def convert_greek(input):
 
 
 class Handler:
+    """Main class for interacting with the electronic structure calculation engine EXCITING."""
     def __init__(self):
         self.engine_name = 'exciting'
         self.default_extension = '.xml'
@@ -242,6 +243,21 @@ triplet"""}
         return crystal_structure
 
     def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
+        """This method starts a ground state calculation in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                Must be a list of two component lists as following:
+                                [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                Default: None
+
+    - blocking:                 Determines whether the function call will block the main process or run in the background.
+                                Helpful when looping over different calculations in the builtin python terminal.
+                                Default: False
+        """
         try:
             os.remove(self.project_directory + self.working_dirctory + '/INFO.OUT')
         except Exception as e:
