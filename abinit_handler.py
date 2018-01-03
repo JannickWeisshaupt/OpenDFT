@@ -140,7 +140,7 @@ However, a non-zero value for one such variable for one dataset will have preced
     def start_optical_spectrum(self, crystal_structure):
         raise NotImplementedError
 
-    def start_gw(self, crystal_structure, band_structure_points=None):
+    def start_gw(self, crystal_structure, band_structure_points=None,blocking=False):
         raise NotImplementedError
 
     def start_phonon(self, crystal_structure, band_structure_points):

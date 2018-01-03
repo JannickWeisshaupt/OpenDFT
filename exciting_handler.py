@@ -257,6 +257,8 @@ Keyword Args:
     - blocking:                 Determines whether the function call will block the main process or run in the background.
                                 Helpful when looping over different calculations in the builtin python terminal.
                                 Default: False
+Returns:
+    - None
         """
         try:
             os.remove(self.project_directory + self.working_dirctory + '/INFO.OUT')
@@ -275,6 +277,16 @@ Keyword Args:
         self._start_engine(blocking=blocking)
 
     def start_optical_spectrum(self,crystal_structure):
+        """This method starts a optical spectrum calculation in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Returns:
+    - None
+
+        """
+
         self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
         self._read_timestamps()
         self.current_output_file = 'INFOXS.OUT'
@@ -286,7 +298,24 @@ Keyword Args:
         time.sleep(0.05)
         self._start_engine()
 
-    def start_gw(self,crystal_structure,band_structure_points=None):
+    def start_gw(self,crystal_structure,band_structure_points=None,blocking=False):
+        """This method starts a g0w0 calculation in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                Must be a list of two component lists as following:
+                                [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                Default: None
+
+    - blocking:                 Determines whether the function call will block the main process or run in the background.
+                                Helpful when looping over different calculations in the builtin python terminal.
+                                Default: False
+Returns:
+    - None
+        """
         self._read_timestamps()
         self.current_output_file = 'GW_INFO.OUT'
         tree = self._make_tree()
@@ -295,7 +324,7 @@ Keyword Args:
         self._write_input_file(tree)
 
         def first_round():
-            self._start_engine()
+            self._start_engine(blocking=blocking)
             if self.custom_command_active:
                 while self.is_engine_running(tasks=['g0w0']):
                     time.sleep(1)
@@ -307,12 +336,25 @@ Keyword Args:
                 self._add_gw_to_tree(tree, taskname='band')
                 self._add_bs_to_tree(tree, band_structure_points)
                 self._write_input_file(tree)
-                self._start_engine()
+                self._start_engine(blocking=blocking)
 
         t = threading.Thread(target=first_round)
         t.start()
 
     def start_phonon(self, crystal_structure, band_structure_points):
+        """This method starts a phonon bandstructure calculation in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+    - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                Must be a list of two component lists as following:
+                                [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                Default: None
+
+Returns:
+    - None
+        """
         self._read_timestamps()
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
@@ -322,6 +364,14 @@ Keyword Args:
         self._start_engine()
 
     def start_relax(self,crystal_structure):
+        """This method starts a structure relaxation calculation in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Returns:
+    - None
+        """
         self._read_timestamps()
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
@@ -331,6 +381,11 @@ Keyword Args:
         self._start_engine()
 
     def load_relax_structure(self):
+        """This method loads the result of a relaxation calculation, which is a molecular or crystal structure.
+
+Returns:
+    - CrystalStructure or MolecularStructure object depending on the material under study.
+        """
         file = self.project_directory+self.working_dirctory + 'geometry_opt.xml'
         if not os.path.isfile(file):
             return None
@@ -341,6 +396,11 @@ Keyword Args:
         return struc
 
     def read_scf_status(self):
+        """This method reads the result of a self consistent ground state calculation.
+
+Returns:
+    - res: Nx2 numpy array with iteration number and scf energy in the first and second column respectively.
+        """
         try:
             f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
@@ -365,6 +425,18 @@ Keyword Args:
         return res
 
     def read_bandstructure(self,crystal_structure=None,special_k_points=None):
+        """This method reads the result of a electronic band structure calculation.
+
+Keyword args:
+    - crystal_structure:    For some engines the crystal structure must be re-supplied.
+                            Default: None
+
+    - special_k_points:     For some engines the special k-points must be re-supplied
+                            Default: None
+
+Returns:
+    - band_structure:       A BandStructure object with the latest band structure result found.
+        """
         try:
             e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:

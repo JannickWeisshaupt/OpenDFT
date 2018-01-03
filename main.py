@@ -233,6 +233,7 @@ class ConsoleWindow(QtGui.QDialog):
         super(ConsoleWindow, self).__init__(parent)
 
         self.setMinimumSize(1000,800)
+        self.resize(1200,800)
         self.parent = parent
         self.main_layout = QtGui.QVBoxLayout(self)
         self.make_menubar()
