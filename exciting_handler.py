@@ -476,6 +476,14 @@ Returns:
         return sst.BandStructure(bands, special_k_points=special_k_points_together)
 
     def read_gw_bandstructure(self,filename='BAND-QP.OUT'):
+        """This method reads the result of a gw electronic band structure calculation.
+
+Keyword args:
+    - filename:             filename to be read.
+
+Returns:
+    - band_structure:       A BandStructure object with the latest band structure result found.
+        """
         band_structure = self.read_bandstructure()
         band_qp = np.loadtxt(self.project_directory + self.working_dirctory + filename)
         k_qp = band_qp[:, 0]
@@ -497,7 +505,11 @@ Returns:
         return sst.BandStructure(bands_qp,special_k_points=band_structure.special_k_points)
 
     def read_phonon_bandstructure(self):
+        """This method reads the result of a phonon band structure calculation.
 
+Returns:
+    - band_structure:       A BandStructure object with the latest phonon band structure result found.
+        """
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
     def read_optical_spectrum(self):
