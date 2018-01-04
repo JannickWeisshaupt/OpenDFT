@@ -8,8 +8,9 @@ OpenDFT is designed to be DFT engine agnostic so that you can easily switch betw
 * exciting
 * nwchem
 * QuantumEspresso
+* abinit
 
-We working on supporting more open source packages such as for example abinit and siesta.
+We are working on supporting more open source packages such as for example siesta.
 
 ### Installing
 

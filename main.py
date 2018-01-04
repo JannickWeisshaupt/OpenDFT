@@ -2423,7 +2423,7 @@ class CentralWindow(QtGui.QWidget):
             self.vis_menu.setEnabled(True)
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
