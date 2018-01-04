@@ -237,6 +237,8 @@ class ConsoleWindow(QtGui.QDialog):
         self.parent = parent
         self.main_layout = QtGui.QVBoxLayout(self)
         self.make_menubar()
+        self.custom_window_title = 'OpenDFT Python scripting '
+        self.setWindowTitle(self.custom_window_title)
 
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
@@ -428,7 +430,7 @@ plt.show()
     def run_cell(self,jump=False):
         cursor = self.input_text_widget.textCursor()
         code_text = self.input_text_widget.toPlainText()
-        cells = code_text.split('##')
+        cells = re.split('##[^#\n]*\n',code_text)
         y = cursor.blockNumber()
         code_split = code_text.split('\n')
         del_pos = [i for i,x in enumerate(code_split) if '##' in x]
@@ -504,28 +506,30 @@ plt.show()
         if not self.check_saved_progress():
             return
 
-        file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')
+        file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')[0]
         if not file_name:
             return
-        with open(file_name[0],'r') as f:
+        with open(file_name,'r') as f:
             text = f.read()
         self.input_text_widget.setPlainText(text)
         self.saved_code = text
         self.saved_code_filename = file_name
+        self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
     def save_code(self,ask_filename=False):
         if self.saved_code_filename is None or ask_filename:
-            file_name = QtGui.QFileDialog.getSaveFileName(self, 'Save File')
+            file_name = QtGui.QFileDialog.getSaveFileName(self, 'Save File')[0]
         else:
             file_name = self.saved_code_filename
 
         if not file_name:
             return
         code = self.input_text_widget.toPlainText()
-        with open(file_name[0], 'w') as f:
+        with open(file_name, 'w') as f:
             f.write(code)
         self.saved_code_filename = file_name
         self.saved_code = code
+        self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
 
 class LoadResultsWindow(QtGui.QDialog):
@@ -758,8 +762,6 @@ class DftEngineWindow(QtGui.QWidget):
         self.check_if_engine_is_running_and_warn_if_so()
         self.check_engine_for_compatibility(tasks)
         self.read_all_option_widgets()
-
-
 
     def start_ground_state_calculation(self):
         tasks = []
@@ -2401,7 +2403,8 @@ class CentralWindow(QtGui.QWidget):
             QtGui.QApplication.processEvents()
 
         shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure,
-                       'MolecularStructure':sst.MolecularStructure}
+                       'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
+                       'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):

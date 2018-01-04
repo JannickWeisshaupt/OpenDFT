@@ -60,7 +60,7 @@ It is equipped with a detailed documentation of current developments, including 
 The interface with pre- and post-processing tools integrates the capabilities of exciting for specific tasks, such as calculating elastic constants [GOL-2013] and optical coefficients [VOR-2016], as well as performing a cluster expansion for, e.g., thermoelectric materials with large parent cells [TRO-2017]."""
 
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
-                           'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml'}
+                           'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml','optical spectrum': None}
 
         self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax','bandstructure'])
 
@@ -243,7 +243,7 @@ triplet"""}
         return crystal_structure
 
     def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
-        """This method starts a ground state calculation in a subprocess.
+        """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
 
 Args:
     - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
@@ -277,14 +277,13 @@ Returns:
         self._start_engine(blocking=blocking)
 
     def start_optical_spectrum(self,crystal_structure):
-        """This method starts a optical spectrum calculation in a subprocess.
+        """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
 
 Args:
     - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
 
 Returns:
     - None
-
         """
 
         self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
@@ -299,7 +298,7 @@ Returns:
         self._start_engine()
 
     def start_gw(self,crystal_structure,band_structure_points=None,blocking=False):
-        """This method starts a g0w0 calculation in a subprocess.
+        """This method starts a g0w0 calculation in a subprocess. The configuration is stored in gw_options.
 
 Args:
     - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
@@ -342,7 +341,7 @@ Returns:
         t.start()
 
     def start_phonon(self, crystal_structure, band_structure_points):
-        """This method starts a phonon bandstructure calculation in a subprocess.
+        """This method starts a phonon bandstructure calculation in a subprocess. The configuration is stored in phonons_options.
 
 Args:
     - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
@@ -364,7 +363,7 @@ Returns:
         self._start_engine()
 
     def start_relax(self,crystal_structure):
-        """This method starts a structure relaxation calculation in a subprocess.
+        """This method starts a structure relaxation calculation in a subprocess. The configuration is stored in relax_options.
 
 Args:
     - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
@@ -513,6 +512,11 @@ Returns:
         return self.read_gw_bandstructure(filename='PHDISP.OUT')
 
     def read_optical_spectrum(self):
+        """This method reads the result of a optical spectrum calculation.
+
+Returns:
+    - optical_spectrum:       A OpticalSpectrum object with the latest optical spectrum result found.
+        """
         eps_11 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
         eps_22 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
         eps_33 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
@@ -521,10 +525,14 @@ Returns:
         list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
         list_of_eps1 = [eps_11[:,1],eps_22[:,1],eps_33[:,1]]
 
-
         return sst.OpticalSpectrum(eps_11[:,0]*hartree,list_of_eps2,epsilon1=list_of_eps1)
 
     def read_ks_state(self):
+        """This method reads the result of a electronic state calculation and returns the modulo squared of the wavefunction.
+
+Returns:
+    - ks_density:       A KohnShamDensity or MolecularDensity object with the latest result found.
+        """
         self._convert_3d_plot()
         l_data = np.genfromtxt(self.project_directory + self.working_dirctory + 'WF3D.xsf', skip_header=9, skip_footer=2, dtype=np.float)
         n_grid = l_data.shape[1]
@@ -539,6 +547,21 @@ Returns:
         return sst.KohnShamDensity(data)
 
     def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
+        """This method starts a calculation of a specific electronic state in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+    - bs_point:                 Index of the k point and band of the state that should be calculated. Should be a list with [k,n].
+                                In case of a molcular calculation the k index must still be supplied but is not used.
+
+Keyword Args:
+    - grid:                     Determines the spatial grid to be used. Must be a string that is valid for the respective engine.
+                                Default: '40 40 40'
+
+Returns:
+    - None
+                """
         self._read_timestamps()
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure, skip=True)
@@ -546,17 +569,39 @@ Returns:
         self._write_input_file(tree)
         self._start_engine()
 
-    def calculate_electron_density(self, crystal_structure):
-        # TODO implement this
+    def calculate_electron_density(self, crystal_structure, grid='40 40 40'):
+        """This method starts a calculation of the total (pseudo-) electron density in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - grid:                     Determines the spatial grid to be used. Must be a string that is valid for the respective engine.
+                                Default: '40 40 40'
+
+Returns:
+    - None
+                """
+        # TODO the total energy density calculation for exciting (if possible)
         raise NotImplementedError
 
     def kill_engine(self):
+        """Stops the execution of the engine process. Only possible for local execution and not in case of cluster calculation"""
         try:
             self.engine_process.kill()
         except Exception as e:
             print(e)
 
     def is_engine_running(self,tasks=None):
+        """Determines whether the engine is currently running.
+
+Keyword args:
+    - tasks:    List of tasks that are supposed to be running. Must be supplied when the calculations run on a cluster.
+                Possible tasks are: ['bandstructure', 'relax', 'ks density', 'scf', 'g0w0', 'g0w0 bands', 'optical spectrum']
+
+Returns:
+    - res:      Boolean result. True: engine is running. False: engine is not running.
+"""
         if self.custom_command_active:
             return self._is_engine_running_custom_command(tasks)
         else:
@@ -574,6 +619,7 @@ Returns:
             return True
 
     def reset_to_defaults(self):
+        """Reset all configurations to their defaults."""
         default_handler = Handler()
         self.scf_options.update(default_handler.scf_options)
         self.gw_options.update(default_handler.gw_options)
@@ -669,7 +715,7 @@ Returns:
 
     def _read_timestamps(self):
         for task,filename in self._filenames_tasks.items():
-            if os.path.isfile(self.project_directory+self.working_dirctory+filename):
+            if filename and os.path.isfile(self.project_directory+self.working_dirctory+filename):
                 self._timestamp_tasks[task]=os.path.getmtime(self.project_directory + self.working_dirctory + filename)
 
     def _check_if_scf_is_finished(self):

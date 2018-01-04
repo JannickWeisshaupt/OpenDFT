@@ -129,6 +129,23 @@ However, a non-zero value for one such variable for one dataset will have preced
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
+        """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                Must be a list of two component lists as following:
+                                [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                Default: None
+
+    - blocking:                 Determines whether the function call will block the main process or run in the background.
+                                Helpful when looping over different calculations in the builtin python terminal.
+                                Default: False
+Returns:
+    - None
+        """
         pseudos = self._copy_default_pseudos(crystal_structure)
         self._make_files_file(pseudos)
         file = self._make_input_file()
@@ -138,15 +155,61 @@ However, a non-zero value for one such variable for one dataset will have preced
 
 
     def start_optical_spectrum(self, crystal_structure):
+        """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Returns:
+    - None
+        """
         raise NotImplementedError
 
     def start_gw(self, crystal_structure, band_structure_points=None,blocking=False):
+        """This method starts a g0w0 calculation in a subprocess. The configuration is stored in gw_options.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                Must be a list of two component lists as following:
+                                [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                Default: None
+
+    - blocking:                 Determines whether the function call will block the main process or run in the background.
+                                Helpful when looping over different calculations in the builtin python terminal.
+                                Default: False
+Returns:
+    - None
+        """
         raise NotImplementedError
 
     def start_phonon(self, crystal_structure, band_structure_points):
+        """This method starts a phonon bandstructure calculation in a subprocess. The configuration is stored in phonons_options.
+
+        Args:
+            - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+            - band_structure_points:    If supplied automatically triggers a calculation of the band structure of the material.
+                                        Must be a list of two component lists as following:
+                                        [[np.array([0,0,0]),'Gamma'],[np.array([0.5,0.5,0.5]),'W']]
+                                        Default: None
+
+        Returns:
+            - None
+                """
         raise NotImplementedError
 
     def start_relax(self, crystal_structure):
+        """This method starts a structure relaxation calculation in a subprocess. The configuration is stored in relax_options.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Returns:
+    - None
+        """
         if crystal_structure.n_atoms // 2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
         self._copy_default_pseudos(crystal_structure)
@@ -156,6 +219,11 @@ However, a non-zero value for one such variable for one dataset will have preced
         self._start_engine()
 
     def load_relax_structure(self):
+        """This method loads the result of a relaxation calculation, which is a molecular or crystal structure.
+
+Returns:
+    - CrystalStructure or MolecularStructure object depending on the material under study.
+        """
         file = self.project_directory + self.working_dirctory + self.info_file
         if not os.path.isfile(file):
             return None
@@ -206,6 +274,11 @@ However, a non-zero value for one such variable for one dataset will have preced
         return sst.CrystalStructure(lattice_vectors, atoms)
 
     def read_scf_status(self):
+        """This method reads the result of a self consistent ground state calculation.
+
+Returns:
+    - res: Nx2 numpy array with iteration number and scf energy in the first and second column respectively.
+        """
         try:
             f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
         except IOError:
@@ -225,6 +298,18 @@ However, a non-zero value for one such variable for one dataset will have preced
         return res
 
     def read_bandstructure(self, special_k_points=None,crystal_structure=None):
+        """This method reads the result of a electronic band structure calculation.
+
+Keyword args:
+    - crystal_structure:    For some engines the crystal structure must be re-supplied.
+                            Default: None
+
+    - special_k_points:     For some engines the special k-points must be re-supplied
+                            Default: None
+
+Returns:
+    - band_structure:       A BandStructure object with the latest band structure result found.
+        """
         try:
             f = open(self.project_directory + self.working_dirctory + u'/scf_xo_DS2_EIG', 'r')
         except IOError:
@@ -314,16 +399,39 @@ However, a non-zero value for one such variable for one dataset will have preced
 
         return sst.BandStructure(bands, special_k_points=special_k_points_out)
 
-    def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
+    def read_gw_bandstructure(self, filename=None):
+        """This method reads the result of a gw electronic band structure calculation.
+
+Keyword args:
+    - filename:             filename to be read.
+
+Returns:
+    - band_structure:       A BandStructure object with the latest band structure result found.
+        """
         raise NotImplementedError
 
     def read_phonon_bandstructure(self):
+        """This method reads the result of a phonon band structure calculation.
+
+Returns:
+    - band_structure:       A BandStructure object with the latest phonon band structure result found.
+        """
         raise NotImplementedError
 
     def read_optical_spectrum(self):
+        """This method reads the result of a optical spectrum calculation.
+
+Returns:
+    - optical_spectrum:       A OpticalSpectrum object with the latest optical spectrum result found.
+        """
         raise NotImplementedError
 
     def read_ks_state(self):
+        """This method reads the result of a electronic state calculation and returns the modulo squared of the wavefunction.
+
+Returns:
+    - ks_density:       A KohnShamDensity or MolecularDensity object with the latest result found.
+        """
         with open(self.project_directory+self.working_dirctory+'/density.out','r') as f:
             text = f.read()
 
@@ -351,6 +459,21 @@ However, a non-zero value for one such variable for one dataset will have preced
         return sst.KohnShamDensity(r_data)
 
     def calculate_ks_density(self, crystal_structure, bs_point):
+        """This method starts a calculation of a specific electronic state in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+    - bs_point:                 Index of the k point and band of the state that should be calculated. Should be a list with [k,n].
+                                In case of a molcular calculation the k index must still be supplied but is not used.
+
+Keyword Args:
+    - grid:                     Determines the spatial grid to be used. Must be a string that is valid for the respective engine.
+                                Default: '40 40 40'
+
+Returns:
+    - None
+                """
         with open(self.project_directory + self.working_dirctory + '/cut3d.in', 'w') as f:
             f.write("""scf_xo_DS2_WFK
 1
@@ -382,6 +505,18 @@ density
         os.chdir(self.project_directory)
 
     def calculate_electron_density(self, crystal_structure):
+        """This method starts a calculation of the total (pseudo-) electron density in a subprocess.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Keyword Args:
+    - grid:                     Determines the spatial grid to be used. Must be a string that is valid for the respective engine.
+                                Default: '40 40 40'
+
+Returns:
+    - None
+                """
         with open(self.project_directory+self.working_dirctory+'/cut3d.in','w') as f:
             f.write("""scf_xo_DS1_DEN
 1
@@ -396,6 +531,7 @@ density.out
         os.chdir(self.project_directory)
 
     def kill_engine(self):
+        """Stops the execution of the engine process. Only possible for local execution and not in case of cluster calculation"""
         try:
             self.engine_process.kill()
             # os.killpg(os.getpgid(self.engine_process.pid), signal.SIGTERM)
@@ -403,6 +539,15 @@ density.out
             print(e)
 
     def is_engine_running(self, tasks=None):
+        """Determines whether the engine is currently running.
+
+Keyword args:
+    - tasks:    List of tasks that are supposed to be running. Must be supplied when the calculations run on a cluster.
+                Possible tasks are: ['bandstructure', 'relax', 'ks density', 'scf', 'g0w0', 'g0w0 bands', 'optical spectrum']
+
+Returns:
+    - res:      Boolean result. True: engine is running. False: engine is not running.
+"""
         if self.custom_command_active:
             return self._is_engine_running_custom_command(tasks)
         else:
@@ -417,6 +562,7 @@ density.out
         return True
 
     def reset_to_defaults(self):
+        """Reset all configurations to their defaults."""
         default_handler = Handler()
         self.scf_options.update(default_handler.scf_options)
         self.gw_options.update(default_handler.gw_options)
