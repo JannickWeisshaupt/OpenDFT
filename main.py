@@ -1183,20 +1183,51 @@ class EngineOptionsDialog(QtGui.QDialog):
         self.grid_layout = QtGui.QGridLayout(self.grid_layout_widget)
 
         self.custom_command_checkbox = QtGui.QCheckBox('Use custom command', parent=self)
-        self.grid_layout.addWidget(self.custom_command_checkbox, 0, 0, 2, 1)
+        self.grid_layout.addWidget(self.custom_command_checkbox, 0, 0, 1, 1)
 
 
         self.load_custom_command_button = QtGui.QPushButton('Select command file',self)
         self.load_custom_command_button.setFixedWidth(150)
         self.load_custom_command_button.setFixedHeight(30)
         self.load_custom_command_button.clicked.connect(self.load_custom_command)
-        self.grid_layout.addWidget(self.load_custom_command_button,0, 1, 2, 1)
+        self.grid_layout.addWidget(self.load_custom_command_button,0, 1, 1, 1)
 
         self.filename_label = QtGui.QLabel(self.grid_layout_widget)
-        self.grid_layout.addWidget(self.filename_label, 2, 0, 1, 2)
+        self.grid_layout.addWidget(self.filename_label, 1, 0, 1, 2)
 
         self.species_path_entry = EntryWithLabel(self,'Dft engine path')
-        self.grid_layout.addWidget(self.species_path_entry, 3, 0, 1, 2)
+        self.grid_layout.addWidget(self.species_path_entry, 2, 0, 1, 2)
+
+        engine_label = QtGui.QLabel(self)
+        engine_label.setText('Current engine')
+        self.grid_layout.addWidget(engine_label,3,0,1,1)
+
+        current_engine_label = QtGui.QLabel(self)
+        current_engine_label.setText(esc_handler.engine_name)
+        self.grid_layout.addWidget(current_engine_label,3,1,1,1)
+
+
+        combo_label = QtGui.QLabel(self)
+        combo_label.setText('Engine at statup')
+        self.grid_layout.addWidget(combo_label,4,0,1,1)
+
+        self.ask_engine_combobox = QtGui.QComboBox(self)
+        self.grid_layout.addWidget(self.ask_engine_combobox,4,1,1,1)
+
+        self.startup_text = 'Ask at startup'
+        self.ask_engine_combobox.addItem(self.startup_text)
+        for handler in general_handler.handlers.keys():
+            self.ask_engine_combobox.addItem(handler)
+
+        def set_combo_by_text(combo,text):
+            index = combo.findText(text, QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                combo.setCurrentIndex(index)
+
+        if self.parent.defaults['default engine'] is None:
+            set_combo_by_text(self.ask_engine_combobox,self.startup_text)
+        else:
+            set_combo_by_text(self.ask_engine_combobox,self.parent.defaults['default engine'])
 
         self.verticalLayout = QtGui.QVBoxLayout(self)
         self.verticalLayout.addWidget(self.grid_layout_widget)
@@ -1211,6 +1242,13 @@ class EngineOptionsDialog(QtGui.QDialog):
         if len(species_path) > 0:
             self.parent.project_properties['custom dft folder'] = species_path
             esc_handler.dft_installation_folder = species_path
+
+        startup_text = self.ask_engine_combobox.currentText()
+        if startup_text == self.startup_text:
+            self.parent.defaults['default engine'] = None
+        else:
+            self.parent.defaults['default engine'] = startup_text
+
 
     def accept_own(self):
         self.apply()
