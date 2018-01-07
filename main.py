@@ -308,19 +308,17 @@ class ConsoleWindow(QtGui.QDialog):
 #
 # Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
 #
-atoms = np.zeros((2,4)) # Define atomic positions in the structure
-atoms[0,:] = [0,0,0,14]
-atoms[1,:] = [0.25,0.25,0.25,14]
+atoms = structure.atoms # Save the current atom information for future use
+lattice_vectors = structure.lattice_vectors # save the lattice vectors
 
 energies = []
-scales = np.linspace(8,12,5) # Fcc cell scale in bohr
+scales = np.linspace(0.8,1.2,5) # scale factor for unit cell
 scales_succes = []
 
 for scale in scales:
-  lattice_vectors = (np.ones((3,3))-np.eye(3))*0.5*scale # set lattice vectors
-  structure = CrystalStructure(lattice_vectors,atoms)
-  plot_structure(structure) # plot the structure in the main window
-  engine.start_ground_state(structure,blocking=True) # start the calculation
+  structure_temp = CrystalStructure(scale*lattice_vectors,atoms)
+  plot_structure(structure_temp) # plot the structure in the main window
+  engine.start_ground_state(structure_temp,blocking=True) # start the calculation
 
   try:
     scf_list = engine.read_scf_status() # Read the full list of scf energies
@@ -332,6 +330,8 @@ for scale in scales:
 print('Emin = {0:1.2f}'.format(min(energies)))
 optimal_scale = scales_succes[energies.index(min(energies))]
 print('Optimal cell scale = {0:1.2f}'.format(optimal_scale))
+
+plot_structure(structure) 
  
 ## Plot with matplotlib
 plt.figure(1)
