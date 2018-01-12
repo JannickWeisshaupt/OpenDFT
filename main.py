@@ -1239,7 +1239,7 @@ class EngineOptionsDialog(QtGui.QDialog):
         esc_handler.custom_command = self.filename_label.text()
         esc_handler.custom_command_active = bool(self.custom_command_checkbox.checkState())
         species_path = self.species_path_entry.get_text()
-        if len(species_path) > 0:
+        if len(species_path) > 0 and species_path != esc_handler.dft_installation_folder:
             self.parent.project_properties['custom dft folder'] = species_path
             esc_handler.dft_installation_folder = species_path
 
@@ -2043,6 +2043,7 @@ class CentralWindow(QtGui.QWidget):
             self.configure_buttons()
 
     def save_results(self):
+        # Todo move engine folder and custom command into engine specific dic
         try:
             self.dft_engine_window.read_all_option_widgets()
 
