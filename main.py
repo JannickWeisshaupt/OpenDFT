@@ -19,6 +19,7 @@ import logging
 import syntax
 import re
 import matplotlib.pyplot as plt
+import copy
 
 try:
     import queue
@@ -183,7 +184,7 @@ class MayaviQWidget(QtGui.QWidget):
         layout.addWidget(self.ui)
         self.ui.setParent(self)
 
-    def update_plot(self,keep_view = False):
+    def update_plot(self,keep_view=False):
         self.visualization.update_plot(keep_view=keep_view)
 
     def update_crystal_structure(self, crystal_structure):
@@ -239,6 +240,9 @@ class ConsoleWindow(QtGui.QDialog):
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
+
+        self.update_fields_timer = QtCore.QTimer()
+        self.update_fields_timer.timeout.connect(self.update_output)
 
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
@@ -341,6 +345,8 @@ plt.show()
         """
         self.input_text_widget.setPlainText(self.welcome_text)
 
+        self.last_history = None
+
         self.saved_code = self.welcome_text
         self.saved_code_filename = None
         self.interactive_history = []
@@ -372,10 +378,18 @@ plt.show()
         save_as_file_action.triggered.connect(lambda: self.save_code(ask_filename=True))
         self.file_menu.addAction(save_as_file_action)
 
+        self.code_thread = threading.Thread(target=self.run_code)
+
+        def start_code_thread():
+            if self.code_thread.is_alive():
+                return
+            self.code_thread = threading.Thread(target=self.run_code)
+            self.code_thread.start()
+
         self.run_menu = self.menu_bar.addMenu('&Run')
         run_code_action = QtGui.QAction("Run code", self)
         run_code_action.setShortcut("F5")
-        run_code_action.triggered.connect(self.run_code)
+        run_code_action.triggered.connect(start_code_thread)
         self.run_menu.addAction(run_code_action)
 
         run_selection_action = QtGui.QAction("Run cell", self)
@@ -396,6 +410,11 @@ plt.show()
         self.run_menu.addAction(run_selection_action)
 
     def update_output(self):
+        if self.last_history == self.python_interpreter.out_history:
+            return
+        else:
+            self.last_history = copy.deepcopy(self.python_interpreter.out_history)
+
         cur_pos = self.output_scrollbar.value()
         if cur_pos == self.output_scrollbar.maximum():
             final_pos = None
@@ -425,7 +444,7 @@ plt.show()
         cursor = self.input_text_widget.textCursor()
         code_text = cursor.selectedText().replace(u"\u2029",'\n')
         out = self.python_interpreter.run_code(code_text)
-        self.update_output()
+        # self.update_output()
 
     def run_cell(self,jump=False):
         cursor = self.input_text_widget.textCursor()
@@ -440,7 +459,7 @@ plt.show()
         else:
             sel_cell = max(tr)
         out = self.python_interpreter.run_code(cells[sel_cell])
-        self.update_output()
+        # self.update_output()
         if jump:
             index = 0
             regex = QtCore.QRegExp('##')
@@ -454,8 +473,6 @@ plt.show()
             self.input_text_widget.setTextCursor(cursor)
 
     def run_code(self):
-        # self.python_interpreter.out_history.append(['------- Code execution started -------'])
-        # self.update_output()
         code_text = self.input_text_widget.toPlainText()
         s_time = time.time()
         out = self.python_interpreter.run_code(code_text)
@@ -473,14 +490,14 @@ plt.show()
             show_time = run_time/60**2/24
             unit = 'days'
         self.python_interpreter.out_history.append(['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time,unit)])
-        self.update_output()
+        # self.update_output()
 
     def handle_interactive_text(self):
         code_text = self.interactive_text.get_text()
         self.python_interpreter.out_history.append(['>> '+code_text])
         self.interactive_text.set_text('')
         out = self.python_interpreter.run_code(code_text)
-        self.update_output()
+        # self.update_output()
         self.interactive_history.insert(0,code_text)
         self.current_history_element = -1
 
@@ -531,6 +548,13 @@ plt.show()
         self.saved_code = code
         self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
+    def show(self):
+        self.update_fields_timer.start(100)
+        super(ConsoleWindow, self).show()
+
+    def closeEvent(self,event):
+        self.update_fields_timer.stop()
+        event.accept()
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
@@ -1911,6 +1935,11 @@ class CentralWindow(QtGui.QWidget):
 
         self.temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
+        self.queue = queue.Queue()
+        self.queue_timer = QtCore.QTimer()
+        self.queue_timer.timeout.connect(self.handle_queue)
+        self.queue_timer.start(200)
+
         self.load_defaults()
 
         if self.defaults['default engine'] is None:
@@ -2436,12 +2465,12 @@ class CentralWindow(QtGui.QWidget):
         self.dft_engine_window.read_all_option_widgets()
         self.console_window.show()
 
-        def update_gui(structure):
-            self.mayavi_widget.update_crystal_structure(structure)
-            self.mayavi_widget.update_plot()
-            QtGui.QApplication.processEvents()
+        def add_plot_to_queue(structure):
+            q_item = {'taskname':'plot structure','structure':structure}
+            self.queue.put(q_item)
 
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':update_gui,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure,
+
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure,
                        'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
                        'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity}
         self.console_window.python_interpreter.update_vars(shared_vars)
@@ -2461,8 +2490,22 @@ class CentralWindow(QtGui.QWidget):
             self.import_structure_menu.setEnabled(True)
             self.vis_menu.setEnabled(True)
 
+    def handle_queue(self):
+        if self.queue.empty():
+            return
+
+        queue_item = self.queue.get()
+        taskname = queue_item['taskname']
+
+        if taskname == 'plot structure':
+            structure = queue_item['structure']
+            self.mayavi_widget.update_crystal_structure(structure)
+            self.mayavi_widget.update_plot()
+            QtGui.QApplication.processEvents()
+
+
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
