@@ -378,36 +378,42 @@ plt.show()
         save_as_file_action.triggered.connect(lambda: self.save_code(ask_filename=True))
         self.file_menu.addAction(save_as_file_action)
 
+        # Todo change this to multiprocessing process and use queue or pipe to move around information
         self.code_thread = threading.Thread(target=self.run_code)
 
-        def start_code_thread():
+        def start_code_thread(target):
             if self.code_thread.is_alive():
                 return
-            self.code_thread = threading.Thread(target=self.run_code)
+            self.code_thread = threading.Thread(target=target)
             self.code_thread.start()
 
         self.run_menu = self.menu_bar.addMenu('&Run')
         run_code_action = QtGui.QAction("Run code", self)
         run_code_action.setShortcut("F5")
-        run_code_action.triggered.connect(start_code_thread)
+        run_code_action.triggered.connect(lambda: start_code_thread(self.run_code))
         self.run_menu.addAction(run_code_action)
 
         run_selection_action = QtGui.QAction("Run cell", self)
         run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
         run_selection_action.setShortcut("F7")
-        run_selection_action.triggered.connect(self.run_cell)
+        run_selection_action.triggered.connect(lambda: start_code_thread(self.run_cell))
         self.run_menu.addAction(run_selection_action)
 
         run_selection_action = QtGui.QAction("Run cell and jump", self)
         run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
         run_selection_action.setShortcut("F8")
-        run_selection_action.triggered.connect(lambda: self.run_cell(jump=True))
+        run_selection_action.triggered.connect(lambda: start_code_thread(lambda: self.run_cell(jump=True)))
         self.run_menu.addAction(run_selection_action)
 
         run_selection_action = QtGui.QAction("Run selection", self)
         run_selection_action.setShortcut("F9")
-        run_selection_action.triggered.connect(self.run_selection)
+        run_selection_action.triggered.connect(lambda: start_code_thread(self.run_selection))
         self.run_menu.addAction(run_selection_action)
+
+        # terminate_execution_action = QtGui.QAction("Terminate execution", self)
+        # terminate_execution_action.setShortcut("F12")
+        # terminate_execution_action.triggered.connect(self.terminate_execution)
+        # self.run_menu.addAction(terminate_execution_action)
 
     def update_output(self):
         if self.last_history == self.python_interpreter.out_history:
@@ -500,6 +506,11 @@ plt.show()
         # self.update_output()
         self.interactive_history.insert(0,code_text)
         self.current_history_element = -1
+
+    def terminate_execution(self):
+        if self.code_thread.is_alive():
+            # self.code_thread.__stop()
+            pass
 
     def new_file(self):
         if self.check_saved_progress():
