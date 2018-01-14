@@ -244,6 +244,8 @@ class ConsoleWindow(QtGui.QDialog):
         self.update_fields_timer = QtCore.QTimer()
         self.update_fields_timer.timeout.connect(self.update_output)
 
+        self.code_thread = threading.Thread(target=self.run_code)
+
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
 
@@ -270,6 +272,9 @@ class ConsoleWindow(QtGui.QDialog):
         self.output_scrollbar = self.output_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.output_text_widget)
 
+        sub_frame = QtGui.QWidget(self)
+        sub_layout = QtGui.QHBoxLayout(sub_frame)
+
         class InteractiveText(EntryWithLabel):
             def __init__(self,*args,**kwargs):
                 super(InteractiveText,self).__init__(*args,**kwargs)
@@ -288,7 +293,12 @@ class ConsoleWindow(QtGui.QDialog):
         self.interactive_text =InteractiveText(self,'>>',width_label=50,width_text=None)
         # self.interactive_text.textbox.returnPressed.connect(self.handle_interactive_text)
         self.interactive_text.textbox.setStyleSheet('font-size: 10pt; font-family: monospace; ')
-        self.main_layout.addWidget(self.interactive_text)
+        sub_layout.addWidget(self.interactive_text)
+
+        self.status_bar = StatusBar(parent=self,running_text='Code is running',not_running_text='awaiting input')
+        sub_layout.addWidget(self.status_bar)
+
+        self.main_layout.addWidget(sub_frame)
 
         self.python_interpreter = PythonTerminal({})
 
@@ -312,6 +322,9 @@ class ConsoleWindow(QtGui.QDialog):
 #
 # Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
 #
+import numpy as np
+import matplotlib.pyplot as plt
+
 atoms = structure.atoms # Save the current atom information for future use
 lattice_vectors = structure.lattice_vectors # save the lattice vectors
 
@@ -379,35 +392,28 @@ plt.show()
         self.file_menu.addAction(save_as_file_action)
 
         # Todo change this to multiprocessing process and use queue or pipe to move around information
-        self.code_thread = threading.Thread(target=self.run_code)
-
-        def start_code_thread(target):
-            if self.code_thread.is_alive():
-                return
-            self.code_thread = threading.Thread(target=target)
-            self.code_thread.start()
 
         self.run_menu = self.menu_bar.addMenu('&Run')
         run_code_action = QtGui.QAction("Run code", self)
         run_code_action.setShortcut("F5")
-        run_code_action.triggered.connect(lambda: start_code_thread(self.run_code))
+        run_code_action.triggered.connect(lambda: self.start_code_thread(self.run_code))
         self.run_menu.addAction(run_code_action)
 
         run_selection_action = QtGui.QAction("Run cell", self)
         run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
         run_selection_action.setShortcut("F7")
-        run_selection_action.triggered.connect(lambda: start_code_thread(self.run_cell))
+        run_selection_action.triggered.connect(lambda: self.start_code_thread(self.run_cell))
         self.run_menu.addAction(run_selection_action)
 
         run_selection_action = QtGui.QAction("Run cell and jump", self)
         run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
         run_selection_action.setShortcut("F8")
-        run_selection_action.triggered.connect(lambda: start_code_thread(lambda: self.run_cell(jump=True)))
+        run_selection_action.triggered.connect(lambda: self.start_code_thread(lambda: self.run_cell(jump=True)))
         self.run_menu.addAction(run_selection_action)
 
         run_selection_action = QtGui.QAction("Run selection", self)
         run_selection_action.setShortcut("F9")
-        run_selection_action.triggered.connect(lambda: start_code_thread(self.run_selection))
+        run_selection_action.triggered.connect(lambda: self.start_code_thread(self.run_selection))
         self.run_menu.addAction(run_selection_action)
 
         # terminate_execution_action = QtGui.QAction("Terminate execution", self)
@@ -416,6 +422,11 @@ plt.show()
         # self.run_menu.addAction(terminate_execution_action)
 
     def update_output(self):
+        if self.code_thread.is_alive():
+            self.status_bar.set_engine_status(True)
+        else:
+            self.status_bar.set_engine_status(False)
+
         if self.last_history == self.python_interpreter.out_history:
             return
         else:
@@ -558,6 +569,12 @@ plt.show()
         self.saved_code_filename = file_name
         self.saved_code = code
         self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
+
+    def start_code_thread(self,target):
+        if self.code_thread.is_alive():
+            return
+        self.code_thread = threading.Thread(target=target)
+        self.code_thread.start()
 
     def show(self):
         self.update_fields_timer.start(100)
@@ -1170,11 +1187,11 @@ class ChooseEngineWindow(QtGui.QDialog):
 
 
 class StatusBar(QtGui.QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None,running_text='Engine is running',not_running_text='Engine is stopped'):
         QtGui.QWidget.__init__(self)
         # self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
-        self.running_text = 'Engine is running'
-        self.not_running_text = 'Engine is stopped'
+        self.running_text = running_text
+        self.not_running_text = not_running_text
         # self.setMaximumHeight(20)
         self.layout = QtGui.QVBoxLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignRight)
@@ -2480,8 +2497,8 @@ class CentralWindow(QtGui.QWidget):
             q_item = {'taskname':'plot structure','structure':structure}
             self.queue.put(q_item)
 
-
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'plt':plt,'np':np,'CrystalStructure':sst.CrystalStructure,
+        # Todo fix matplotlib
+        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'CrystalStructure':sst.CrystalStructure,
                        'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
                        'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity}
         self.console_window.python_interpreter.update_vars(shared_vars)
