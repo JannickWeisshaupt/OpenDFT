@@ -240,11 +240,13 @@ class ConsoleWindow(QtGui.QDialog):
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
+        self.error_widget = QtGui.QErrorMessage(parent=self)
 
         self.update_fields_timer = QtCore.QTimer()
-        self.update_fields_timer.timeout.connect(self.update_output)
+        self.update_fields_timer.timeout.connect(self.check_queue_and_update)
 
         self.code_thread = threading.Thread(target=self.run_code)
+        self.queue = queue.Queue()
 
         self.splitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
@@ -304,9 +306,9 @@ class ConsoleWindow(QtGui.QDialog):
 
         self.welcome_text = """# Welcome to the OpenDFT scripting console
 #
-# You can normally use python to script here in addition to OpenDFT objects that can be
+# You can normally(*) use python to script here in addition to OpenDFT objects that can be
 # used to calculate electronic properties and visualize them. The structure, engine options etc. are loaded, when the
-# scripting window is opened and can be changed within the script.
+# scripting window is opened and can be changed within the script. 
 #
 # Predefined variables:
 # 
@@ -320,10 +322,12 @@ class ConsoleWindow(QtGui.QDialog):
 # Use the help function to learn more about the variables, 
 # e.g. help(engine) and help(engine.start_ground_state) should be quite helpful
 #
+# (*) For technical reasons matplotlib can be used but has to be put at the end of the script after a special seperator,
+# namely #dollarsignmatplotlib (see example below)
+#
 # Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
 #
 import numpy as np
-import matplotlib.pyplot as plt
 
 atoms = structure.atoms # Save the current atom information for future use
 lattice_vectors = structure.lattice_vectors # save the lattice vectors
@@ -351,6 +355,11 @@ print('Optimal cell scale = {0:1.2f}'.format(optimal_scale))
 plot_structure(structure) 
  
 ## Plot with matplotlib
+
+#$matplotlib
+
+import matplotlib.pyplot as plt
+
 plt.figure(1)
 plt.clf()
 plt.plot(scales_succes,energies,'k',linewidth=2)
@@ -396,24 +405,24 @@ plt.show()
         self.run_menu = self.menu_bar.addMenu('&Run')
         run_code_action = QtGui.QAction("Run code", self)
         run_code_action.setShortcut("F5")
-        run_code_action.triggered.connect(lambda: self.start_code_thread(self.run_code))
+        run_code_action.triggered.connect(self.start_code_execution)
         self.run_menu.addAction(run_code_action)
 
-        run_selection_action = QtGui.QAction("Run cell", self)
-        run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
-        run_selection_action.setShortcut("F7")
-        run_selection_action.triggered.connect(lambda: self.start_code_thread(self.run_cell))
-        self.run_menu.addAction(run_selection_action)
+        run_cell_action = QtGui.QAction("Run cell", self)
+        run_cell_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
+        run_cell_action.setShortcut("F7")
+        run_cell_action.triggered.connect(self.run_cell)
+        self.run_menu.addAction(run_cell_action)
 
-        run_selection_action = QtGui.QAction("Run cell and jump", self)
-        run_code_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
-        run_selection_action.setShortcut("F8")
-        run_selection_action.triggered.connect(lambda: self.start_code_thread(lambda: self.run_cell(jump=True)))
-        self.run_menu.addAction(run_selection_action)
+        run_cell_and_jump_action = QtGui.QAction("Run cell and jump", self)
+        run_cell_and_jump_action.setToolTip('Runs the selected cell. Cells can be seperated with ##')
+        run_cell_and_jump_action.setShortcut("F8")
+        run_cell_and_jump_action.triggered.connect(lambda: self.run_cell(jump=True))
+        self.run_menu.addAction(run_cell_and_jump_action)
 
         run_selection_action = QtGui.QAction("Run selection", self)
         run_selection_action.setShortcut("F9")
-        run_selection_action.triggered.connect(lambda: self.start_code_thread(self.run_selection))
+        run_selection_action.triggered.connect(self.run_selection)
         self.run_menu.addAction(run_selection_action)
 
         # terminate_execution_action = QtGui.QAction("Terminate execution", self)
@@ -489,8 +498,9 @@ plt.show()
             cursor.setPosition(index)
             self.input_text_widget.setTextCursor(cursor)
 
-    def run_code(self):
-        code_text = self.input_text_widget.toPlainText()
+    def run_code(self,code_text=None):
+        if code_text is None:
+            code_text = self.input_text_widget.toPlainText()
         s_time = time.time()
         out = self.python_interpreter.run_code(code_text)
         run_time = time.time() - s_time
@@ -507,7 +517,6 @@ plt.show()
             show_time = run_time/60**2/24
             unit = 'days'
         self.python_interpreter.out_history.append(['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time,unit)])
-        # self.update_output()
 
     def handle_interactive_text(self):
         code_text = self.interactive_text.get_text()
@@ -570,6 +579,23 @@ plt.show()
         self.saved_code = code
         self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
+    def start_code_execution(self):
+        code_text = self.input_text_widget.toPlainText()
+        splitted_code = re.split(r'#[\s\t]*\$matplotlib[\s\t]*\n',code_text,1)
+        main_code = splitted_code[0]
+        if len(splitted_code)>1:
+            matplotlib_code = splitted_code[1]
+        else:
+            matplotlib_code = None
+
+        if self.contains_matplotlib(main_code):
+            self.error_widget.showMessage('There seems to be matplotlib code in the main body. Please seperate them by using a #$matplotlib seperator')
+            return
+
+        self.start_code_thread(lambda: self.run_code(code_text=main_code))
+        if matplotlib_code is not None:
+            self.queue.put({'task':'matplotlib','code':matplotlib_code})
+
     def start_code_thread(self,target):
         if self.code_thread.is_alive():
             return
@@ -583,6 +609,31 @@ plt.show()
     def closeEvent(self,event):
         self.update_fields_timer.stop()
         event.accept()
+
+    def handle_queue_item(self,item):
+        task = item['task']
+
+        if task == 'matplotlib':
+            if not self.code_thread.is_alive():
+                self.python_interpreter.run_code(item['code'])
+            else:
+                self.queue.put({'task':'matplotlib','code':item['code']})
+
+    def check_queue_and_update(self):
+        if not self.queue.empty():
+            q_item = self.queue.get()
+            self.handle_queue_item(q_item)
+        self.update_output()
+
+    def contains_matplotlib(self,code):
+        code_lines = code.splitlines()
+        matplotlib_found = False
+        for line in code_lines:
+            line_wo_comments = line.split('#')
+            if 'matplotlib' in line_wo_comments:
+                matplotlib_found = True
+                break
+        return matplotlib_found
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
@@ -2494,7 +2545,7 @@ class CentralWindow(QtGui.QWidget):
         self.console_window.show()
 
         def add_plot_to_queue(structure):
-            q_item = {'taskname':'plot structure','structure':structure}
+            q_item = {'task':'plot structure','structure':structure}
             self.queue.put(q_item)
 
         # Todo fix matplotlib
@@ -2523,7 +2574,7 @@ class CentralWindow(QtGui.QWidget):
             return
 
         queue_item = self.queue.get()
-        taskname = queue_item['taskname']
+        taskname = queue_item['task']
 
         if taskname == 'plot structure':
             structure = queue_item['structure']
