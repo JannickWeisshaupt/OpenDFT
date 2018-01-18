@@ -281,7 +281,7 @@ Returns:
         """
         try:
             f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
-        except IOError:
+        except IOError as e:
             return None
         info_text = f.read()
         f.close()

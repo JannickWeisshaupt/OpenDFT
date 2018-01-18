@@ -319,6 +319,8 @@ class ConsoleWindow(QtGui.QDialog):
 #
 # plot_structure:   Function that updates the plot in the main window.
 #
+# plot_scf:         Function that plots the current scf convergence in the main window.
+#
 # Use the help function to learn more about the variables, 
 # e.g. help(engine) and help(engine.start_ground_state) should be quite helpful
 #
@@ -340,7 +342,7 @@ for scale in scales:
   structure_temp = CrystalStructure(scale*lattice_vectors,atoms)
   plot_structure(structure_temp) # plot the structure in the main window
   engine.start_ground_state(structure_temp,blocking=True) # start the calculation
-
+  plot_scf()
   try:
     scf_list = engine.read_scf_status() # Read the full list of scf energies
     energies.append(scf_list[-1,1]) # append only the last to the energies list
@@ -2551,6 +2553,7 @@ class CentralWindow(QtGui.QWidget):
         def add_scf_to_queue():
             q_item = {'task':'plot scf',}
             self.queue.put(q_item)
+            time.sleep(0.3)
 
         # Todo fix matplotlib
         shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'CrystalStructure':sst.CrystalStructure,
@@ -2586,7 +2589,9 @@ class CentralWindow(QtGui.QWidget):
             self.mayavi_widget.update_plot()
             QtGui.QApplication.processEvents()
         elif taskname == 'plot scf':
+            # todo seems to work but is not updating until script finishes
             self.scf_data = esc_handler.read_scf_status()
+            print(type(self.scf_data))
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
             QtGui.QApplication.processEvents()
