@@ -749,7 +749,7 @@ class BandStructureVisualization(QtGui.QWidget):
 
         self.ax.cla()
         for band in band_structure.bands:
-            self.ax.plot(band[:, 0], band[:, 1], color='b', linewidth=2)
+            self.ax.plot(band[:, 0], band[:, 1], color='#1f77b4', linewidth=2)
 
         xlength = band[:, 0].max() - band[:, 0].min()
         self.ax.set_xlim(band[:, 0].min() - xlength / 800, band[:, 0].max())
@@ -846,7 +846,7 @@ class ScfVisualization(QtGui.QWidget):
         self.canvas = FigureCanvas(self.figure)
 
         color = self.palette().color(QtGui.QPalette.Base)
-        self.figure.patch.set_facecolor([color.red()/256,color.green()/256,color.blue()/256])
+        self.figure.patch.set_facecolor('none')
         # self.figure.patch.set_alpha(0.0)
 
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -872,8 +872,11 @@ class ScfVisualization(QtGui.QWidget):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
         self.ax.cla()
-        self.ax.plot(scf_data[:,0], scf_data[:,1],'o-',linewidth=2)
-        self.ax.set_xlim(1,scf_data[:,0].max())
+        self.ax.plot(scf_data[:,0], scf_data[:,1], marker='o',color='#1f77b4',ms=12,markeredgecolor='none',linewidth=0)
+        self.ax.plot(scf_data[:, 0], scf_data[:, 1], linestyle='--', color='#1f77b4', linewidth=3,alpha=0.5)
+        self.ax.set_xlim(scf_data[:,0].min()-0.1,scf_data[:,0].max()+0.1)
+        xint = range(int(scf_data[:,0].min()),int(round(scf_data[:,0].max()))+1)
+        self.ax.set_xticks(xint)
         self.ax.set_xlabel('Scf iteration')
         self.ax.set_ylabel('Total Energy')
         if self.first_plot_bool:

@@ -2548,10 +2548,14 @@ class CentralWindow(QtGui.QWidget):
             q_item = {'task':'plot structure','structure':structure}
             self.queue.put(q_item)
 
+        def add_scf_to_queue():
+            q_item = {'task':'plot scf',}
+            self.queue.put(q_item)
+
         # Todo fix matplotlib
         shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'CrystalStructure':sst.CrystalStructure,
                        'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
-                       'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity}
+                       'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity,'plot_scf':add_scf_to_queue}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def configure_buttons(self,disable_all=False):
@@ -2580,6 +2584,11 @@ class CentralWindow(QtGui.QWidget):
             structure = queue_item['structure']
             self.mayavi_widget.update_crystal_structure(structure)
             self.mayavi_widget.update_plot()
+            QtGui.QApplication.processEvents()
+        elif taskname == 'plot scf':
+            self.scf_data = esc_handler.read_scf_status()
+            if self.scf_data is not None:
+                self.scf_window.scf_widget.plot(self.scf_data)
             QtGui.QApplication.processEvents()
 
 
