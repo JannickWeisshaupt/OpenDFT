@@ -18,14 +18,16 @@ from collections import OrderedDict
 import logging
 import syntax
 import re
-import matplotlib.pyplot as plt
 import copy
+import warnings
 
 try:
     import queue
 except:
     import Queue as queue
 
+
+warnings.simplefilter('always', UserWarning)
 
 general_handler = sst.GeneralHandler()
 event_queue = queue.Queue()
@@ -229,17 +231,21 @@ class EntryWithLabel(QtGui.QWidget):
         self.textbox.setModified(False)
 
 
-class ConsoleWindow(QtGui.QDialog):
+class ConsoleWindow(QtGui.QMainWindow):
     def __init__(self, parent=None):
         super(ConsoleWindow, self).__init__(parent)
+
+        self.main_widget = QtGui.QWidget(self)
+        self.setCentralWidget(self.main_widget)
 
         self.setMinimumSize(1000,800)
         self.resize(1200,800)
         self.parent = parent
-        self.main_layout = QtGui.QVBoxLayout(self)
+        self.main_layout = QtGui.QVBoxLayout(self.main_widget)
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
+        self.setWindowIcon(QtGui.QIcon('icon.ico'))
         self.error_widget = QtGui.QErrorMessage(parent=self)
 
         self.update_fields_timer = QtCore.QTimer()
@@ -252,7 +258,7 @@ class ConsoleWindow(QtGui.QDialog):
         self.main_layout.addWidget(self.splitter)
 
         class CodingTextEdit(QtGui.QTextEdit):
-            # TODO replace tab be some nice functionality (4 spaces + multiselect)
+            # TODO replace tab by some nice functionality (4 spaces + multiselect)
             def __init__(self,*args,**kwargs):
                 super(CodingTextEdit,self).__init__(*args,**kwargs)
 
@@ -325,7 +331,7 @@ class ConsoleWindow(QtGui.QDialog):
 # e.g. help(engine) and help(engine.start_ground_state) should be quite helpful
 #
 # (*) For technical reasons matplotlib can be used but has to be put at the end of the script after a special seperator,
-# namely #dollarsignmatplotlib (see example below)
+# namely [dollarsign]matplotlib (see example below)
 #
 # Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
 #
@@ -342,9 +348,9 @@ for scale in scales:
   structure_temp = CrystalStructure(scale*lattice_vectors,atoms)
   plot_structure(structure_temp) # plot the structure in the main window
   engine.start_ground_state(structure_temp,blocking=True) # start the calculation
-  plot_scf()
   try:
     scf_list = engine.read_scf_status() # Read the full list of scf energies
+    plot_scf(scf_list)
     energies.append(scf_list[-1,1]) # append only the last to the energies list
     scales_succes.append(scale)
   except Exception as e:
@@ -358,7 +364,7 @@ plot_structure(structure)
  
 ## Plot with matplotlib
 
-#$matplotlib
+$matplotlib
 
 import matplotlib.pyplot as plt
 
@@ -402,6 +408,10 @@ plt.show()
         save_as_file_action.triggered.connect(lambda: self.save_code(ask_filename=True))
         self.file_menu.addAction(save_as_file_action)
 
+        reload_vars_action = QtGui.QAction("Reload variables from main", self)
+        reload_vars_action.setShortcut('Ctrl+F5')
+        reload_vars_action.triggered.connect(self.parent.open_scripting_console)
+        self.file_menu.addAction(reload_vars_action)
         # Todo change this to multiprocessing process and use queue or pipe to move around information
 
         self.run_menu = self.menu_bar.addMenu('&Run')
@@ -583,7 +593,7 @@ plt.show()
 
     def start_code_execution(self):
         code_text = self.input_text_widget.toPlainText()
-        splitted_code = re.split(r'#[\s\t]*\$matplotlib[\s\t]*\n',code_text,1)
+        splitted_code = re.split(r'[\s\t\n]+\$matplotlib[\s\t]*\n',code_text,1)
         main_code = splitted_code[0]
         if len(splitted_code)>1:
             matplotlib_code = splitted_code[1]
@@ -636,6 +646,7 @@ plt.show()
                 matplotlib_found = True
                 break
         return matplotlib_found
+
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
@@ -2018,7 +2029,7 @@ class CentralWindow(QtGui.QWidget):
 
         self.queue = queue.Queue()
         self.queue_timer = QtCore.QTimer()
-        self.queue_timer.timeout.connect(self.handle_queue)
+        self.queue_timer.timeout.connect(self.update_program)
         self.queue_timer.start(200)
 
         self.load_defaults()
@@ -2078,6 +2089,7 @@ class CentralWindow(QtGui.QWidget):
         self.show()
         self.window = MainWindow(self)
         self.window.setWindowTitle("OpenDFT")
+        self.window.setWindowIcon(QtGui.QIcon('icon.ico'))
         self.window.setGeometry(50, 50, 1300, 900)
         self.window.setCentralWidget(self)
         self.make_menu_bar()
@@ -2550,12 +2562,11 @@ class CentralWindow(QtGui.QWidget):
             q_item = {'task':'plot structure','structure':structure}
             self.queue.put(q_item)
 
-        def add_scf_to_queue():
-            q_item = {'task':'plot scf',}
+        def add_scf_to_queue(scf_data):
+            q_item = {'task':'plot scf','scf data':scf_data}
             self.queue.put(q_item)
             time.sleep(0.3)
 
-        # Todo fix matplotlib
         shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'CrystalStructure':sst.CrystalStructure,
                        'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
                        'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity,'plot_scf':add_scf_to_queue}
@@ -2589,13 +2600,30 @@ class CentralWindow(QtGui.QWidget):
             self.mayavi_widget.update_plot()
             QtGui.QApplication.processEvents()
         elif taskname == 'plot scf':
-            # todo seems to work but is not updating until script finishes
-            self.scf_data = esc_handler.read_scf_status()
-            print(type(self.scf_data))
-            if self.scf_data is not None:
-                self.scf_window.scf_widget.plot(self.scf_data)
+            scf_data = queue_item['scf data']
+            if scf_data is not None:
+                self.scf_window.scf_widget.plot(scf_data)
             QtGui.QApplication.processEvents()
 
+    def check_integrety(self):
+        scf_check = self.dft_engine_window.scf_option_widget.options == esc_handler.scf_options
+        gw_check = self.dft_engine_window.gw_option_widget.options == esc_handler.gw_options
+        phonon_check = self.dft_engine_window.phonons_option_widget.options == esc_handler.phonons_options
+        optical_check = self.dft_engine_window.optical_spectrum_option_widget.options == esc_handler.optical_spectrum_options
+
+        checks = [scf_check,gw_check,phonon_check,optical_check]
+
+        if not all(checks):
+            warnings.warn('Option dictionaries were not connected anymore')
+            logging.warning('Option dictionaries were not connected')
+            self.dft_engine_window.scf_option_widget.options = esc_handler.scf_options
+            self.dft_engine_window.gw_option_widget.options = esc_handler.gw_options
+            self.dft_engine_window.phonons_option_widget.options = esc_handler.phonons_options
+            self.dft_engine_window.optical_spectrum_option_widget.options = esc_handler.optical_spectrum_options
+
+    def update_program(self):
+        self.check_integrety()
+        self.handle_queue()
 
 if __name__ == "__main__":
     DEBUG = True
@@ -2618,8 +2646,5 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
-
-    app.setWindowIcon(QtGui.QIcon('icon.ico'))
-    main.setWindowIcon(QtGui.QIcon('icon.ico'))
 
     app.exec_()
