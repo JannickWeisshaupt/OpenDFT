@@ -1251,7 +1251,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
 
 class StatusBar(QtGui.QWidget):
-    def __init__(self, parent=None,running_text='Engine is running',not_running_text='Engine is stopped'):
+    def __init__(self, parent=None,running_text='Engine is running',not_running_text='Engine inactive'):
         QtGui.QWidget.__init__(self)
         # self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.running_text = running_text
