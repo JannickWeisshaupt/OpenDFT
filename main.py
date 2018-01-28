@@ -2028,9 +2028,6 @@ class CentralWindow(QtGui.QWidget):
         self.temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
         self.queue = queue.Queue()
-        self.queue_timer = QtCore.QTimer()
-        self.queue_timer.timeout.connect(self.update_program)
-        self.queue_timer.start(200)
 
         self.load_defaults()
 
@@ -2097,6 +2094,10 @@ class CentralWindow(QtGui.QWidget):
         self.window.show()
 
         self.configure_buttons(disable_all=True)
+
+        self.queue_timer = QtCore.QTimer()
+        self.queue_timer.timeout.connect(self.update_program)
+        self.queue_timer.start(200)
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
@@ -2626,7 +2627,7 @@ class CentralWindow(QtGui.QWidget):
         self.handle_queue()
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
