@@ -658,14 +658,23 @@ class InformationWindow(QtGui.QDialog):
         self.text_view = QtGui.QTextBrowser(self)
         layout.addWidget(self.text_view)
 
-    def show_information(self,information):
+    def show_information(self,information,name=None):
         self.show()
-        text = 'Engine information for selected result\n'
+        if name is None:
+            sub_text = 'selected result'
+        else:
+            sub_text = name
+        text = 'Engine information for '+sub_text+ '\n'
         for outer_key, inner_dic in information.iteritems():
             text = text + '\n'+outer_key+':\n'
             for key,value in inner_dic.iteritems():
                 if type(value) in (str,unicode):
-                    text = text + key+': ' + value+'\n'
+                    text +=  key+': ' + value+'\n'
+                if type(value) in (list,tuple):
+                    text = text + key + ':\n'
+                    for item in value:
+                        text += str(item)+'\n'
+
         self.text_view.setPlainText(text)
 
 class LoadResultsWindow(QtGui.QDialog):
@@ -1101,7 +1110,7 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information)
+        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information,name=bs_name)
 
 
     # def rename_selected_item(self):
