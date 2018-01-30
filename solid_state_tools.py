@@ -121,6 +121,7 @@ class BandStructure(object):
             self.bandgap,self.k_bandgap = (0,None)
         self.special_k_points = special_k_points
         self.bs_type = bs_type
+        self.engine_information = None
 
     def _find_bandgap(self, bands):
         for i in range(len(bands)):
@@ -147,7 +148,7 @@ class EnergyDiagram(object):
         self.labels = labels
         self.occupations = occupations
         self.homo_lumo_gap,self.E_fermi = self._find_homo_lumo_gap(energies)
-
+        self.engine_information = None
 
     def _find_homo_lumo_gap(self,energies):
         if self.occupations is None:
@@ -171,6 +172,7 @@ class EnergyDiagram(object):
 class OpticalSpectrum:
     def __init__(self,energy,epsilon2,epsilon1=None):
         self.energy = energy # energy in eV
+        self.engine_information = None
 
         if type(epsilon2) == list or type(epsilon2)== tuple:
             self.epsilon2_11 = epsilon2[0]
@@ -370,12 +372,14 @@ class GeneralHandler():
 class KohnShamDensity(object):
     def __init__(self,density):
         self.density = density
+        self.engine_information = None
 
 class MolecularDensity(object):
     def __init__(self,density,lattice_vecs,origin):
         self.density = density
         self.grid_vectors = lattice_vecs
         self.origin = origin
+        self.engine_information = None
 
 def calculate_lattice_vectors_from_parameters(parameters):
     a, b, c, alpha, beta, gamma = parameters

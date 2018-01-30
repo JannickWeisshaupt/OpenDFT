@@ -648,6 +648,26 @@ plt.show()
         return matplotlib_found
 
 
+class InformationWindow(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(InformationWindow, self).__init__(parent)
+
+        self.parent = self
+        self.resize(600,600)
+        layout = QtGui.QHBoxLayout(self)
+        self.text_view = QtGui.QTextBrowser(self)
+        layout.addWidget(self.text_view)
+
+    def show_information(self,information):
+        self.show()
+        text = 'Engine information for selected result\n'
+        for outer_key, inner_dic in information.iteritems():
+            text = text + '\n'+outer_key+':\n'
+            for key,value in inner_dic.iteritems():
+                if type(value) in (str,unicode):
+                    text = text + key+': ' + value+'\n'
+        self.text_view.setPlainText(text)
+
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
         super(LoadResultsWindow, self).__init__(parent)
@@ -738,7 +758,9 @@ class OptionFrame(QtGui.QGroupBox):
 class DftEngineWindow(QtGui.QWidget):
     def __init__(self, parent):
         self.parent = parent
+
         self.abort_bool = False
+
 
         QtGui.QWidget.__init__(self, parent)
         # self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
@@ -1075,6 +1097,13 @@ class PlotWithTreeview(QtGui.QWidget):
             self.plot_widget.export(filename,self.data_dictionary[bs_name],code=code)
 
 
+    def show_info_selected_item(self):
+        index = self.treeview.selectedIndexes()[0]
+        item = self.treeview.itemFromIndex(index)
+        bs_name = item.text(0)
+        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information)
+
+
     # def rename_selected_item(self):
     #     index = self.treeview.selectedIndexes()[0]
     #     item = self.treeview.itemFromIndex(index)
@@ -1094,7 +1123,9 @@ class PlotWithTreeview(QtGui.QWidget):
         menu = QtGui.QMenu()
         menu.addAction('Delete',self.delete_selected_item)
         menu.addAction('Export', self.export_selected_item)
-        menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
+        menu.addAction('Information', self.show_info_selected_item)
+
+        # menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
         # menu.addAction('Rename', self.rename_selected_item)
         menu.exec_(self.treeview.viewport().mapToGlobal(position))
 
@@ -2024,6 +2055,7 @@ class CentralWindow(QtGui.QWidget):
         self.ks_densities = {}
         self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
         self.esc_handler_options = {}
+        self.last_run_information = {'scf':{},'bandstructure':{},'gw':{},'optical spectrum':{},'relax':{},'phonon':{}}
 
         self.temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
@@ -2067,6 +2099,7 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window = EditStructureWindow(self)
         self.brillouin_window = BrillouinWindow(self)
         self.console_window = ConsoleWindow(self)
+        self.information_window = InformationWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -2469,9 +2502,25 @@ class CentralWindow(QtGui.QWidget):
 
             try:
                 self.load_results_from_engine(tasks)
+                self.update_run_information(tasks)
             except Exception as e:
                 error_message_load = 'Reading of the results of the calculation failed with error' + repr(e)
                 self.error_dialog.showMessage(error_message_load)
+
+    def update_run_information(self,tasks):
+        if 'scf' in tasks:
+            self.last_run_information['scf'].update(esc_handler.scf_options)
+        if 'bandstructure' in tasks or 'g0w0' in tasks:
+            bandstructure_options ={'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}
+            self.last_run_information['bandstructure'].update(bandstructure_options)
+        if 'g0w0' in tasks:
+            self.last_run_information['gw'].update(esc_handler.gw_options)
+        if 'relax' in tasks:
+            self.last_run_information['relax'].update(esc_handler.relax_options)
+        if 'phonons' in tasks:
+            self.last_run_information.update(esc_handler.phonons_options)
+        if 'optical spectrum' in tasks:
+            self.last_run_information['optical spectrum'].update(esc_handler.optical_spectrum_options)
 
     def load_results_from_engine(self,tasks,title=None):
         if title is None:
@@ -2479,11 +2528,26 @@ class CentralWindow(QtGui.QWidget):
         if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
             energy_diagram = esc_handler.read_energy_diagram()
             if energy_diagram is not None:
+                engine_information = {'scf':copy.deepcopy(esc_handler.scf_options)}
+                energy_diagram.engine_information = engine_information
                 self.band_structures[title] = energy_diagram
+
+        if 'scf' in tasks:
+            scf_info = copy.deepcopy(esc_handler.scf_options)
+        else:
+            scf_info = copy.deepcopy(self.last_run_information['scf'])
+
+        if 'g0w0' in tasks:
+            gw_info = copy.deepcopy(esc_handler.gw_options)
+        else:
+            gw_info = copy.deepcopy(self.last_run_information['gw'])
 
         if 'bandstructure' in tasks or 'g0w0' in tasks:
             read_bandstructures = []
+            engine_informations = []
             titles = [title]
+
+
             if 'bandstructure' in tasks:
                 if esc_handler.engine_name == 'quantum espresso':
                     coords = [x[0] for x in self.dft_engine_window.band_structure_points]
@@ -2496,15 +2560,20 @@ class CentralWindow(QtGui.QWidget):
                 else:
                     read_bandstructure = esc_handler.read_bandstructure()
                 read_bandstructures.append(read_bandstructure)
+                engine_information = {'scf':scf_info,'bandstructure':{'k path':copy.deepcopy(self.dft_engine_window.band_structure_points)}}
+                engine_informations.append(engine_information)
 
             if 'g0w0' in tasks:
                 read_bandstructures.append(esc_handler.read_gw_bandstructure())
+                engine_information = {'scf':scf_info,'bandstructure':{'k path':copy.deepcopy(self.dft_engine_window.band_structure_points)},'gw':copy.deepcopy(esc_handler.gw_options)}
+                engine_informations.append(engine_information)
             if 'bandstructure' in tasks and 'g0w0' in tasks:
                 titles.append(title + '_gw')
 
-            for read_bandstructure, title in zip(read_bandstructures, titles):
+            for read_bandstructure, title,engine_information in zip(read_bandstructures, titles, engine_informations):
                 if read_bandstructure is None:
                     continue
+                read_bandstructure.engine_information = engine_information
                 self.band_structures[title] = read_bandstructure
                 self.band_structure_window.update_tree()
             if len(read_bandstructures) != 0 and self.band_structure_window.plot_widget.first_plot_bool:
@@ -2512,11 +2581,15 @@ class CentralWindow(QtGui.QWidget):
         if 'relax' in tasks:
             self.check_relax()
         if 'phonons' in tasks:
+            engine_information = {'scf': scf_info, 'bandstructure': {'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},'phonon':copy.deepcopy(esc_handler.phonons_options)}
             read_bandstructure = esc_handler.read_phonon_bandstructure()
+            read_bandstructure.engine_information = engine_information
             self.band_structures[title + '_phonon'] = read_bandstructure
             self.band_structure_window.update_tree()
         if 'optical spectrum' in tasks:
+            engine_information = {'scf': scf_info, 'optical spectrum':copy.deepcopy(esc_handler.optical_spectrum_options),'gw':gw_info}
             read_spectrum = esc_handler.read_optical_spectrum()
+            read_spectrum.engine_information = engine_information
             self.optical_spectra[title] = read_spectrum
             self.optical_spectra_window.update_tree()
 
@@ -2627,7 +2700,7 @@ class CentralWindow(QtGui.QWidget):
         self.handle_queue()
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
