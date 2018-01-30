@@ -648,9 +648,9 @@ plt.show()
         return matplotlib_found
 
 
-class InformationWindow(QtGui.QDialog):
+class CodeInformationWindow(QtGui.QDialog):
     def __init__(self, parent=None):
-        super(InformationWindow, self).__init__(parent)
+        super(CodeInformationWindow, self).__init__(parent)
 
         self.parent = self
         self.resize(600,600)
@@ -665,15 +665,18 @@ class InformationWindow(QtGui.QDialog):
         else:
             sub_text = name
         text = 'Engine information for '+sub_text+ '\n'
-        for outer_key, inner_dic in information.iteritems():
-            text = text + '\n'+outer_key+':\n'
-            for key,value in inner_dic.iteritems():
-                if type(value) in (str,unicode):
-                    text +=  key+': ' + value+'\n'
-                if type(value) in (list,tuple):
-                    text = text + key + ':\n'
-                    for item in value:
-                        text += str(item)+'\n'
+
+        def add_dic_to_text(text,dic):
+            for key,value in dic:
+                text += key + ': '+ value
+
+        if 'scf' in information.keys():
+            text += '\nSCF:\n'
+            add_dic_to_text(text,information['scf'])
+
+        if 'bandstructure' in information.keys():
+            text += '\nBandstructure:\n'
+
 
         self.text_view.setPlainText(text)
 
@@ -2108,7 +2111,7 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window = EditStructureWindow(self)
         self.brillouin_window = BrillouinWindow(self)
         self.console_window = ConsoleWindow(self)
-        self.information_window = InformationWindow(self)
+        self.information_window = CodeInformationWindow(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
