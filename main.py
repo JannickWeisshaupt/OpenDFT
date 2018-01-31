@@ -660,6 +660,11 @@ class CodeInformationWindow(QtGui.QDialog):
         layout.addWidget(self.text_view)
 
     def show_information(self,information,name=None):
+        if information is None:
+            text = 'No details available'
+            self.text_view.setPlainText(text)
+            return
+
         try:
             if name is None:
                 sub_text = 'selected result'
@@ -1137,8 +1142,8 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        self.parent.information_window.show()
-        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information,name=bs_name)
+        main.information_window.show()
+        main.information_window.show_information(self.data_dictionary[bs_name].engine_information,name=bs_name)
 
 
     # def rename_selected_item(self):
@@ -1158,14 +1163,13 @@ class PlotWithTreeview(QtGui.QWidget):
                 level += 1
 
         menu = QtGui.QMenu()
-        menu.addAction('Information', self.show_info_selected_item)
+        menu.addAction('Details', self.show_info_selected_item)
         menu.addAction('Export', self.export_selected_item)
         menu.addAction('Delete',self.delete_selected_item)
 
         # menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
         # menu.addAction('Rename', self.rename_selected_item)
         menu.exec_(self.treeview.viewport().mapToGlobal(position))
-
 
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
@@ -1180,7 +1184,7 @@ class PlotWithTreeview(QtGui.QWidget):
             data = self.data_dictionary[bs_name]
             data_list.append(data)
             name_list.append(bs_name)
-        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
+        main.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
         self.plot_widget.plot(data_list,name_list=name_list)
 
     def add_result_key(self, title):
@@ -1485,6 +1489,7 @@ class OptionWithTreeview(PlotWithTreeview):
             main.mayavi_widget.update_plot(keep_view=True)
         if bs_name != 'None':
             main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]),**plot_options)
+            main.information_window.show_information(self.data_dictionary[bs_name].engine_information,bs_name)
 
     def update_tree(self):
         self.treeview.clear()
@@ -1743,6 +1748,7 @@ class KsStateWindow(QtGui.QDialog):
                 self.parent.error_dialog.showMessage(error_message)
 
             ks_dens = esc_handler.read_ks_state()
+            ks_dens.engine_information = {'scf':copy.deepcopy(self.parent.last_run_information['scf'])}
             label = self.current_calc_properties['label']
             if self.current_calc_properties['type'] == 'ks density':
                 n_band = self.current_calc_properties['n_band']

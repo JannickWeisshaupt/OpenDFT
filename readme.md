@@ -59,6 +59,10 @@ sudo apt-get install quantum-espresso
 Download the latest release [here](http://exciting-code.org/carbon) and follow the instructions [here](http://exciting-code.org/carbon-download-and-compile-exciting) 
 and [here](http://exciting-code.org/carbon-tutorial-scripts-and-environment-variables).
 
+##### Updating
+To update cd into the OpenDFT folder and then perform <br>
+git pull
+
 #### Windows
 
 It is pretty difficult to install the solid state software packages on windows. It may be possible
