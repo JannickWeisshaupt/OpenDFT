@@ -2243,7 +2243,7 @@ class CentralWindow(QtGui.QWidget):
 
             option_dic_specific_handler = {'scf_options':esc_handler.scf_options,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
                  'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options,'relax options':esc_handler.relax_options}
+                 'gw options':esc_handler.gw_options,'relax options':esc_handler.relax_options,'last run information':self.last_run_information}
             self.esc_handler_options[esc_handler.engine_name] = option_dic_specific_handler
             a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,'esc handler options': self.esc_handler_options,
                  'properties': self.project_properties,'dft engine':esc_handler.engine_name,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
@@ -2284,6 +2284,10 @@ class CentralWindow(QtGui.QWidget):
 
 
                 if option_dic_specific_handler is not None:
+
+                    last_run_information = option_dic_specific_handler.pop('last run information',None)
+                    if last_run_information is not None:
+                        self.last_run_information = last_run_information
 
                     def set_esc_handler_dic_to_loaded_dic(esc_dic,loaded_dic):
                         if loaded_dic is not None:
