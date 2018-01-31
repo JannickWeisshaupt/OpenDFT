@@ -654,6 +654,7 @@ class CodeInformationWindow(QtGui.QDialog):
 
         self.parent = self
         self.resize(300,500)
+        self.setWindowTitle('Run details')
         layout = QtGui.QHBoxLayout(self)
         self.text_view = QtGui.QTextBrowser(self)
         layout.addWidget(self.text_view)
@@ -664,9 +665,10 @@ class CodeInformationWindow(QtGui.QDialog):
                 sub_text = 'selected result'
             else:
                 sub_text = name
-            text = 'Engine information for '+sub_text+ '\n'
+            text = 'Run details for '+sub_text+ '\n'
 
-            def add_dic_to_text(text,dic,increment=0):
+            def add_dic_to_text(text,indic,increment=0):
+                dic = OrderedDict(sorted(indic.items(), key=lambda t: t[0]))
                 for key,value in dic.iteritems():
                     text += ' '*increment +key + ': '+ value + '\n'
                 return text
@@ -696,6 +698,7 @@ class CodeInformationWindow(QtGui.QDialog):
 
 
         self.text_view.setPlainText(text)
+
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self,parent,tasks):
@@ -1113,8 +1116,13 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        del self.data_dictionary[bs_name]
-        self.update_tree()
+
+        del_msg = "Are you sure you want to delete " + bs_name + ' permanently?'
+        reply = QtGui.QMessageBox.question(self, 'Sure to delete?',del_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+        if reply == QtGui.QMessageBox.Yes:
+            del self.data_dictionary[bs_name]
+            self.update_tree()
 
     def export_selected_item(self,code=False):
         index = self.treeview.selectedIndexes()[0]
@@ -2540,6 +2548,7 @@ class CentralWindow(QtGui.QWidget):
     def update_run_information(self,tasks):
         if 'scf' in tasks:
             self.last_run_information['scf'].update(esc_handler.scf_options)
+            self.last_run_information['scf']['timestamp'] = time.ctime()
         if 'bandstructure' in tasks or 'g0w0' in tasks:
             bandstructure_options ={'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}
             self.last_run_information['bandstructure'].update(bandstructure_options)
@@ -2555,17 +2564,18 @@ class CentralWindow(QtGui.QWidget):
     def load_results_from_engine(self,tasks,title=None):
         if title is None:
             title = esc_handler.general_options['title']
-        if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
-            energy_diagram = esc_handler.read_energy_diagram()
-            if energy_diagram is not None:
-                engine_information = {'scf':copy.deepcopy(esc_handler.scf_options)}
-                energy_diagram.engine_information = engine_information
-                self.band_structures[title] = energy_diagram
 
         if 'scf' in tasks:
             scf_info = copy.deepcopy(esc_handler.scf_options)
+            scf_info['timestamp'] = time.ctime()
         else:
             scf_info = copy.deepcopy(self.last_run_information['scf'])
+
+        if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
+            energy_diagram = esc_handler.read_energy_diagram()
+            if energy_diagram is not None:
+                energy_diagram.engine_information = {'scf':scf_info}
+                self.band_structures[title] = energy_diagram
 
         if 'g0w0' in tasks:
             gw_info = copy.deepcopy(esc_handler.gw_options)
