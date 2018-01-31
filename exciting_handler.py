@@ -291,7 +291,7 @@ Returns:
         self.current_output_file = 'INFOXS.OUT'
 
         tree = self._make_tree()
-        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_scf_to_tree(tree, crystal_structure,skip=True)
         self._add_optical_spectrum_to_tree(tree)
         self._write_input_file(tree)
         time.sleep(0.05)
@@ -318,7 +318,7 @@ Returns:
         self._read_timestamps()
         self.current_output_file = 'GW_INFO.OUT'
         tree = self._make_tree()
-        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_scf_to_tree(tree, crystal_structure,skip=True)
         self._add_gw_to_tree(tree, taskname='g0w0')
         self._write_input_file(tree)
 
@@ -331,7 +331,7 @@ Returns:
                 self.engine_process.wait()
             if band_structure_points is not None:
                 tree = self._make_tree()
-                self._add_scf_to_tree(tree, crystal_structure)
+                self._add_scf_to_tree(tree, crystal_structure,skip=True)
                 self._add_gw_to_tree(tree, taskname='band')
                 self._add_bs_to_tree(tree, band_structure_points)
                 self._write_input_file(tree)

@@ -653,29 +653,46 @@ class CodeInformationWindow(QtGui.QDialog):
         super(CodeInformationWindow, self).__init__(parent)
 
         self.parent = self
-        self.resize(600,600)
+        self.resize(300,500)
         layout = QtGui.QHBoxLayout(self)
         self.text_view = QtGui.QTextBrowser(self)
         layout.addWidget(self.text_view)
 
     def show_information(self,information,name=None):
-        self.show()
-        if name is None:
-            sub_text = 'selected result'
-        else:
-            sub_text = name
-        text = 'Engine information for '+sub_text+ '\n'
+        try:
+            if name is None:
+                sub_text = 'selected result'
+            else:
+                sub_text = name
+            text = 'Engine information for '+sub_text+ '\n'
 
-        def add_dic_to_text(text,dic):
-            for key,value in dic:
-                text += key + ': '+ value
+            def add_dic_to_text(text,dic,increment=0):
+                for key,value in dic.iteritems():
+                    text += ' '*increment +key + ': '+ value + '\n'
+                return text
 
-        if 'scf' in information.keys():
-            text += '\nSCF:\n'
-            add_dic_to_text(text,information['scf'])
+            if 'scf' in information.keys():
+                text += '\nSCF:\n'
+                text = add_dic_to_text(text,information['scf'],increment=2)
 
-        if 'bandstructure' in information.keys():
-            text += '\nBandstructure:\n'
+            if 'bandstructure' in information.keys():
+                text += '\nBandstructure:\n'
+                k_path = information['bandstructure']['k path']
+                text+='  K path:\n'
+                for el,label in k_path:
+                    text += '    {0:1.1f} {1:1.1f} {2:1.1f}'.format(*el) + '  ' + label + '\n'
+                for key,value in information['bandstructure'].iteritems():
+                    if key != 'k path':
+                        text += key + ': ' + value + '\n'
+
+            rest_dic = {key:value for key,value in information.iteritems() if key not in ('scf','bandstructure')}
+            for key,value in rest_dic.iteritems():
+                text += '\n'+key.title()+':\n'
+                text = add_dic_to_text(text,value,increment=2)
+        except Exception as e:
+            print(e)
+            logging.error(e)
+            text = 'An error occured while reading the information'
 
 
         self.text_view.setPlainText(text)
@@ -952,11 +969,10 @@ class DftEngineWindow(QtGui.QWidget):
 
     def start_gw(self):
         tasks = []
-        if esc_handler.will_scf_run():
-            tasks.append('scf')
-        bs_checkers = self.bs_option_widget.read_checkbuttons()
-        if bs_checkers['Calculate']:
-            tasks.append('bandstructure')
+
+        # bs_checkers = self.bs_option_widget.read_checkbuttons()
+        # if bs_checkers['Calculate']:
+        #     tasks.append('bandstructure')
         tasks.extend(['g0w0','g0w0 bands'])
         try:
             self.prepare_start(tasks)
@@ -1113,6 +1129,7 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
+        self.parent.information_window.show()
         self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information,name=bs_name)
 
 
@@ -1133,9 +1150,9 @@ class PlotWithTreeview(QtGui.QWidget):
                 level += 1
 
         menu = QtGui.QMenu()
-        menu.addAction('Delete',self.delete_selected_item)
-        menu.addAction('Export', self.export_selected_item)
         menu.addAction('Information', self.show_info_selected_item)
+        menu.addAction('Export', self.export_selected_item)
+        menu.addAction('Delete',self.delete_selected_item)
 
         # menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
         # menu.addAction('Rename', self.rename_selected_item)
@@ -1155,6 +1172,7 @@ class PlotWithTreeview(QtGui.QWidget):
             data = self.data_dictionary[bs_name]
             data_list.append(data)
             name_list.append(bs_name)
+        self.parent.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
         self.plot_widget.plot(data_list,name_list=name_list)
 
     def add_result_key(self, title):
@@ -2152,7 +2170,7 @@ class CentralWindow(QtGui.QWidget):
                 project_directory = r'D:\OpenDFT_projects\test'
             # self.load_saved_results()
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
-            QtCore.QTimer.singleShot(510, self.open_scripting_console)
+            # QtCore.QTimer.singleShot(510, self.open_scripting_console)
 
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
