@@ -482,23 +482,45 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         layout.addWidget(option_widget)
         from main import EntryWithLabel
 
-        self.Emin_entry = EntryWithLabel(option_widget,'Emin')
+        self.select_epsilon_cb =  QtGui.QComboBox(self)
+        option_layout.addWidget(self.select_epsilon_cb)
+        self.select_epsilon_cb.addItem('Angular mean')
+        self.select_epsilon_cb.addItem(u"ε_11")
+        self.select_epsilon_cb.addItem(u"ε_22")
+        self.select_epsilon_cb.addItem(u"ε_33")
+
+        self.select_epsilon_cb.setCurrentIndex(0)
+        self.select_epsilon_cb.currentIndexChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
+
+        self.imaginary_checkbox = QtGui.QCheckBox('Imag',self)
+        option_layout.addWidget(self.imaginary_checkbox)
+        self.imaginary_checkbox.toggle()
+        self.imaginary_checkbox.stateChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
+
+        self.real_checkbox = QtGui.QCheckBox('Real',self)
+        option_layout.addWidget(self.real_checkbox)
+        self.real_checkbox.stateChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
+
+        width_text = 70
+        width_label = 40
+
+        self.Emin_entry = EntryWithLabel(option_widget,'Emin',width_text=width_text,width_label=width_label)
         self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emin_entry)
 
-        self.Emax_entry = EntryWithLabel(option_widget,'Emax')
+        self.Emax_entry = EntryWithLabel(option_widget,'Emax',width_text=width_text,width_label=width_label)
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emax_entry)
 
-        self.eps_min_entry = EntryWithLabel(option_widget,u"ε min")
+        self.eps_min_entry = EntryWithLabel(option_widget,u"ε min",width_text=width_text,width_label=width_label)
         self.eps_min_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_min_entry)
 
-        self.eps_max_entry = EntryWithLabel(option_widget,u"ε max")
+        self.eps_max_entry = EntryWithLabel(option_widget,u"ε max",width_text=width_text,width_label=width_label)
         self.eps_max_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_max_entry)
 
-        self.broadening_entry = EntryWithLabel(option_widget,u"Γ")
+        self.broadening_entry = EntryWithLabel(option_widget,u"Γ",width_text=width_text,width_label=width_label)
         self.broadening_entry.connect_editFinished(lambda: self.plot(self.last_optical_spectrum[0],name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.broadening_entry)
 
@@ -507,7 +529,6 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         self.broadening_mode_cb.addItem('Lorentzian')
         self.broadening_mode_cb.addItem('Gaussian')
         self.broadening_mode_cb.addItem('None')
-
 
         self.broadening_mode_cb.setCurrentIndex(0)
         self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
@@ -593,20 +614,54 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         handles = []
         for optical_spectrum,name in zip(optical_spectrum_list,name_list):
-            E_plot = optical_spectrum.energy
-            epsilon = optical_spectrum.epsilon2
-            if gamma is None:
-                epsilon_plot = epsilon
-            else:
-                E_plot,epsilon_plot = self.broaden_spectrum(E_plot,epsilon,width=gamma,mode=broaden_mode)
 
-            p, = self.ax.plot(E_plot, epsilon_plot, linewidth=2,label=name)
-            handles.append(p)
+            if self.imaginary_checkbox.checkState():
+                E_plot = optical_spectrum.energy
+
+                cur_index_eps = self.select_epsilon_cb.currentIndex()
+                if cur_index_eps == 0:
+                    epsilon = optical_spectrum.epsilon2
+                elif cur_index_eps == 1:
+                    epsilon = optical_spectrum.epsilon2_11
+                elif cur_index_eps == 2:
+                    epsilon = optical_spectrum.epsilon2_22
+                elif cur_index_eps == 3:
+                    epsilon = optical_spectrum.epsilon2_33
+
+                if gamma is None:
+                    epsilon_plot = epsilon
+                else:
+                    E_plot,epsilon_plot = self.broaden_spectrum(E_plot,epsilon,width=gamma,mode=broaden_mode)
+
+                p, = self.ax.plot(E_plot, epsilon_plot, linewidth=2,label=name+'_imag')
+                handles.append(p)
+
+            if self.real_checkbox.checkState():
+                E_plot = optical_spectrum.energy
+
+                cur_index_eps = self.select_epsilon_cb.currentIndex()
+                if cur_index_eps == 0:
+                    epsilon = optical_spectrum.epsilon1
+                elif cur_index_eps == 1:
+                    epsilon = optical_spectrum.epsilon1_11
+                elif cur_index_eps == 2:
+                    epsilon = optical_spectrum.epsilon1_22
+                elif cur_index_eps == 3:
+                    epsilon = optical_spectrum.epsilon1_33
+
+                if gamma is None:
+                    epsilon_plot = epsilon
+                else:
+                    E_plot,epsilon_plot = self.broaden_spectrum(E_plot,epsilon,width=gamma,mode=broaden_mode)
+
+                p, = self.ax.plot(E_plot, epsilon_plot, linewidth=2,label=name+'_real')
+                handles.append(p)
+
 
         self.ax.set_xlabel('Energy [eV]')
         self.ax.set_ylabel(r'Dielectric function $\varepsilon(\omega)$')
 
-        if name_list is not None and len(optical_spectrum_list)>1:
+        if name_list is not None and len(handles)>1:
             legend = self.ax.legend(loc='best',fancybox=True,framealpha=0.9)
             legend_frame = legend.get_frame()
             legend_frame.set_facecolor([0.95,0.95,0.95])

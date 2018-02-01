@@ -32,6 +32,7 @@ Then always do this for the following commmand) <br>
 sudo apt-get install python-pyside <br>
 sudo pip install six <br>
 sudo pip install periodictable <br>
+sudo pip install pymatgen (This is optional and will add optional functionality)<br>
 sudo apt-get install git <br>
 
 cd folder/where/you/want/to/install/ <br>
