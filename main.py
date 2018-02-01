@@ -94,6 +94,17 @@ class BrillouinWindow(QtGui.QDialog):
         button_layout.addWidget(add_atom_button)
         add_atom_button.clicked.connect(self.add_atom)
 
+        load_standard_kpath_button =  QtGui.QPushButton('Standard path',parent=button_widget)
+        button_layout.addWidget(load_standard_kpath_button)
+        load_standard_kpath_button.clicked.connect(self.load_standard_path)
+
+        try:
+            from pymatgen.symmetry.bandstructure import HighSymmKpath
+            import pymatgen as mg
+        except:
+            load_standard_kpath_button.setEnabled(False)
+
+
     def clear_path(self):
         for i in range(len(self.k_path)):
             del self.k_path[0]
@@ -172,6 +183,38 @@ class BrillouinWindow(QtGui.QDialog):
 
         self.mayavi_widget.set_path(self.k_path)
         self.mayavi_widget.plot_path()
+
+    def load_standard_path(self):
+
+        from pymatgen.symmetry.bandstructure import HighSymmKpath
+        import pymatgen as mg
+
+        lattice = mg.Lattice(main.crystal_structure.lattice_vectors)
+        atoms = main.crystal_structure.atoms
+        structure = mg.Structure(lattice, atoms[:,3], atoms[:,:3])
+        hs_path = HighSymmKpath(structure)
+
+        kpoints = hs_path.kpath['kpoints']
+        path = hs_path.kpath['path']
+
+        def convert_path(path, kpoints):
+            conv_path = []
+            for pos in path[0]:
+                if pos == u'\\Gamma':
+                    pos_r = 'Gamma'
+                else:
+                    pos_r = pos
+                new_point = [kpoints[pos], pos_r]
+                conv_path.append(new_point)
+
+            return conv_path
+
+        conv_path = convert_path(path, kpoints)
+        self.clear_path()
+        for el in conv_path:
+            self.k_path.append(el)
+        self.mayavi_widget.plot_path()
+        self.update_table()
 
 
 class MayaviQWidget(QtGui.QWidget):
@@ -687,7 +730,7 @@ class CodeInformationWindow(QtGui.QDialog):
                 k_path = information['bandstructure']['k path']
                 text+='  K path:\n'
                 for el,label in k_path:
-                    text += '    {0:1.1f} {1:1.1f} {2:1.1f}'.format(*el) + '  ' + label + '\n'
+                    text += '    {0:1.3f} {1:1.3f} {2:1.3f}'.format(*el) + '  ' + label + '\n'
                 for key,value in information['bandstructure'].iteritems():
                     if key != 'k path':
                         text += key + ': ' + value + '\n'
@@ -1184,8 +1227,9 @@ class PlotWithTreeview(QtGui.QWidget):
             data = self.data_dictionary[bs_name]
             data_list.append(data)
             name_list.append(bs_name)
-        main.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
         self.plot_widget.plot(data_list,name_list=name_list)
+        main.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
+
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
