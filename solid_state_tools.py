@@ -7,6 +7,13 @@ import time
 from scipy.spatial import ConvexHull,Voronoi
 import os
 
+try:
+    from pymatgen.symmetry.bandstructure import HighSymmKpath
+    import pymatgen as mg
+except:
+    HighSymmKpath = None
+    mg = None
+
 bohr = 0.52917721067
 
 cov_radii = np.loadtxt(os.path.dirname(__file__)+'/data/cov_radii.dat')/bohr
@@ -506,6 +513,39 @@ def construct_convex_hull(w_points):
     # shortest_connections = connections
 
     # return shortest_connections
+
+def calculate_standard_path(structure):
+
+    if mg is None:
+        trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
+                                       , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
+                                    [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
+        trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
+        path = list(zip(trash_bs_points, trash_bs_labels))
+        return path
+
+    lattice = mg.Lattice(structure.lattice_vectors)
+    atoms = structure.atoms
+    structure = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
+    hs_path = HighSymmKpath(structure)
+
+    kpoints = hs_path.kpath['kpoints']
+    path = hs_path.kpath['path']
+
+    def convert_path(path, kpoints):
+        conv_path = []
+        for pos in path[0]:
+            if pos == u'\\Gamma':
+                pos_r = 'Gamma'
+            else:
+                pos_r = pos
+            new_point = [kpoints[pos], pos_r]
+            conv_path.append(new_point)
+
+        return conv_path
+
+    conv_path = convert_path(path, kpoints)
+    return conv_path
 
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])

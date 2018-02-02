@@ -186,30 +186,8 @@ class BrillouinWindow(QtGui.QDialog):
 
     def load_standard_path(self):
 
-        from pymatgen.symmetry.bandstructure import HighSymmKpath
-        import pymatgen as mg
+        conv_path = sst.calculate_standard_path(main.crystal_structure)
 
-        lattice = mg.Lattice(main.crystal_structure.lattice_vectors)
-        atoms = main.crystal_structure.atoms
-        structure = mg.Structure(lattice, atoms[:,3], atoms[:,:3])
-        hs_path = HighSymmKpath(structure)
-
-        kpoints = hs_path.kpath['kpoints']
-        path = hs_path.kpath['path']
-
-        def convert_path(path, kpoints):
-            conv_path = []
-            for pos in path[0]:
-                if pos == u'\\Gamma':
-                    pos_r = 'Gamma'
-                else:
-                    pos_r = pos
-                new_point = [kpoints[pos], pos_r]
-                conv_path.append(new_point)
-
-            return conv_path
-
-        conv_path = convert_path(path, kpoints)
         self.clear_path()
         for el in conv_path:
             self.k_path.append(el)
@@ -926,11 +904,12 @@ class DftEngineWindow(QtGui.QWidget):
 
         self.layout.addWidget(self.button_widget)
 
-        trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
-                                       , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
-                                    [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
-        trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
-        self.band_structure_points = list(zip(trash_bs_points, trash_bs_labels))
+        # trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
+        #                                , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
+        #                             [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
+        # trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
+        # self.band_structure_points = list(zip(trash_bs_points, trash_bs_labels))
+        self.band_structure_points = None
         self.show()
 
     def update_all(self):
@@ -2137,7 +2116,7 @@ class CentralWindow(QtGui.QWidget):
         self.project_loaded = False
         self.project_directory = None
         self.parent=parent
-        self.crystal_structure = None
+        self._crystal_structure = None
         self.band_structures = {}
         self.optical_spectra = {}
         self.ks_densities = {}
@@ -2230,6 +2209,17 @@ class CentralWindow(QtGui.QWidget):
             QtCore.QTimer.singleShot(500, lambda: self.load_project(folder_name=project_directory))
             # QtCore.QTimer.singleShot(510, self.open_scripting_console)
 
+    @property
+    def crystal_structure(self):
+        return self._crystal_structure
+
+    @crystal_structure.setter
+    def crystal_structure(self,value):
+        self._crystal_structure = value
+        if self.dft_engine_window.band_structure_points is None and type(value) is sst.CrystalStructure:
+            self.dft_engine_window.band_structure_points = sst.calculate_standard_path(value)
+            self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
+
     def tab_is_changed(self,i):
         self.list_of_tabs[i].do_select_event()
 
@@ -2256,6 +2246,7 @@ class CentralWindow(QtGui.QWidget):
         self.crystal_structure = None
         esc_handler.reset_to_defaults()
         self.project_properties.clear()
+        self.dft_engine_window.band_structure_points = None
         for key, value in self.band_structures.items():
             del self.band_structures[key]
         for key, value in self.optical_spectra.items():
@@ -2794,7 +2785,7 @@ class CentralWindow(QtGui.QWidget):
         self.handle_queue()
 
 if __name__ == "__main__":
-    DEBUG = True
+    DEBUG = False
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
