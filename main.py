@@ -2670,7 +2670,7 @@ class CentralWindow(QtGui.QWidget):
                 engine_informations.append(engine_information)
 
             if 'g0w0' in tasks:
-                read_bandstructures.append(esc_handler.read_gw_bandstructure())
+                read_bandstructures.append(esc_handler.read_gw_bandstructure(special_k_points=self.dft_engine_window.band_structure_points))
                 engine_information = {'scf':scf_info,'bandstructure':{'k path':copy.deepcopy(self.dft_engine_window.band_structure_points)},'gw':copy.deepcopy(esc_handler.gw_options)}
                 engine_informations.append(engine_information)
             if 'bandstructure' in tasks and 'g0w0' in tasks:
@@ -2688,7 +2688,7 @@ class CentralWindow(QtGui.QWidget):
             self.check_relax()
         if 'phonons' in tasks:
             engine_information = {'scf': scf_info, 'bandstructure': {'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},'phonon':copy.deepcopy(esc_handler.phonons_options)}
-            read_bandstructure = esc_handler.read_phonon_bandstructure()
+            read_bandstructure = esc_handler.read_phonon_bandstructure(special_k_points=self.dft_engine_window.band_structure_points)
             read_bandstructure.engine_information = engine_information
             self.band_structures[title] = read_bandstructure
             self.band_structure_window.update_tree()
