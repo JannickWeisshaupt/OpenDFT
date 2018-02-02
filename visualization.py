@@ -830,19 +830,23 @@ class BandStructureVisualization(QtGui.QWidget):
             special_k_points = []
             special_k_points_label = []
 
-        bandgap = band_structure.bandgap
-        k_bandgap = band_structure.k_bandgap
-        if k_bandgap is None and bandgap is not None:
-            title_bandgap = ' $E_g = %1.1f $ eV' % bandgap + ' (indirect)'
-        elif bandgap is None:
-            title_bandgap = ' (metallic)'
-        elif k_bandgap in special_k_points:
-            k_bandgap_label = np.array(special_k_points_label)[k_bandgap == special_k_points][0]
-            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' at ' + k_bandgap_label
-        else:
-            title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' (direct)'
+        if band_structure.bs_type == 'electronic':
+            bandgap = band_structure.bandgap
+            k_bandgap = band_structure.k_bandgap
+            if k_bandgap is None and bandgap is not None:
+                title_bandgap = ' $E_g = %1.1f $ eV' % bandgap + ' (indirect)'
+            elif bandgap is None:
+                title_bandgap = ' (metallic)'
+            elif k_bandgap in special_k_points:
+                k_bandgap_label = np.array(special_k_points_label)[k_bandgap == special_k_points][0]
+                title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' at ' + k_bandgap_label
+            else:
+                title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' (direct)'
 
-        self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25)
+            self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25)
+        else:
+            self.ax.set_ylim(bottom=0)
+            self.ax.set_title('Phonon bandstructure', fontsize=25)
 
     def make_interactive_text(self,k_in,E,band_structure):
         bands = band_structure.bands

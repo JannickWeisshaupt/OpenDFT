@@ -505,8 +505,8 @@ Returns:
         if filename == 'PHDISP.OUT':
             bs_type = 'phonon'
         else:
-            bs_type = 'gw'
-        return sst.BandStructure(bands_qp,special_k_points=special_k_points)
+            bs_type = 'electronic'
+        return sst.BandStructure(bands_qp,special_k_points=special_k_points,bs_type=bs_type)
 
     def read_phonon_bandstructure(self,special_k_points=None):
         #TODO fix that if no standard bandstructure was calculated this fails!
