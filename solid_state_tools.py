@@ -10,7 +10,7 @@ import os
 try:
     from pymatgen.symmetry.bandstructure import HighSymmKpath
     import pymatgen as mg
-except:
+except Exception:
     HighSymmKpath = None
     mg = None
 
@@ -62,12 +62,9 @@ class MolecularStructure(object):
 class CrystalStructure(object):
     # Todo make lattice vectors a property so that it can be reset and inv_lattice_vectors are recalculated. Also atoms for n_atoms
     def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
-        self.lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
-        volume = np.dot(np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:]),self.lattice_vectors[2,:])
-        self.inv_lattice_vectors = np.zeros((3,3))
-        self.inv_lattice_vectors[0,:] = np.cross(self.lattice_vectors[1,:],self.lattice_vectors[2,:])*2*np.pi/volume
-        self.inv_lattice_vectors[1,:] = np.cross(self.lattice_vectors[2,:],self.lattice_vectors[0,:])*2*np.pi/volume
-        self.inv_lattice_vectors[2,:] = np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:])*2*np.pi/volume
+        self._lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
+
+        self.calculate_inv_lattice()
 
         self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
         self.n_atoms = atoms.shape[0]
@@ -79,6 +76,15 @@ class CrystalStructure(object):
             inv_lattice_vecs = np.linalg.inv(self.lattice_vectors.T)
             for i in range(self.n_atoms):
                 self.atoms[i,:3] = np.dot(inv_lattice_vecs,self.atoms[i,:3].T)
+
+    @property
+    def lattice_vectors(self):
+        return self._lattice_vectors
+
+    @lattice_vectors.setter
+    def lattice_vectors(self,value):
+        self._lattice_vectors = value
+        self.calculate_inv_lattice()
 
     def calc_absolute_coordinates(self,repeat=[1,1,1]):
         n_repeat = repeat[0]*repeat[1]*repeat[2]
@@ -118,6 +124,13 @@ class CrystalStructure(object):
         for i in range(N):
             conv_points[i,:] = np.dot(self.inv_lattice_vectors.T,band_structure_points[i,:])/(2*np.pi/a)
         return conv_points
+
+    def calculate_inv_lattice(self):
+        volume = np.dot(np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:]),self.lattice_vectors[2,:])
+        self.inv_lattice_vectors = np.zeros((3,3))
+        self.inv_lattice_vectors[0,:] = np.cross(self.lattice_vectors[1,:],self.lattice_vectors[2,:])*2*np.pi/volume
+        self.inv_lattice_vectors[1,:] = np.cross(self.lattice_vectors[2,:],self.lattice_vectors[0,:])*2*np.pi/volume
+        self.inv_lattice_vectors[2,:] = np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:])*2*np.pi/volume
 
 class BandStructure(object):
     def __init__(self,bands,special_k_points=None,bs_type='electronic'):

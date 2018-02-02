@@ -157,7 +157,7 @@ Default: 	GGA_PBE"""
         self.phonons_options_tooltip = {}
 
         self.optical_spectrum_options = {'xstype':'BSE','intv':'0.0 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
-                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.005',
+                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.0005',
                                          'gqmax':"3.0",'vkloff':"0.231 0.151 0.432"}
         self.optical_spectrum_options_tooltip = {'nstlbse':'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
                                                  'nempty_screening':'Number of empty states.',

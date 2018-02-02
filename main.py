@@ -953,12 +953,15 @@ class DftEngineWindow(QtGui.QWidget):
         self.bs_option_widget.read_all_entries()
         self.optical_spectrum_option_widget.read_all_entries()
         self.relax_option_widget.read_all_entries()
+        self.phonons_option_widget.read_all_entries()
 
     def prepare_start(self,tasks):
         self.abort_bool = False
         self.check_if_engine_is_running_and_warn_if_so()
         self.check_engine_for_compatibility(tasks)
         self.read_all_option_widgets()
+        overwrite_bool = self.check_data_overwrite(tasks)
+
 
     def start_ground_state_calculation(self):
         tasks = []
@@ -1056,6 +1059,24 @@ class DftEngineWindow(QtGui.QWidget):
         else:
             for button in button_list:
                 button.setEnabled(True)
+
+    def check_data_overwrite(self,tasks):
+        title = esc_handler.general_options['title']
+        if 'bandstructure' in tasks or 'g0w0' in tasks or 'phonons' in tasks or ('scf' in tasks and type(self.parent.crystal_structure) is sst.MolecularStructure):
+            data_dic = self.parent.band_structures
+        elif 'optical spectrum' in tasks:
+            data_dic = self.parent.optical_spectra
+        else:
+            data_dic = {}
+
+        if title in data_dic.keys():
+            del_msg = title+' is already saved. Do you want to overwrite it?'
+            reply = QtGui.QMessageBox.question(self, 'Sure to overwrite?', del_msg, QtGui.QMessageBox.Yes,
+                                               QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.No:
+                raise Exception('Data already exist')
+
 
 
 class ScfWindow(QtGui.QWidget):
@@ -2669,7 +2690,7 @@ class CentralWindow(QtGui.QWidget):
             engine_information = {'scf': scf_info, 'bandstructure': {'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},'phonon':copy.deepcopy(esc_handler.phonons_options)}
             read_bandstructure = esc_handler.read_phonon_bandstructure()
             read_bandstructure.engine_information = engine_information
-            self.band_structures[title + '_phonon'] = read_bandstructure
+            self.band_structures[title] = read_bandstructure
             self.band_structure_window.update_tree()
         if 'optical spectrum' in tasks:
             engine_information = {'scf': scf_info, 'optical spectrum':copy.deepcopy(esc_handler.optical_spectrum_options),'gw':gw_info}
