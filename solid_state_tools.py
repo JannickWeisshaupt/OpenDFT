@@ -560,6 +560,24 @@ def calculate_standard_path(structure):
     conv_path = convert_path(path, kpoints)
     return conv_path
 
+def calculate_path_length(structure,k_path):
+    points = []
+    pos = 0
+    p_length = 0
+    last_point = None
+    for point,label in k_path:
+        if last_point is None:
+            points.append([pos,label])
+            last_point = np.dot(structure.inv_lattice_vectors,point)
+        else:
+            abs_point = np.dot(structure.inv_lattice_vectors,point)
+            p_length = np.linalg.norm(abs_point- last_point)
+            points.append([pos+p_length,label])
+            last_point = abs_point
+        pos += p_length
+    return points
+
+
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])

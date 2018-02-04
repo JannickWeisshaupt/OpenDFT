@@ -474,8 +474,7 @@ Returns:
 
         return sst.BandStructure(bands, special_k_points=special_k_points_together)
 
-    def read_gw_bandstructure(self,filename='BAND-QP.OUT',special_k_points=None):
-        #TODO fix that if no standard bandstructure was calculated this fails!
+    def read_gw_bandstructure(self,filename='BAND-QP.OUT',special_k_points=None,structure=None):
         """This method reads the result of a gw electronic band structure calculation.
 
 Keyword args:
@@ -485,9 +484,13 @@ Returns:
     - band_structure:       A BandStructure object with the latest band structure result found.
         """
 
-        # if special_k_points is None:
-        band_structure = self.read_bandstructure()
-        special_k_points = band_structure.special_k_points
+        if special_k_points is None or structure is None:
+            band_structure = self.read_bandstructure()
+            special_k_points = band_structure.special_k_points
+        else:
+            special_k_points = sst.calculate_path_length(structure,special_k_points)
+
+
 
         band_qp = np.loadtxt(self.project_directory + self.working_dirctory + filename)
         k_qp = band_qp[:, 0]
@@ -508,14 +511,13 @@ Returns:
             bs_type = 'electronic'
         return sst.BandStructure(bands_qp,special_k_points=special_k_points,bs_type=bs_type)
 
-    def read_phonon_bandstructure(self,special_k_points=None):
-        #TODO fix that if no standard bandstructure was calculated this fails!
+    def read_phonon_bandstructure(self,special_k_points=None,structure=None):
         """This method reads the result of a phonon band structure calculation.
 
 Returns:
     - band_structure:       A BandStructure object with the latest phonon band structure result found.
         """
-        return self.read_gw_bandstructure(filename='PHDISP.OUT',special_k_points=special_k_points)
+        return self.read_gw_bandstructure(filename='PHDISP.OUT',special_k_points=special_k_points,structure=structure)
 
     def read_optical_spectrum(self):
         """This method reads the result of a optical spectrum calculation.
@@ -835,13 +837,28 @@ Returns:
 
 if __name__ == '__main__':
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/visualize"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
 
-    handler.custom_command_active = True
-    ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
-    ac_bo2 = handler._check_if_scf_is_finished()
+    trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
+                                   , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
+                                [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
+    trash_bs_labels = ['GAMMA', 'X', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
+    path = list(zip(trash_bs_points, trash_bs_labels))
 
-    print(ac_bo,ac_bo2)
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.6 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+
+    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    handler.calculate_ks_density(crystal_structure,[1,1])
+
+    handler.read_gw_bandstructure(special_k_points=path,structure=crystal_structure)
+
+
+    # handler.custom_command_active = True
+    # ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
+    # ac_bo2 = handler._check_if_scf_is_finished()
+
+    # print(ac_bo,ac_bo2)
 
     # print(handler.exciting_folder)
     # tree = handler.make_tree()

@@ -697,6 +697,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         return energy_out,epsilon_out
 
+
 class BandStructureVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
         super(BandStructureVisualization, self).__init__()
