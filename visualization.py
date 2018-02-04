@@ -584,6 +584,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         self.last_optical_spectrum = [optical_spectrum_list,name_list]
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
+            self.ax.format_coord = lambda x, y: u'E = {0:1.2f} eV, ε = {1:1.3f}'.format(x,y)
         self.ax.cla()
 
         entry_values = self.read_entries()

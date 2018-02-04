@@ -9,7 +9,7 @@ from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable
+from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -2823,6 +2823,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         filename=temp_folder + "/logfiles/" + "_".join(current_time_string) + ".log")
     logging.info('Program started')
+
+    set_procname(b'OpenDFT')
 
     app = QtGui.QApplication.instance()
     main = CentralWindow(parent=app)
