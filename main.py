@@ -2320,6 +2320,10 @@ class CentralWindow(QtGui.QWidget):
             with open(self.project_directory + '/save.pkl', 'rb') as handle:
                 b = pickle.load(handle)
 
+                k_path = b.pop('k path', None)
+                if k_path is not None:
+                    self.dft_engine_window.band_structure_points = k_path
+
                 self.crystal_structure = b.pop('crystal structure',None)
                 if self.crystal_structure is not None:
                     self.mayavi_widget.update_crystal_structure(self.crystal_structure)
@@ -2378,10 +2382,6 @@ class CentralWindow(QtGui.QWidget):
                     load_relax_options = option_dic_specific_handler.pop('relax options',None)
                     set_esc_handler_dic_to_loaded_dic(esc_handler.relax_options,load_relax_options)
 
-
-                k_path = b.pop('k path', None)
-                if k_path is not None:
-                    self.dft_engine_window.band_structure_points = k_path
 
                 self.project_properties.update(b['properties'])
                 ## Update esc_handler ! DANGER ZONE !

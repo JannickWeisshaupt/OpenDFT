@@ -539,8 +539,8 @@ def calculate_standard_path(structure):
 
     lattice = mg.Lattice(structure.lattice_vectors)
     atoms = structure.atoms
-    structure = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
-    hs_path = HighSymmKpath(structure)
+    structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
+    hs_path = HighSymmKpath(structure_mg,symprec=0.1)
 
     kpoints = hs_path.kpath['kpoints']
     path = hs_path.kpath['path']
