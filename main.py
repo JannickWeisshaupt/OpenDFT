@@ -101,11 +101,6 @@ class BrillouinWindow(QtGui.QDialog):
         button_layout.addWidget(load_standard_kpath_button)
         load_standard_kpath_button.clicked.connect(self.load_standard_path)
 
-        try:
-            from pymatgen.symmetry.bandstructure import HighSymmKpath
-            import pymatgen as mg
-        except:
-            load_standard_kpath_button.setEnabled(False)
 
 
     def clear_path(self):
@@ -1546,7 +1541,7 @@ class OptionWithTreeview(PlotWithTreeview):
 
 
 class SliderWithEntry(QtGui.QWidget):
-    def __init__(self,parent=None,label=None,limits=[0,1],value=None):
+    def __init__(self,parent=None,label=None,limits=(0,1),value=None):
         super(SliderWithEntry, self).__init__(parent)
         # self.horizontalLayoutWidget.setGeometry(QtCore.QRect(90, 150, 160, 31))
         self.limits = limits

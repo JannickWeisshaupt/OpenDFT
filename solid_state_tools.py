@@ -8,12 +8,10 @@ from scipy.spatial import ConvexHull,Voronoi
 import os
 from little_helpers import find_data_file
 
-try:
-    from pymatgen.symmetry.bandstructure import HighSymmKpath
-    import pymatgen as mg
-except Exception:
-    HighSymmKpath = None
-    mg = None
+
+from pymatgen.symmetry.bandstructure import HighSymmKpath
+import pymatgen as mg
+
 
 bohr = 0.52917721067
 

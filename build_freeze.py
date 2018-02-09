@@ -17,8 +17,9 @@ build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyfa
                                   'tvtk.pyface.ui.qt4'],
                      "include_files": [(str(scipy_path), "scipy"), #for scipy
                     (matplotlib.get_data_path(), "mpl-data"),'/home/jannick/python_programs/OpenDFT/data'],
-                     "includes":['numpy.core._methods', 'numpy.lib.format','PyQt4.QtCore','PyQt4.QtGui'],
-                     'excludes':'Tkinter'
+                     "includes":['numpy.core._methods', 'numpy.lib.format','PyQt4.QtCore','PyQt4.QtGui','pymatgen','pymatgen.symmetry.bandstructure'],
+                     'excludes':'Tkinter',
+                    "namespace_packages": ["ruamel.yaml"]
                     }
 
 executables = [
