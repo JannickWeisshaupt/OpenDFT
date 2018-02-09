@@ -4,3 +4,6 @@ MANIFEST
 /logfiles
 /testfiles
 defaults.pkl
+/build
+/dist
+main.spec

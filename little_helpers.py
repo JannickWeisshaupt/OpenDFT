@@ -1,6 +1,7 @@
 from pyface.qt import QtGui, QtCore
 import numpy as np
-
+import sys
+import os
 
 class no_error_dictionary:
     def __init__(self,dic_in):
@@ -108,3 +109,14 @@ def get_proc_name():
     # 16 == PR_GET_NAME from <linux/prctl.h>
     libc.prctl(16, byref(buff), 0, 0, 0)
     return buff.value
+
+def find_data_file(filename):
+    if getattr(sys, 'frozen', False):
+        # The application is frozen
+        datadir = os.path.dirname(sys.executable)
+    else:
+        # The application is not frozen
+        # Change this bit to match where you store your data files:
+        datadir = os.path.dirname(__file__)
+
+    return datadir + filename

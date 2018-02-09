@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('Qt4Agg')
 mpl.rcParams['backend.qt4']='PySide'
+from little_helpers import find_data_file
 from bisect import bisect
 # mpl.rc('font',**{'size': 22, 'family':'serif','serif':['Palatino']})
 # mpl.rc('text', usetex=True)
@@ -31,7 +32,7 @@ import random
 
 bohr = 0.52917721
 
-cov_radii = np.loadtxt(os.path.dirname(__file__)+'/data/cov_radii.dat')/bohr
+cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat'))/bohr
 
 colors = {1: (0.8, 0.8, 0.8),3:(0,0.75,0.75),11:(0,0.75,0.75),19:(0,0.75,0.75),37:(0,0.75,0.75),5:(0.78,0.329,0.1176),7:(0,0,1),
           6:(0.25,.25,.25), 8: (1, 0, 0),9:(0,1,0),17:(0,1,0),35:(0,1,0),16:(1,1,0),13:(0.68,0.229,0.1176),31:(0.58,0.15,0.07),15:(0,0,0.8),33:(48/255,139/255,229/255)}
@@ -46,7 +47,7 @@ for i in range(71,80):
     colors[i] = (0,1,1)
 
 try:
-    with open(os.path.dirname(__file__)+'/data/colormaps.dat') as f:
+    with open(find_data_file('/data/colormaps.dat')) as f:
         t = f.read()
         t = t.replace("'",'')
         s = t.split()

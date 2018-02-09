@@ -3,13 +3,16 @@ from __future__ import division,absolute_import,print_function,unicode_literals
 import sys
 import os
 import numpy as np
+from encodings import ascii
+from encodings import idna
+from encodings import unicode_escape
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name
+from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name,find_data_file
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -266,7 +269,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
-        self.setWindowIcon(QtGui.QIcon('icon.ico'))
+        self.setWindowIcon(QtGui.QIcon(find_data_file('icon.ico')))
         self.error_widget = QtGui.QErrorMessage(parent=self)
 
         self.update_fields_timer = QtCore.QTimer()
@@ -2811,7 +2814,7 @@ if __name__ == "__main__":
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
 
-    installation_folder = os.path.dirname(__file__)
+    # installation_folder = os.path.dirname(find_data_file(''))
     temp_folder = os.path.expanduser("~")+"/.OpenDFT"
 
     if not os.path.exists(temp_folder):
