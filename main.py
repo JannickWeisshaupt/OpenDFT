@@ -3,10 +3,17 @@ from __future__ import division,absolute_import,print_function,unicode_literals
 import sys
 import os
 import numpy as np
+import warnings
+
+DEBUG = False
+if DEBUG:
+    warnings.simplefilter('always', UserWarning)
+else:
+    warnings.simplefilter('ignore', UserWarning)
+
 from encodings import ascii
 from encodings import idna
 from encodings import unicode_escape
-
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
@@ -22,7 +29,7 @@ import logging
 import syntax
 import re
 import copy
-import warnings
+
 
 try:
     import queue
@@ -30,12 +37,8 @@ except:
     import Queue as queue
 
 
-warnings.simplefilter('always', UserWarning)
 
 general_handler = sst.GeneralHandler()
-event_queue = queue.Queue()
-
-
 
 
 
@@ -1074,7 +1077,6 @@ class DftEngineWindow(QtGui.QWidget):
 
             if reply == QtGui.QMessageBox.No:
                 raise Exception('Data already exist')
-
 
 
 class ScfWindow(QtGui.QWidget):
@@ -2804,7 +2806,6 @@ class CentralWindow(QtGui.QWidget):
         self.handle_queue()
 
 if __name__ == "__main__":
-    DEBUG = False
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
