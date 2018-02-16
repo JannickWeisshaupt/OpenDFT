@@ -11,9 +11,6 @@ if DEBUG:
 else:
     warnings.simplefilter('ignore', UserWarning)
 
-from encodings import ascii
-from encodings import idna
-from encodings import unicode_escape
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization

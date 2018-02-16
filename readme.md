@@ -18,6 +18,19 @@ OpenDFT runs on windows and linux and python versions 2 and 3. In order to be ab
 
 #### Ubuntu, Linux Mint, etc. (linux distros with aptitude package manager):
 
+##### User install
+
+First install the vtk library for python with:
+
+sudo apt-get install python-vtk
+
+Then download the packaged OpenDFT program from the [release](https://github.com/JannickWeisshaupt/OpenDFT/releases) page
+Unzip the file and execute the OpenDFT executable in the folder from a terminal: <br>
+cd OpenDFT<br>
+./OpenDFT
+
+##### Developer install
+
 One of the dependencies (mayavi) is not easy to install for python3 on linux . Therefore we
 recommend to use python2. Here is a step-by-step instruction how to install OpenDFT:
 

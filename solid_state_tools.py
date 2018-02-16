@@ -59,7 +59,6 @@ class MolecularStructure(object):
         return bonds
 
 class CrystalStructure(object):
-    # Todo make lattice vectors a property so that it can be reset and inv_lattice_vectors are recalculated. Also atoms for n_atoms
     def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
         self._lattice_vectors = np.array(lattice_vectors,dtype=np.float) # tuple of np.arrays
 
