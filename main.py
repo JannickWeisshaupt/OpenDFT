@@ -2679,8 +2679,6 @@ class CentralWindow(QtGui.QWidget):
                 read_bandstructure.engine_information = engine_information
                 self.band_structures[title] = read_bandstructure
                 self.band_structure_window.update_tree()
-            if len(read_bandstructures) != 0 and self.band_structure_window.plot_widget.first_plot_bool:
-                self.band_structure_window.plot_widget.plot(self.band_structures[title])
         if 'relax' in tasks:
             self.check_relax()
         if 'phonons' in tasks:
