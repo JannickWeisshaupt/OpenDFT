@@ -2088,12 +2088,14 @@ class EditStructureWindow(QtGui.QDialog):
         n_rows = self.atom_table.rowCount()
         atoms = np.zeros((n_rows,4))
         for i in range(n_rows):
-            a_type = self.atom_table.item(i,0).text()
             try:
+                a_type = self.atom_table.item(i, 0).text()
                 a_type = int(a_type)
                 a_type_is_number = True
-            except:
+            except ValueError:
                 a_type_is_number = False
+            except Exception:
+                continue
             if a_type not in p_table_rev.keys():
                 continue
             coord = np.zeros((1,3))

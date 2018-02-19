@@ -54,7 +54,10 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         self._filenames_tasks = {}
         self._timestamp_tasks = {}
 
-        self._engine_version = self._get_engine_version()
+        try:
+            self._engine_version = self._get_engine_version()
+        except Exception:
+            self._engine_version = None
 
         self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'bandstructure'])
 
