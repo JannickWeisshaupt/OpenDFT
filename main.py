@@ -1086,7 +1086,8 @@ class ScfWindow(QtGui.QWidget):
         layout.addWidget(self.scf_widget)
 
     def do_select_event(self):
-        pass
+        if self.scf_widget.ax is not None:
+            self.scf_widget.figure.tight_layout()
 
 
 class InfoWindow(QtGui.QWidget):
@@ -2285,7 +2286,9 @@ class CentralWindow(QtGui.QWidget):
         folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
-        if len(folder_name) > 1:
+
+        save_filename = folder_name + '/save.pkl'
+        if len(folder_name) > 1 and os.path.isfile(save_filename):
             self.reset_results_and_plots()
             self.project_directory = folder_name
             os.chdir(self.project_directory)
@@ -2296,6 +2299,9 @@ class CentralWindow(QtGui.QWidget):
             self.window.setWindowTitle("OpenDFT - "+self.project_directory)
             self.project_loaded = True
             self.configure_buttons()
+        else:
+            error_message = 'Could not load project. ' + str(folder_name) + ' is not a valid OpenDFT project'
+            self.error_dialog.showMessage(error_message)
 
     def save_results(self):
         # Todo move engine folder and custom command into engine specific dic
