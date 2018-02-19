@@ -9,6 +9,7 @@ import re
 import threading
 from six import string_types
 from shutil import copyfile
+from little_helpers import find_data_file
 
 
 atomic_mass = pt.mass
@@ -696,7 +697,7 @@ Returns:
     def _copy_default_pseudos(self,crystal_structure):
         atoms = set(crystal_structure.atoms[:,3])
         atoms_names = [p_table[atom] for atom in atoms]
-        installation_folder = os.path.dirname(__file__)
+        installation_folder = find_data_file('')
 
         if not os.path.isdir(self.project_directory+self.pseudo_directory):
             os.mkdir(self.project_directory+self.pseudo_directory)
