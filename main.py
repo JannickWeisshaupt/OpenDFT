@@ -20,6 +20,7 @@ from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteInto
 from TerminalClass import PythonTerminal
 import pickle
 import time
+import traceback
 import threading
 from collections import OrderedDict
 import logging
@@ -977,10 +978,7 @@ class DftEngineWindow(QtGui.QWidget):
             esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following:<br> 1.Check if the selected dft engine is correctly installed<br>' \
-                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
-            self.execute_error_dialog.showMessage(error_message)
+            self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_bar.set_engine_status(True)
 
@@ -991,10 +989,7 @@ class DftEngineWindow(QtGui.QWidget):
             esc_handler.start_relax(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
-            self.execute_error_dialog.showMessage(error_message)
+            self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_bar.set_engine_status(True)
 
@@ -1010,10 +1005,7 @@ class DftEngineWindow(QtGui.QWidget):
             esc_handler.start_gw(self.parent.crystal_structure,self.band_structure_points)
             QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
-            self.execute_error_dialog.showMessage(error_message)
+            self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_bar.set_engine_status(True)
 
@@ -1024,10 +1016,7 @@ class DftEngineWindow(QtGui.QWidget):
             esc_handler.start_phonon(self.parent.crystal_structure, self.band_structure_points)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
-            self.execute_error_dialog.showMessage(error_message)
+            self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_bar.set_engine_status(True)
 
@@ -1038,10 +1027,7 @@ class DftEngineWindow(QtGui.QWidget):
             esc_handler.start_optical_spectrum(self.parent.crystal_structure)
             QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
         except Exception as e:
-            error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + repr(
-                e) + '<br><br>Try following<br>: 1.Check if the selected dft engine is correctly installed<br>' \
-                     '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
-            self.execute_error_dialog.showMessage(error_message)
+            self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_bar.set_engine_status(True)
 
@@ -1075,6 +1061,18 @@ class DftEngineWindow(QtGui.QWidget):
             if reply == QtGui.QMessageBox.No:
                 raise Exception('Data already exist')
 
+    def get_stacktrace_as_string(self):
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        error = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        joined_error = '<br>'.join(error)
+        return joined_error
+
+    def show_stacktrace_in_error_dialog(self):
+        stacktrace = self.get_stacktrace_as_string()
+        stacktrace = stacktrace.replace(' ','&#160;')
+        error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + stacktrace + '<br><br>Try following:<br> 1.Check if the selected dft engine is correctly installed<br>' \
+                                                                                                              '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
+        self.execute_error_dialog.showMessage(error_message)
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
