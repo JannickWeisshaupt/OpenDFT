@@ -16,11 +16,10 @@ from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table,p_table_rev
-from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name,find_data_file
+from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name,find_data_file,get_stacktrace_as_string
 from TerminalClass import PythonTerminal
 import pickle
 import time
-import traceback
 import threading
 from collections import OrderedDict
 import logging
@@ -1061,15 +1060,8 @@ class DftEngineWindow(QtGui.QWidget):
             if reply == QtGui.QMessageBox.No:
                 raise Exception('Data already exist')
 
-    def get_stacktrace_as_string(self):
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        error = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        joined_error = '<br>'.join(error)
-        return joined_error
-
     def show_stacktrace_in_error_dialog(self):
-        stacktrace = self.get_stacktrace_as_string()
-        stacktrace = stacktrace.replace(' ','&#160;')
+        stacktrace = get_stacktrace_as_string()
         error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + stacktrace + '<br><br>Try following:<br> 1.Check if the selected dft engine is correctly installed<br>' \
                                                                                                               '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
         self.execute_error_dialog.showMessage(error_message)
@@ -2611,7 +2603,8 @@ class CentralWindow(QtGui.QWidget):
                 self.load_results_from_engine(tasks)
                 self.update_run_information(tasks)
             except Exception as e:
-                error_message_load = 'Reading of the results of the calculation failed with error' + repr(e)
+                stacktrace = get_stacktrace_as_string()
+                error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
                 self.error_dialog.showMessage(error_message_load)
 
     def update_run_information(self,tasks):

@@ -2,6 +2,7 @@ from pyface.qt import QtGui, QtCore
 import numpy as np
 import sys
 import os
+import traceback
 
 class no_error_dictionary:
     def __init__(self,dic_in):
@@ -120,3 +121,10 @@ def find_data_file(filename):
         datadir = os.path.dirname(__file__)
 
     return datadir + filename
+
+def get_stacktrace_as_string():
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    error = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    joined_error = '<br>'.join(error)
+    joined_error = joined_error.replace(' ','&#160;')
+    return joined_error
