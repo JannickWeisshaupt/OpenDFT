@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from __future__ import division,absolute_import,print_function,unicode_literals
 import sys
+if not sys.getfilesystemencoding():
+    sys.getfilesystemencoding = lambda: 'UTF-8'
 import os
 import numpy as np
 import warnings
