@@ -942,10 +942,28 @@ class ScfVisualization(QtGui.QWidget):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
         self.ax.cla()
-        self.ax.plot(scf_data[:,0], scf_data[:,1], marker='o',color='#1f77b4',ms=12,markeredgecolor='none',linewidth=0)
+
+        xmax = int(round(scf_data[:,0].max()))+1
+        xmin = int(scf_data[:,0].min())
+        dist = xmax - xmin
+        if dist<10:
+            step = 1
+            ms = 12
+        elif dist < 20:
+            step = 2
+            ms = 12
+        elif dist < 50:
+            step = 5
+            ms = 9
+        else:
+            step = int(round((dist//10)/5)*5)
+            ms = 6
+        xint = list(range(0,xmax,step))[1:]
+
+        self.ax.plot(scf_data[:,0], scf_data[:,1], marker='o',color='#1f77b4',ms=ms,markeredgecolor='none',linewidth=0)
         self.ax.plot(scf_data[:, 0], scf_data[:, 1], linestyle='--', color='#1f77b4', linewidth=3,alpha=0.5)
         self.ax.set_xlim(scf_data[:,0].min()-0.1,scf_data[:,0].max()+0.1)
-        xint = range(int(scf_data[:,0].min()),int(round(scf_data[:,0].max()))+1)
+
         self.ax.set_xticks(xint)
         self.ax.set_xlabel('Scf iteration')
         self.ax.set_ylabel('Total Energy')
