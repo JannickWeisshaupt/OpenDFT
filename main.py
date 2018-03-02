@@ -1,6 +1,7 @@
 #!/usr/bin/python
-from __future__ import division,absolute_import,print_function,unicode_literals
+from __future__ import division, absolute_import, print_function, unicode_literals
 import sys
+
 if not sys.getfilesystemencoding():
     sys.getfilesystemencoding = lambda: 'UTF-8'
 import os
@@ -15,10 +16,12 @@ else:
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization,OpticalSpectrumVisualization,colormap_list,BrillouinVisualization
+from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
+    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization
 import solid_state_tools as sst
-from solid_state_tools import p_table,p_table_rev
-from little_helpers import no_error_dictionary,CopySelectedCellsAction,PasteIntoTable,set_procname,get_proc_name,find_data_file,get_stacktrace_as_string
+from solid_state_tools import p_table, p_table_rev
+from little_helpers import no_error_dictionary, CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
+    find_data_file, get_stacktrace_as_string
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -29,26 +32,21 @@ import syntax
 import re
 import copy
 
-
 try:
     import queue
 except:
     import Queue as queue
 
-
-
 general_handler = sst.GeneralHandler()
 
 
-
 class BrillouinWindow(QtGui.QDialog):
-
     def __init__(self, parent=None):
         super(BrillouinWindow, self).__init__(parent)
 
         self.k_path = None
 
-        self.resize(900,600)
+        self.resize(900, 600)
         layout = QtGui.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -63,18 +61,18 @@ class BrillouinWindow(QtGui.QDialog):
 
         table_layout = QtGui.QVBoxLayout(table_widget)
 
-        self.table =  QtGui.QTableWidget(table_widget)
+        self.table = QtGui.QTableWidget(table_widget)
 
         copy_action = CopySelectedCellsAction(self.table)
         self.table.addAction(copy_action)
-        paste_action = PasteIntoTable(self.table,self)
+        paste_action = PasteIntoTable(self.table, self)
         self.table.addAction(paste_action)
 
         self.table.setColumnCount(4)
         self.table.setRowCount(0)
         table_layout.addWidget(self.table)
 
-        for i,label in enumerate(['x','y','z','Label']):
+        for i, label in enumerate(['x', 'y', 'z', 'Label']):
             item = QtGui.QTableWidgetItem()
             self.table.setHorizontalHeaderItem(i, item)
             item.setText(label)
@@ -87,23 +85,21 @@ class BrillouinWindow(QtGui.QDialog):
 
         button_layout = QtGui.QHBoxLayout(button_widget)
 
-        remove_all_button = QtGui.QPushButton('Remove path',parent=button_widget)
+        remove_all_button = QtGui.QPushButton('Remove path', parent=button_widget)
         button_layout.addWidget(remove_all_button)
         remove_all_button.clicked.connect(self.clear_path)
 
-        remove_selected_button = QtGui.QPushButton('Remove point',parent=button_widget)
+        remove_selected_button = QtGui.QPushButton('Remove point', parent=button_widget)
         button_layout.addWidget(remove_selected_button)
         remove_selected_button.clicked.connect(self.remove_point)
 
-        add_atom_button = QtGui.QPushButton('Add point',parent=button_widget)
+        add_atom_button = QtGui.QPushButton('Add point', parent=button_widget)
         button_layout.addWidget(add_atom_button)
         add_atom_button.clicked.connect(self.add_atom)
 
-        load_standard_kpath_button =  QtGui.QPushButton('Standard path',parent=button_widget)
+        load_standard_kpath_button = QtGui.QPushButton('Standard path', parent=button_widget)
         button_layout.addWidget(load_standard_kpath_button)
         load_standard_kpath_button.clicked.connect(self.load_standard_path)
-
-
 
     def clear_path(self):
         for i in range(len(self.k_path)):
@@ -113,11 +109,11 @@ class BrillouinWindow(QtGui.QDialog):
         self.mayavi_widget.plot_path()
         self.update_table()
 
-    def remove_point(self,*args,**kwargs):
-        points = kwargs.pop('points',None)
+    def remove_point(self, *args, **kwargs):
+        points = kwargs.pop('points', None)
         self.disconnect_tables()
         if points is None:
-           points = sorted(set(index.row() for index in self.table.selectedIndexes()))
+            points = sorted(set(index.row() for index in self.table.selectedIndexes()))
         for point in points[::-1]:
             self.table.removeRow(point)
         self.connect_tables()
@@ -129,15 +125,15 @@ class BrillouinWindow(QtGui.QDialog):
         for i in range(len(self.k_path)):
             for j in range(4):
                 item = QtGui.QTableWidgetItem()
-                if j<3:
+                if j < 3:
                     text = "{0:1.6f}".format(self.k_path[i][0][j])
                 else:
                     text = self.k_path[i][1]
                 item.setText(text)
-                self.table.setItem(i,j,item)
+                self.table.setItem(i, j, item)
         self.connect_tables()
 
-    def set_path(self,k_path):
+    def set_path(self, k_path):
 
         self.k_path = k_path
         self.mayavi_widget.set_path(k_path)
@@ -146,10 +142,10 @@ class BrillouinWindow(QtGui.QDialog):
     def add_atom(self):
         self.disconnect_tables()
         n = self.table.rowCount()
-        self.table.setRowCount(n+1)
+        self.table.setRowCount(n + 1)
         for i in range(4):
             item = QtGui.QTableWidgetItem()
-            self.table.setItem(n,i,item)
+            self.table.setItem(n, i, item)
         self.connect_tables()
 
     def read_table(self):
@@ -157,8 +153,8 @@ class BrillouinWindow(QtGui.QDialog):
         k_points = []
         for i in range(n_k):
             try:
-                coords = np.array([float(self.table.item(i,j).text()) for j in range(3)])
-                k_point = [coords,str(self.table.item(i,3).text())]
+                coords = np.array([float(self.table.item(i, j).text()) for j in range(3)])
+                k_point = [coords, str(self.table.item(i, 3).text())]
                 k_points.append(k_point)
             except Exception:
                 pass
@@ -207,7 +203,7 @@ class MayaviQWidget(QtGui.QWidget):
         layout.addWidget(self.ui)
         self.ui.setParent(self)
 
-    def update_plot(self,keep_view=False):
+    def update_plot(self, keep_view=False):
         self.visualization.update_plot(keep_view=keep_view)
 
     def update_crystal_structure(self, crystal_structure):
@@ -218,14 +214,14 @@ class MayaviQWidget(QtGui.QWidget):
 
 
 class EntryWithLabel(QtGui.QWidget):
-    def __init__(self, parent,label,value=None,width_text=200,width_label=90):
+    def __init__(self, parent, label, value=None, width_text=200, width_label=90):
         QtGui.QWidget.__init__(self, parent)
         self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
         self.layout = QtGui.QHBoxLayout(self)
         self.textbox = QtGui.QLineEdit(self)
         if width_text:
             self.textbox.setMaximumWidth(width_text)
-        self.label_widget = QtGui.QLabel(label,parent=self)
+        self.label_widget = QtGui.QLabel(label, parent=self)
         if width_label:
             self.label_widget.setMaximumWidth(width_label)
         self.layout.setAlignment(QtCore.Qt.AlignLeft)
@@ -239,10 +235,10 @@ class EntryWithLabel(QtGui.QWidget):
     def get_text(self):
         return self.textbox.text()
 
-    def set_text(self,text):
+    def set_text(self, text):
         self.textbox.setText(text)
 
-    def connect_editFinished(self,command):
+    def connect_editFinished(self, command):
         self.editFinished_command = command
         self.textbox.editingFinished.connect(self.handleEditingFinished)
 
@@ -259,8 +255,8 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.main_widget = QtGui.QWidget(self)
         self.setCentralWidget(self.main_widget)
 
-        self.setMinimumSize(1000,800)
-        self.resize(1200,800)
+        self.setMinimumSize(1000, 800)
+        self.resize(1200, 800)
         self.parent = parent
         self.main_layout = QtGui.QVBoxLayout(self.main_widget)
         self.make_menubar()
@@ -280,15 +276,15 @@ class ConsoleWindow(QtGui.QMainWindow):
 
         class CodingTextEdit(QtGui.QTextEdit):
             # TODO replace tab by some nice functionality (4 spaces + multiselect)
-            def __init__(self,*args,**kwargs):
-                super(CodingTextEdit,self).__init__(*args,**kwargs)
+            def __init__(self, *args, **kwargs):
+                super(CodingTextEdit, self).__init__(*args, **kwargs)
 
-            # def keyPressEvent(self, event):
-            #     cursor = self.textCursor()
-            #     if event.key() == QtCore.Qt.Key_Tab:
-            #         event.accept()
-            #         print('tab was pressed')
-            #     event.accept()
+                # def keyPressEvent(self, event):
+                #     cursor = self.textCursor()
+                #     if event.key() == QtCore.Qt.Key_Tab:
+                #         event.accept()
+                #         print('tab was pressed')
+                #     event.accept()
 
         self.input_text_widget = CodingTextEdit(self)
         self.input_text_widget.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
@@ -305,12 +301,12 @@ class ConsoleWindow(QtGui.QMainWindow):
         sub_layout = QtGui.QHBoxLayout(sub_frame)
 
         class InteractiveText(EntryWithLabel):
-            def __init__(self,*args,**kwargs):
-                super(InteractiveText,self).__init__(*args,**kwargs)
+            def __init__(self, *args, **kwargs):
+                super(InteractiveText, self).__init__(*args, **kwargs)
                 self.parent = args[0]
 
             def keyPressEvent(self, event):
-                if event.key() in [QtCore.Qt.Key_Enter,QtCore.Qt.Key_Return]:
+                if event.key() in [QtCore.Qt.Key_Enter, QtCore.Qt.Key_Return]:
                     self.parent.handle_interactive_text()
                 elif event.key() == QtCore.Qt.Key_Up:
                     self.parent.history_move(1)
@@ -319,12 +315,12 @@ class ConsoleWindow(QtGui.QMainWindow):
                 else:
                     event.accept()
 
-        self.interactive_text =InteractiveText(self,'>>',width_label=50,width_text=None)
+        self.interactive_text = InteractiveText(self, '>>', width_label=50, width_text=None)
         # self.interactive_text.textbox.returnPressed.connect(self.handle_interactive_text)
         self.interactive_text.textbox.setStyleSheet('font-size: 10pt; font-family: monospace; ')
         sub_layout.addWidget(self.interactive_text)
 
-        self.status_bar = StatusBar(parent=self,running_text='Code is running',not_running_text='awaiting input')
+        self.status_bar = StatusBar(parent=self, running_text='Code is running', not_running_text='awaiting input')
         sub_layout.addWidget(self.status_bar)
 
         self.main_layout.addWidget(sub_frame)
@@ -480,7 +476,8 @@ plt.show()
         else:
             final_pos = cur_pos
 
-        history = [item.replace(u"\u2029",'\n') for sublist in self.python_interpreter.out_history for item in sublist if len(item)>0] # collapse list of list to one list
+        history = [item.replace(u"\u2029", '\n') for sublist in self.python_interpreter.out_history for item in sublist
+                   if len(item) > 0]  # collapse list of list to one list
         out_text = u'\n'.join(history)
         self.output_text_widget.setPlainText(out_text)
         if final_pos is None:
@@ -488,12 +485,12 @@ plt.show()
         self.output_scrollbar.setValue(final_pos)
         QtGui.QApplication.processEvents()
 
-    def history_move(self,x):
+    def history_move(self, x):
         self.current_history_element += x
-        if self.current_history_element <0:
+        if self.current_history_element < 0:
             self.current_history_element = -1
         elif self.current_history_element >= len(self.interactive_history):
-            self.current_history_element = len(self.interactive_history) -1
+            self.current_history_element = len(self.interactive_history) - 1
         if self.current_history_element < 0:
             self.interactive_text.set_text('')
         else:
@@ -501,18 +498,18 @@ plt.show()
 
     def run_selection(self):
         cursor = self.input_text_widget.textCursor()
-        code_text = cursor.selectedText().replace(u"\u2029",'\n')
+        code_text = cursor.selectedText().replace(u"\u2029", '\n')
         out = self.python_interpreter.run_code(code_text)
         # self.update_output()
 
-    def run_cell(self,jump=False):
+    def run_cell(self, jump=False):
         cursor = self.input_text_widget.textCursor()
         code_text = self.input_text_widget.toPlainText()
-        cells = re.split('##[^#\n]*\n',code_text)
+        cells = re.split('##[^#\n]*\n', code_text)
         y = cursor.blockNumber()
         code_split = code_text.split('\n')
-        del_pos = [i for i,x in enumerate(code_split) if '##' in x]
-        tr = [i+1 for i,x in enumerate(del_pos) if x<=y]
+        del_pos = [i for i, x in enumerate(code_split) if '##' in x]
+        tr = [i + 1 for i, x in enumerate(del_pos) if x <= y]
         if len(tr) == 0:
             sel_cell = 0
         else:
@@ -522,16 +519,16 @@ plt.show()
         if jump:
             index = 0
             regex = QtCore.QRegExp('##')
-            for i in range(sel_cell+1):
-                res = regex.indexIn(code_text , index)
-                if res <0:
+            for i in range(sel_cell + 1):
+                res = regex.indexIn(code_text, index)
+                if res < 0:
                     break
                 else:
-                    index = res +2
+                    index = res + 2
             cursor.setPosition(index)
             self.input_text_widget.setTextCursor(cursor)
 
-    def run_code(self,code_text=None):
+    def run_code(self, code_text=None):
         if code_text is None:
             code_text = self.input_text_widget.toPlainText()
         s_time = time.time()
@@ -541,23 +538,24 @@ plt.show()
             unit = 's'
             show_time = run_time
         elif run_time < 6000:
-            show_time = run_time/60
+            show_time = run_time / 60
             unit = 'min'
-        elif run_time < 60**2*50:
-            show_time = run_time/60**2
+        elif run_time < 60 ** 2 * 50:
+            show_time = run_time / 60 ** 2
             unit = 'h'
         else:
-            show_time = run_time/60**2/24
+            show_time = run_time / 60 ** 2 / 24
             unit = 'days'
-        self.python_interpreter.out_history.append(['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time,unit)])
+        self.python_interpreter.out_history.append(
+            ['------- Code execution finished after {0:1.1f} {1} -------\n'.format(show_time, unit)])
 
     def handle_interactive_text(self):
         code_text = self.interactive_text.get_text()
-        self.python_interpreter.out_history.append(['>> '+code_text])
+        self.python_interpreter.out_history.append(['>> ' + code_text])
         self.interactive_text.set_text('')
         out = self.python_interpreter.run_code(code_text)
         # self.update_output()
-        self.interactive_history.insert(0,code_text)
+        self.interactive_history.insert(0, code_text)
         self.current_history_element = -1
 
     def terminate_execution(self):
@@ -590,14 +588,14 @@ plt.show()
         file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')[0]
         if not file_name:
             return
-        with open(file_name,'r') as f:
+        with open(file_name, 'r') as f:
             text = f.read()
         self.input_text_widget.setPlainText(text)
         self.saved_code = text
         self.saved_code_filename = file_name
         self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
-    def save_code(self,ask_filename=False):
+    def save_code(self, ask_filename=False):
         if self.saved_code_filename is None or ask_filename:
             file_name = QtGui.QFileDialog.getSaveFileName(self, 'Save File')[0]
         else:
@@ -614,22 +612,23 @@ plt.show()
 
     def start_code_execution(self):
         code_text = self.input_text_widget.toPlainText()
-        splitted_code = re.split(r'[\s\t\n]+\$matplotlib[\s\t]*\n',code_text,1)
+        splitted_code = re.split(r'[\s\t\n]+\$matplotlib[\s\t]*\n', code_text, 1)
         main_code = splitted_code[0]
-        if len(splitted_code)>1:
+        if len(splitted_code) > 1:
             matplotlib_code = splitted_code[1]
         else:
             matplotlib_code = None
 
         if self.contains_matplotlib(main_code):
-            self.error_widget.showMessage('There seems to be matplotlib code in the main body. Please seperate them by using a #$matplotlib seperator')
+            self.error_widget.showMessage(
+                'There seems to be matplotlib code in the main body. Please seperate them by using a #$matplotlib seperator')
             return
 
         self.start_code_thread(lambda: self.run_code(code_text=main_code))
         if matplotlib_code is not None:
-            self.queue.put({'task':'matplotlib','code':matplotlib_code})
+            self.queue.put({'task': 'matplotlib', 'code': matplotlib_code})
 
-    def start_code_thread(self,target):
+    def start_code_thread(self, target):
         if self.code_thread.is_alive():
             return
         self.code_thread = threading.Thread(target=target)
@@ -639,18 +638,18 @@ plt.show()
         self.update_fields_timer.start(100)
         super(ConsoleWindow, self).show()
 
-    def closeEvent(self,event):
+    def closeEvent(self, event):
         self.update_fields_timer.stop()
         event.accept()
 
-    def handle_queue_item(self,item):
+    def handle_queue_item(self, item):
         task = item['task']
 
         if task == 'matplotlib':
             if not self.code_thread.is_alive():
                 self.python_interpreter.run_code(item['code'])
             else:
-                self.queue.put({'task':'matplotlib','code':item['code']})
+                self.queue.put({'task': 'matplotlib', 'code': item['code']})
 
     def check_queue_and_update(self):
         if not self.queue.empty():
@@ -658,7 +657,7 @@ plt.show()
             self.handle_queue_item(q_item)
         self.update_output()
 
-    def contains_matplotlib(self,code):
+    def contains_matplotlib(self, code):
         code_lines = code.splitlines()
         matplotlib_found = False
         for line in code_lines:
@@ -674,13 +673,13 @@ class CodeInformationWindow(QtGui.QDialog):
         super(CodeInformationWindow, self).__init__(parent)
 
         self.parent = self
-        self.resize(300,500)
+        self.resize(300, 500)
         self.setWindowTitle('Run details')
         layout = QtGui.QHBoxLayout(self)
         self.text_view = QtGui.QTextBrowser(self)
         layout.addWidget(self.text_view)
 
-    def show_information(self,information,name=None):
+    def show_information(self, information, name=None):
         if information is None:
             text = 'No details available'
             self.text_view.setPlainText(text)
@@ -691,43 +690,42 @@ class CodeInformationWindow(QtGui.QDialog):
                 sub_text = 'selected result'
             else:
                 sub_text = name
-            text = 'Run details for '+sub_text+ '\n'
+            text = 'Run details for ' + sub_text + '\n'
 
-            def add_dic_to_text(text,indic,increment=0):
+            def add_dic_to_text(text, indic, increment=0):
                 dic = OrderedDict(sorted(indic.items(), key=lambda t: t[0]))
-                for key,value in dic.iteritems():
-                    text += ' '*increment +key + ': '+ value + '\n'
+                for key, value in dic.iteritems():
+                    text += ' ' * increment + key + ': ' + value + '\n'
                 return text
 
             if 'scf' in information.keys():
                 text += '\nSCF:\n'
-                text = add_dic_to_text(text,information['scf'],increment=2)
+                text = add_dic_to_text(text, information['scf'], increment=2)
 
             if 'bandstructure' in information.keys():
                 text += '\nBandstructure:\n'
                 k_path = information['bandstructure']['k path']
-                text+='  K path:\n'
-                for el,label in k_path:
+                text += '  K path:\n'
+                for el, label in k_path:
                     text += '    {0:1.3f} {1:1.3f} {2:1.3f}'.format(*el) + '  ' + label + '\n'
-                for key,value in information['bandstructure'].iteritems():
+                for key, value in information['bandstructure'].iteritems():
                     if key != 'k path':
                         text += key + ': ' + value + '\n'
 
-            rest_dic = {key:value for key,value in information.iteritems() if key not in ('scf','bandstructure')}
-            for key,value in rest_dic.iteritems():
-                text += '\n'+key.title()+':\n'
-                text = add_dic_to_text(text,value,increment=2)
+            rest_dic = {key: value for key, value in information.iteritems() if key not in ('scf', 'bandstructure')}
+            for key, value in rest_dic.iteritems():
+                text += '\n' + key.title() + ':\n'
+                text = add_dic_to_text(text, value, increment=2)
         except Exception as e:
             print(e)
             logging.error(e)
             text = 'An error occured while reading the information'
 
-
         self.text_view.setPlainText(text)
 
 
 class LoadResultsWindow(QtGui.QDialog):
-    def __init__(self,parent,tasks):
+    def __init__(self, parent, tasks):
         super(LoadResultsWindow, self).__init__(parent)
         self.setWindowTitle('Edit Structure')
         self.setFixedSize(300, 100)
@@ -736,19 +734,19 @@ class LoadResultsWindow(QtGui.QDialog):
 
         main_layout = QtGui.QVBoxLayout(self)
 
-        self.result_name_entry = EntryWithLabel(self,'name')
+        self.result_name_entry = EntryWithLabel(self, 'name')
         main_layout.addWidget(self.result_name_entry)
 
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok)
         main_layout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept_own)
         self.buttonBox.rejected.connect(self.reject_own)
 
     def accept_own(self):
-        self.parent.load_results_from_engine(self.tasks,title=self.result_name_entry.get_text())
+        self.parent.load_results_from_engine(self.tasks, title=self.result_name_entry.get_text())
         self.close()
 
     def reject_own(self):
@@ -756,7 +754,7 @@ class LoadResultsWindow(QtGui.QDialog):
 
 
 class OptionFrame(QtGui.QGroupBox):
-    def __init__(self, parent,options,title='',tooltips={},checkbuttons=[],buttons=[]):
+    def __init__(self, parent, options, title='', tooltips={}, checkbuttons=[], buttons=[]):
         QtGui.QGroupBox.__init__(self, parent)
         self.widgets_per_line = 4
         self.setTitle(title)
@@ -771,14 +769,14 @@ class OptionFrame(QtGui.QGroupBox):
         self.buttons = []
         counter = 0
 
-        for text,state in checkbuttons:
-            cb = QtGui.QCheckBox(text,parent=self)
+        for text, state in checkbuttons:
+            cb = QtGui.QCheckBox(text, parent=self)
             if state:
                 cb.nextCheckState()
             self.checkbuttons.append(cb)
             self.layout.addWidget(cb, counter // self.widgets_per_line, counter % self.widgets_per_line)
             counter += 1
-        for text,function in buttons:
+        for text, function in buttons:
             button = QtGui.QPushButton(text)
             button.clicked.connect(function)
             button.setFixedHeight(30)
@@ -788,22 +786,22 @@ class OptionFrame(QtGui.QGroupBox):
         self.make_option_entries()
 
     def make_option_entries(self):
-        counter = (len(self.checkbuttons)+len(self.buttons))//self.widgets_per_line+self.widgets_per_line
-        for option_key,option_value in self.options.items():
-            entry = EntryWithLabel(self,option_key,option_value)
+        counter = (len(self.checkbuttons) + len(self.buttons)) // self.widgets_per_line + self.widgets_per_line
+        for option_key, option_value in self.options.items():
+            entry = EntryWithLabel(self, option_key, option_value)
             if option_key in self.tooltips.keys():
-                entry.setToolTip(self.tooltips[option_key].replace('\n','<br>'))
+                entry.setToolTip(self.tooltips[option_key].replace('\n', '<br>'))
 
-            self.layout.addWidget(entry,counter//self.widgets_per_line,counter%self.widgets_per_line)
+            self.layout.addWidget(entry, counter // self.widgets_per_line, counter % self.widgets_per_line)
             self.entry_dict[option_key] = entry
             counter += 1
 
     def read_all_entries(self):
-        for key,entry in self.entry_dict.items():
+        for key, entry in self.entry_dict.items():
             self.options[key] = entry.get_text()
 
     def set_all_entries(self):
-        for key,value in self.options.items():
+        for key, value in self.options.items():
             self.entry_dict[key].set_text(value)
 
     def read_checkbuttons(self):
@@ -818,7 +816,6 @@ class DftEngineWindow(QtGui.QWidget):
         self.parent = parent
 
         self.abort_bool = False
-
 
         QtGui.QWidget.__init__(self, parent)
         # self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
@@ -835,25 +832,33 @@ class DftEngineWindow(QtGui.QWidget):
 
         self.layout.addWidget(self.scroll_area)
 
-        self.general_option_widget = OptionFrame(self,esc_handler.general_options,title='General options')
+        self.general_option_widget = OptionFrame(self, esc_handler.general_options, title='General options')
         myform.addRow(self.general_option_widget)
 
-        self.scf_option_widget = OptionFrame(self,esc_handler.scf_options,title='Groundstate options',tooltips=esc_handler.scf_options_tooltip)
+        self.scf_option_widget = OptionFrame(self, esc_handler.scf_options, title='Groundstate options',
+                                             tooltips=esc_handler.scf_options_tooltip)
         myform.addRow(self.scf_option_widget)
 
-        self.bs_option_widget = OptionFrame(self,esc_handler.bs_options,title='Bandstructure options',checkbuttons=[['Calculate',True]],buttons=[['Choose k-path',self.parent.open_brillouin_window]])
+        self.bs_option_widget = OptionFrame(self, esc_handler.bs_options, title='Bandstructure options',
+                                            checkbuttons=[['Calculate', True]],
+                                            buttons=[['Choose k-path', self.parent.open_brillouin_window]])
         myform.addRow(self.bs_option_widget)
 
-        self.relax_option_widget = OptionFrame(self,esc_handler.relax_options,title='Structure relaxation options',tooltips=esc_handler.relax_options_tooltip)
+        self.relax_option_widget = OptionFrame(self, esc_handler.relax_options, title='Structure relaxation options',
+                                               tooltips=esc_handler.relax_options_tooltip)
         myform.addRow(self.relax_option_widget)
 
-        self.gw_option_widget = OptionFrame(self,esc_handler.gw_options,title='GW options',tooltips=esc_handler.gw_options_tooltip)
+        self.gw_option_widget = OptionFrame(self, esc_handler.gw_options, title='GW options',
+                                            tooltips=esc_handler.gw_options_tooltip)
         myform.addRow(self.gw_option_widget)
 
-        self.phonons_option_widget = OptionFrame(self,esc_handler.phonons_options,title='Phonon options',tooltips=esc_handler.phonons_options_tooltip)
+        self.phonons_option_widget = OptionFrame(self, esc_handler.phonons_options, title='Phonon options',
+                                                 tooltips=esc_handler.phonons_options_tooltip)
         myform.addRow(self.phonons_option_widget)
 
-        self.optical_spectrum_option_widget = OptionFrame(self,esc_handler.optical_spectrum_options,title='Excited states options',tooltips=esc_handler.optical_spectrum_options_tooltip)
+        self.optical_spectrum_option_widget = OptionFrame(self, esc_handler.optical_spectrum_options,
+                                                          title='Excited states options',
+                                                          tooltips=esc_handler.optical_spectrum_options_tooltip)
         myform.addRow(self.optical_spectrum_option_widget)
 
         mygroupbox.setLayout(myform)
@@ -863,7 +868,8 @@ class DftEngineWindow(QtGui.QWidget):
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation', self.button_widget)
+        self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation',
+                                                                       self.button_widget)
         self.start_ground_state_calculation_button.setFixedWidth(150)
         self.start_ground_state_calculation_button.setFixedHeight(50)
         self.start_ground_state_calculation_button.clicked.connect(self.start_ground_state_calculation)
@@ -923,7 +929,7 @@ class DftEngineWindow(QtGui.QWidget):
     def do_select_event(self):
         pass
 
-    def check_engine_for_compatibility(self,tasks_in):
+    def check_engine_for_compatibility(self, tasks_in):
         tasks = [x for x in tasks_in]
         if 'g0w0 bands' in tasks:
             tasks.remove('g0w0 bands')
@@ -933,9 +939,9 @@ class DftEngineWindow(QtGui.QWidget):
         elif struc_type == sst.CrystalStructure:
             sym_type = 'periodic'
         else:
-            raise ValueError('bad type: '+ str(struc_type)+' for structure object')
+            raise ValueError('bad type: ' + str(struc_type) + ' for structure object')
         if sym_type not in esc_handler.supported_methods:
-            raise Exception(sym_type+' structures are not supported in the selected dft engine')
+            raise Exception(sym_type + ' structures are not supported in the selected dft engine')
         for task in tasks:
             if task not in esc_handler.supported_methods:
                 raise Exception(task + ' is not supported by the selected dft engine')
@@ -955,13 +961,12 @@ class DftEngineWindow(QtGui.QWidget):
         self.relax_option_widget.read_all_entries()
         self.phonons_option_widget.read_all_entries()
 
-    def prepare_start(self,tasks):
+    def prepare_start(self, tasks):
         self.abort_bool = False
         self.check_if_engine_is_running_and_warn_if_so()
         self.check_engine_for_compatibility(tasks)
         self.read_all_option_widgets()
         overwrite_bool = self.check_data_overwrite(tasks)
-
 
     def start_ground_state_calculation(self):
         tasks = []
@@ -977,7 +982,7 @@ class DftEngineWindow(QtGui.QWidget):
         try:
             self.prepare_start(tasks)
             esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points)
-            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+            QtCore.QTimer.singleShot(1000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
@@ -988,7 +993,7 @@ class DftEngineWindow(QtGui.QWidget):
         try:
             self.prepare_start(tasks)
             esc_handler.start_relax(self.parent.crystal_structure)
-            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+            QtCore.QTimer.singleShot(1000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
@@ -1000,11 +1005,11 @@ class DftEngineWindow(QtGui.QWidget):
         # bs_checkers = self.bs_option_widget.read_checkbuttons()
         # if bs_checkers['Calculate']:
         #     tasks.append('bandstructure')
-        tasks.extend(['g0w0','g0w0 bands'])
+        tasks.extend(['g0w0', 'g0w0 bands'])
         try:
             self.prepare_start(tasks)
-            esc_handler.start_gw(self.parent.crystal_structure,self.band_structure_points)
-            QtCore.QTimer.singleShot(1000,lambda: self.parent.check_engine(tasks))
+            esc_handler.start_gw(self.parent.crystal_structure, self.band_structure_points)
+            QtCore.QTimer.singleShot(1000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
@@ -1015,7 +1020,7 @@ class DftEngineWindow(QtGui.QWidget):
         try:
             self.prepare_start(tasks)
             esc_handler.start_phonon(self.parent.crystal_structure, self.band_structure_points)
-            QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
+            QtCore.QTimer.singleShot(2000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
@@ -1026,7 +1031,7 @@ class DftEngineWindow(QtGui.QWidget):
         try:
             self.prepare_start(tasks)
             esc_handler.start_optical_spectrum(self.parent.crystal_structure)
-            QtCore.QTimer.singleShot(2000,lambda: self.parent.check_engine(tasks))
+            QtCore.QTimer.singleShot(2000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
@@ -1036,8 +1041,10 @@ class DftEngineWindow(QtGui.QWidget):
         self.abort_bool = True
         esc_handler.kill_engine()
 
-    def configure_buttons(self,disable_all=False):
-        button_list = [self.start_ground_state_calculation_button,self.start_gw_button,self.start_optical_spectrum_button,self.start_phonon_button,self.start_relax_button,self.abort_calculation_button]
+    def configure_buttons(self, disable_all=False):
+        button_list = [self.start_ground_state_calculation_button, self.start_gw_button,
+                       self.start_optical_spectrum_button, self.start_phonon_button, self.start_relax_button,
+                       self.abort_calculation_button]
         if disable_all:
             for button in button_list:
                 button.setEnabled(False)
@@ -1045,9 +1052,10 @@ class DftEngineWindow(QtGui.QWidget):
             for button in button_list:
                 button.setEnabled(True)
 
-    def check_data_overwrite(self,tasks):
+    def check_data_overwrite(self, tasks):
         title = esc_handler.general_options['title']
-        if 'bandstructure' in tasks or 'g0w0' in tasks or 'phonons' in tasks or ('scf' in tasks and type(self.parent.crystal_structure) is sst.MolecularStructure):
+        if 'bandstructure' in tasks or 'g0w0' in tasks or 'phonons' in tasks or (
+                        'scf' in tasks and type(self.parent.crystal_structure) is sst.MolecularStructure):
             data_dic = self.parent.band_structures
         elif 'optical spectrum' in tasks:
             data_dic = self.parent.optical_spectra
@@ -1055,7 +1063,7 @@ class DftEngineWindow(QtGui.QWidget):
             data_dic = {}
 
         if title in data_dic.keys():
-            del_msg = title+' is already saved. Do you want to overwrite it?'
+            del_msg = title + ' is already saved. Do you want to overwrite it?'
             reply = QtGui.QMessageBox.question(self, 'Sure to overwrite?', del_msg, QtGui.QMessageBox.Yes,
                                                QtGui.QMessageBox.No)
 
@@ -1067,6 +1075,7 @@ class DftEngineWindow(QtGui.QWidget):
         error_message = 'Could not perform Dft Calculation. Task failed with message:<br><br>' + stacktrace + '<br><br>Try following:<br> 1.Check if the selected dft engine is correctly installed<br>' \
                                                                                                               '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
         self.execute_error_dialog.showMessage(error_message)
+
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1083,7 +1092,7 @@ class ScfWindow(QtGui.QWidget):
 
 
 class InfoWindow(QtGui.QWidget):
-    def __init__(self,parent=None):
+    def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         layout = QtGui.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1103,21 +1112,20 @@ class InfoWindow(QtGui.QWidget):
         self.combobox.currentIndexChanged.connect(self.do_select_event)
         self.combobox.setMaximumWidth(150)
 
-
     def do_select_event(self):
         if esc_handler.project_directory is None:
             return
         try:
-            files = [esc_handler.current_output_file,esc_handler.current_input_file]
+            files = [esc_handler.current_output_file, esc_handler.current_input_file]
             file = files[self.combobox.currentIndex()]
-            self.update_text(esc_handler.project_directory+esc_handler.working_dirctory+file)
+            self.update_text(esc_handler.project_directory + esc_handler.working_dirctory + file)
         except IOError:
             self.text_widget.setHtml('')
             self.last_text = ''
 
-    def update_text(self,filename):
+    def update_text(self, filename):
         cur_pos = self.vertical_scrollbar.value()
-        with open(filename,'r') as f:
+        with open(filename, 'r') as f:
             text = f.read()
         if text == self.last_text:
             return
@@ -1130,7 +1138,7 @@ class InfoWindow(QtGui.QWidget):
 
 
 class PlotWithTreeview(QtGui.QWidget):
-    def __init__(self,Visualizer,data_dictionary,parent=None,selection_mode=None):
+    def __init__(self, Visualizer, data_dictionary, parent=None, selection_mode=None):
         QtGui.QWidget.__init__(self)
         self.parent = parent
         self.data_dictionary = data_dictionary
@@ -1156,28 +1164,27 @@ class PlotWithTreeview(QtGui.QWidget):
         bs_name = item.text(0)
 
         del_msg = "Are you sure you want to delete " + bs_name + ' permanently?'
-        reply = QtGui.QMessageBox.question(self, 'Sure to delete?',del_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        reply = QtGui.QMessageBox.question(self, 'Sure to delete?', del_msg, QtGui.QMessageBox.Yes,
+                                           QtGui.QMessageBox.No)
 
         if reply == QtGui.QMessageBox.Yes:
             del self.data_dictionary[bs_name]
             self.update_tree()
 
-    def export_selected_item(self,code=False):
+    def export_selected_item(self, code=False):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
         filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')[0]
         if filename:
-            self.plot_widget.export(filename,self.data_dictionary[bs_name],code=code)
-
+            self.plot_widget.export(filename, self.data_dictionary[bs_name], code=code)
 
     def show_info_selected_item(self):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
         main.information_window.show()
-        main.information_window.show_information(self.data_dictionary[bs_name].engine_information,name=bs_name)
-
+        main.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
 
     # def rename_selected_item(self):
     #     index = self.treeview.selectedIndexes()[0]
@@ -1198,7 +1205,7 @@ class PlotWithTreeview(QtGui.QWidget):
         menu = QtGui.QMenu()
         menu.addAction('Details', self.show_info_selected_item)
         menu.addAction('Export', self.export_selected_item)
-        menu.addAction('Delete',self.delete_selected_item)
+        menu.addAction('Delete', self.delete_selected_item)
 
         # menu.addAction('Export with code',lambda: self.export_selected_item(code=True))
         # menu.addAction('Rename', self.rename_selected_item)
@@ -1217,9 +1224,8 @@ class PlotWithTreeview(QtGui.QWidget):
             data = self.data_dictionary[bs_name]
             data_list.append(data)
             name_list.append(bs_name)
-        self.plot_widget.plot(data_list,name_list=name_list)
+        self.plot_widget.plot(data_list, name_list=name_list)
         main.information_window.show_information(self.data_dictionary[bs_name].engine_information, name=bs_name)
-
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
@@ -1231,7 +1237,7 @@ class PlotWithTreeview(QtGui.QWidget):
     def update_tree(self):
         self.treeview.itemSelectionChanged.disconnect()
         self.treeview.clear()
-        for key,value in OrderedDict(sorted(self.data_dictionary.items())).items():
+        for key, value in OrderedDict(sorted(self.data_dictionary.items())).items():
             self.add_result_key(key)
         self.treeview.itemSelectionChanged.connect(self.handle_item_changed)
 
@@ -1240,14 +1246,13 @@ class PlotWithTreeview(QtGui.QWidget):
 
 
 class ChooseEngineWindow(QtGui.QDialog):
-
     def __init__(self, parent, defaults):
         super(ChooseEngineWindow, self).__init__(parent=parent)
         self.setWindowTitle('Please choose a DFT engine')
         self.defaults = defaults
 
         self.parent = parent
-        self.resize(900,700)
+        self.resize(900, 700)
         self.handlers = general_handler.handlers
         self.selected_handler = None
         self.success = False
@@ -1281,7 +1286,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok)
         main_layout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept_own)
@@ -1294,7 +1299,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
     def update_tree(self):
         self.treeview.clear()
-        for key,value in self.handlers.items():
+        for key, value in self.handlers.items():
             item = self.add_result_key(key)
             if general_handler.is_handler_available(key):
                 color = QtGui.QColor("green")
@@ -1313,12 +1318,15 @@ class ChooseEngineWindow(QtGui.QDialog):
         self.selected_handler_class = self.handlers[bs_name]
 
         if general_handler.is_handler_available(bs_name):
-            install_text = '<p style="color:Green;font-weight:bold">{} installation found in: {}</p>'.format(bs_name,self.selected_handler.find_engine_folder())
+            install_text = '<p style="color:Green;font-weight:bold">{} installation found in: {}</p>'.format(bs_name,
+                                                                                                             self.selected_handler.find_engine_folder())
         else:
             install_text = '<p style="color:Red;font-weight:bold">No {} installation found</p>'.format(bs_name)
 
-        method_descriptions = [self.selected_handler.supported_methods.get_description(x) for x in self.selected_handler.supported_methods]
-        text = install_text+'Supported methods:\n\n - '+'\n - '.join(method_descriptions)+'\n\n'+self.selected_handler.info_text
+        method_descriptions = [self.selected_handler.supported_methods.get_description(x) for x in
+                               self.selected_handler.supported_methods]
+        text = install_text + 'Supported methods:\n\n - ' + '\n - '.join(
+            method_descriptions) + '\n\n' + self.selected_handler.info_text
 
         text = text.replace('\n', '<br>')
         self.text_widget.setHtml(text)
@@ -1329,9 +1337,11 @@ class ChooseEngineWindow(QtGui.QDialog):
             return
 
         if not general_handler.is_handler_available(self.selected_handler.engine_name):
-            reply = QtGui.QMessageBox.question(self, 'Engine not installed', "The selected dft engine seems not to be installed. "
-                                  "The program will not be able to calculate any electronic properties. "
-                                  "You can however still visualize structures. Are you sure to proceed?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+            reply = QtGui.QMessageBox.question(self, 'Engine not installed',
+                                               "The selected dft engine seems not to be installed. "
+                                               "The program will not be able to calculate any electronic properties. "
+                                               "You can however still visualize structures. Are you sure to proceed?",
+                                               QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
             if reply == QtGui.QMessageBox.No:
                 return
 
@@ -1339,7 +1349,6 @@ class ChooseEngineWindow(QtGui.QDialog):
         esc_handler = self.selected_handler
         global Handler
         Handler = self.selected_handler_class
-
 
         if self.remember_checkbox.checkState():
             self.defaults['default engine'] = esc_handler.engine_name
@@ -1358,7 +1367,7 @@ class ChooseEngineWindow(QtGui.QDialog):
 
 
 class StatusBar(QtGui.QWidget):
-    def __init__(self, parent=None,running_text='Engine is running',not_running_text='Engine inactive'):
+    def __init__(self, parent=None, running_text='Engine is running', not_running_text='Engine inactive'):
         QtGui.QWidget.__init__(self)
         # self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.running_text = running_text
@@ -1372,14 +1381,14 @@ class StatusBar(QtGui.QWidget):
         self.layout.addWidget(self.status_label)
         self.show()
 
-    def set_engine_status(self,status,tasks=None):
+    def set_engine_status(self, status, tasks=None):
         if status:
             if tasks:
                 tasks_string = ', '.join(tasks)
-                tasks_string2 = ' with tasks: '+tasks_string
+                tasks_string2 = ' with tasks: ' + tasks_string
             else:
                 tasks_string2 = ''
-            self.status_label.setText(self.running_text+tasks_string2)
+            self.status_label.setText(self.running_text + tasks_string2)
             self.status_label.setStyleSheet("color: red;font:bold 14px")
         else:
             self.status_label.setText(self.not_running_text)
@@ -1395,62 +1404,60 @@ class EngineOptionsDialog(QtGui.QDialog):
 
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok|QtGui.QDialogButtonBox.Apply)
+        self.buttonBox.setStandardButtons(
+            QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Apply)
 
         self.buttonBox.accepted.connect(self.accept_own)
         self.buttonBox.rejected.connect(self.reject_own)
         self.buttonBox.button(QtGui.QDialogButtonBox.Apply).clicked.connect(self.apply)
 
-
-        self.grid_layout_widget =QtGui.QWidget(self)
+        self.grid_layout_widget = QtGui.QWidget(self)
         self.grid_layout = QtGui.QGridLayout(self.grid_layout_widget)
 
         self.custom_command_checkbox = QtGui.QCheckBox('Use custom command', parent=self)
         self.grid_layout.addWidget(self.custom_command_checkbox, 0, 0, 1, 1)
 
-
-        self.load_custom_command_button = QtGui.QPushButton('Select command file',self)
+        self.load_custom_command_button = QtGui.QPushButton('Select command file', self)
         self.load_custom_command_button.setFixedWidth(150)
         self.load_custom_command_button.setFixedHeight(30)
         self.load_custom_command_button.clicked.connect(self.load_custom_command)
-        self.grid_layout.addWidget(self.load_custom_command_button,0, 1, 1, 1)
+        self.grid_layout.addWidget(self.load_custom_command_button, 0, 1, 1, 1)
 
         self.filename_label = QtGui.QLabel(self.grid_layout_widget)
         self.grid_layout.addWidget(self.filename_label, 1, 0, 1, 2)
 
-        self.species_path_entry = EntryWithLabel(self,'Dft engine path')
+        self.species_path_entry = EntryWithLabel(self, 'Dft engine path')
         self.grid_layout.addWidget(self.species_path_entry, 2, 0, 1, 2)
 
         engine_label = QtGui.QLabel(self)
         engine_label.setText('Current engine')
-        self.grid_layout.addWidget(engine_label,3,0,1,1)
+        self.grid_layout.addWidget(engine_label, 3, 0, 1, 1)
 
         current_engine_label = QtGui.QLabel(self)
         current_engine_label.setText(esc_handler.engine_name)
-        self.grid_layout.addWidget(current_engine_label,3,1,1,1)
-
+        self.grid_layout.addWidget(current_engine_label, 3, 1, 1, 1)
 
         combo_label = QtGui.QLabel(self)
         combo_label.setText('Engine at statup')
-        self.grid_layout.addWidget(combo_label,4,0,1,1)
+        self.grid_layout.addWidget(combo_label, 4, 0, 1, 1)
 
         self.ask_engine_combobox = QtGui.QComboBox(self)
-        self.grid_layout.addWidget(self.ask_engine_combobox,4,1,1,1)
+        self.grid_layout.addWidget(self.ask_engine_combobox, 4, 1, 1, 1)
 
         self.startup_text = 'Ask at startup'
         self.ask_engine_combobox.addItem(self.startup_text)
         for handler in general_handler.handlers.keys():
             self.ask_engine_combobox.addItem(handler)
 
-        def set_combo_by_text(combo,text):
+        def set_combo_by_text(combo, text):
             index = combo.findText(text, QtCore.Qt.MatchFixedString)
             if index >= 0:
                 combo.setCurrentIndex(index)
 
         if self.parent.defaults['default engine'] is None:
-            set_combo_by_text(self.ask_engine_combobox,self.startup_text)
+            set_combo_by_text(self.ask_engine_combobox, self.startup_text)
         else:
-            set_combo_by_text(self.ask_engine_combobox,self.parent.defaults['default engine'])
+            set_combo_by_text(self.ask_engine_combobox, self.parent.defaults['default engine'])
 
         self.verticalLayout = QtGui.QVBoxLayout(self)
         self.verticalLayout.addWidget(self.grid_layout_widget)
@@ -1471,7 +1478,6 @@ class EngineOptionsDialog(QtGui.QDialog):
             self.parent.defaults['default engine'] = None
         else:
             self.parent.defaults['default engine'] = startup_text
-
 
     def accept_own(self):
         self.apply()
@@ -1506,8 +1512,8 @@ class EngineOptionsDialog(QtGui.QDialog):
 
 
 class OptionWithTreeview(PlotWithTreeview):
-    def __init__(self,side_panel,data_dictionary,parent=None):
-        super(OptionWithTreeview, self).__init__(side_panel,data_dictionary,parent)
+    def __init__(self, side_panel, data_dictionary, parent=None):
+        super(OptionWithTreeview, self).__init__(side_panel, data_dictionary, parent)
         self.add_result_key('None')
 
     def handle_item_changed(self):
@@ -1522,18 +1528,18 @@ class OptionWithTreeview(PlotWithTreeview):
         if main.mayavi_widget.visualization.cp is not None:
             main.mayavi_widget.update_plot(keep_view=True)
         if bs_name != 'None':
-            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]),**plot_options)
-            main.information_window.show_information(self.data_dictionary[bs_name].engine_information,bs_name)
+            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]), **plot_options)
+            main.information_window.show_information(self.data_dictionary[bs_name].engine_information, bs_name)
 
     def update_tree(self):
         self.treeview.clear()
-        for key,value in OrderedDict(sorted(self.data_dictionary.items())).items():
+        for key, value in OrderedDict(sorted(self.data_dictionary.items())).items():
             self.add_result_key(key)
         self.add_result_key('None')
 
 
 class SliderWithEntry(QtGui.QWidget):
-    def __init__(self,parent=None,label=None,limits=(0,1),value=None):
+    def __init__(self, parent=None, label=None, limits=(0, 1), value=None):
         super(SliderWithEntry, self).__init__(parent)
         # self.horizontalLayoutWidget.setGeometry(QtCore.QRect(90, 150, 160, 31))
         self.limits = limits
@@ -1547,31 +1553,30 @@ class SliderWithEntry(QtGui.QWidget):
 
         if label is not None:
             self.label = QtGui.QLabel(label)
-            self.horizontalLayout.addWidget(self.label,0,0)
+            self.horizontalLayout.addWidget(self.label, 0, 0)
             counter = 1
         else:
             counter = 0
 
-        limit_range = limits[1]-limits[0]
+        limit_range = limits[1] - limits[0]
 
         self.horizontalSlider = QtGui.QSlider(self)
         self.horizontalSlider.setMinimumWidth(200)
         self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.horizontalSlider.setValue((self.value-limits[0])/limit_range*100)
+        self.horizontalSlider.setValue((self.value - limits[0]) / limit_range * 100)
         self.horizontalSlider.valueChanged.connect(self.change_text)
 
-        self.horizontalLayout.addWidget(self.horizontalSlider,0,counter)
+        self.horizontalLayout.addWidget(self.horizontalSlider, 0, counter)
 
         self.lineEdit = QtGui.QLineEdit(self)
         self.lineEdit.setText("{0:1.1f}".format(self.value))
         self.lineEdit.textChanged.connect(self.change_slider)
-        self.horizontalLayout.addWidget(self.lineEdit,0,1+counter)
-        self.horizontalLayout.setColumnStretch(0+counter, 3)
-        self.horizontalLayout.setColumnStretch(1+counter, 1)
-
+        self.horizontalLayout.addWidget(self.lineEdit, 0, 1 + counter)
+        self.horizontalLayout.setColumnStretch(0 + counter, 3)
+        self.horizontalLayout.setColumnStretch(1 + counter, 1)
 
     def change_text(self):
-        val = self.horizontalSlider.value()*(self.limits[1]-self.limits[0])/100+self.limits[0]
+        val = self.horizontalSlider.value() * (self.limits[1] - self.limits[0]) / 100 + self.limits[0]
         self.lineEdit.textChanged.disconnect()
         self.lineEdit.setText("{0:1.1f}".format(val))
         self.lineEdit.textChanged.connect(self.change_slider)
@@ -1583,7 +1588,7 @@ class SliderWithEntry(QtGui.QWidget):
             val = float(self.lineEdit.text())
         except:
             return
-        self.value = (val-self.limits[0])/(self.limits[1]-self.limits[0])*100
+        self.value = (val - self.limits[0]) / (self.limits[1] - self.limits[0]) * 100
         self.horizontalSlider.valueChanged.disconnect()
         self.horizontalSlider.setValue(self.value)
         self.horizontalSlider.valueChanged.connect(self.change_text)
@@ -1597,25 +1602,23 @@ class SliderWithEntry(QtGui.QWidget):
 
 
 class KsStatePlotOptionWidget(QtGui.QWidget):
-
-    def __init__(self,parent):
+    def __init__(self, parent):
         super(KsStatePlotOptionWidget, self).__init__(parent)
         self.parent = parent
-        self.setSizePolicy(QtGui.QSizePolicy.Expanding,QtGui.QSizePolicy.Expanding)
+        self.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         self.verticalLayoutWidget = QtGui.QWidget(self)
         self.verticalLayout = QtGui.QVBoxLayout(self.verticalLayoutWidget)
 
-        self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget,label='Opacity',limits=[0,1],value=0.5)
+        self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget, label='Opacity', limits=[0, 1], value=0.5)
         self.verticalLayout.addWidget(self.opacity_slider)
 
-        self.contours_entry = EntryWithLabel(self,'Contours:','10')
+        self.contours_entry = EntryWithLabel(self, 'Contours:', '10')
         self.contours_entry.connect_editFinished(self.parent.handle_item_changed)
         self.verticalLayout.addWidget(self.contours_entry)
 
         self.transparent_checkbox = QtGui.QCheckBox('Transparent')
         self.transparent_checkbox.toggle()
         self.verticalLayout.addWidget(self.transparent_checkbox)
-
 
         self.colormap_combobox = QtGui.QComboBox(self)
         self.verticalLayout.addWidget(self.colormap_combobox)
@@ -1626,14 +1629,13 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
             self.colormap_combobox.setCurrentIndex(index)
         self.colormap_combobox.currentIndexChanged.connect(self.parent.handle_item_changed)
 
-
         button_frame = QtGui.QWidget(self)
         self.button_layout = QtGui.QHBoxLayout(button_frame)
         self.verticalLayout.addWidget(button_frame)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
         self.apply_button = QtGui.QPushButton('Apply')
-        self.apply_button.setFixedSize(100,50)
+        self.apply_button.setFixedSize(100, 50)
         self.apply_button.clicked.connect(self.parent.handle_item_changed)
         self.button_layout.addWidget(self.apply_button)
 
@@ -1649,8 +1651,7 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
 
         transparent = bool(self.transparent_checkbox.checkState())
         colormap = colormap_list[self.colormap_combobox.currentIndex()]
-        out_dic = {'opacity':opacity,'contours':contours,'transparent':transparent,'colormap':colormap}
-
+        out_dic = {'opacity': opacity, 'contours': contours, 'transparent': transparent, 'colormap': colormap}
 
         return out_dic
         # self.test_label = QtGui.QLabel('asdas')
@@ -1660,11 +1661,11 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
 
 
 class KsStateWindow(QtGui.QDialog):
-    def __init__(self,parent):
+    def __init__(self, parent):
         super(KsStateWindow, self).__init__(parent)
         self.calc_queue = queue.Queue()
         self.current_calc_properties = {}
-        self.setFixedSize(700,500)
+        self.setFixedSize(700, 500)
         self.parent = parent
         self.main_widget = QtGui.QWidget(parent=self)
         self.layout = QtGui.QVBoxLayout(self)
@@ -1674,27 +1675,27 @@ class KsStateWindow(QtGui.QDialog):
 
         self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
 
-        self.k_point_entry = EntryWithLabel(self.calc_ks_group,'k point')
-        self.sub_layout.addWidget(self.k_point_entry,0,0)
+        self.k_point_entry = EntryWithLabel(self.calc_ks_group, 'k point')
+        self.sub_layout.addWidget(self.k_point_entry, 0, 0)
 
-        self.n_band_entry = EntryWithLabel(self.calc_ks_group,'Band index')
-        self.sub_layout.addWidget(self.n_band_entry,0,1)
+        self.n_band_entry = EntryWithLabel(self.calc_ks_group, 'Band index')
+        self.sub_layout.addWidget(self.n_band_entry, 0, 1)
 
-        self.label_entry = EntryWithLabel(self.calc_ks_group,'Label')
-        self.sub_layout.addWidget(self.label_entry,0,2)
+        self.label_entry = EntryWithLabel(self.calc_ks_group, 'Label')
+        self.sub_layout.addWidget(self.label_entry, 0, 2)
 
         button_frame = QtGui.QWidget(self.calc_ks_group)
-        self.sub_layout.addWidget(button_frame,2,0,1,0)
+        self.sub_layout.addWidget(button_frame, 2, 0, 1, 0)
 
         button_layout = QtGui.QHBoxLayout(button_frame)
 
-        self.calculate_button = QtGui.QPushButton('Calculate KS State',button_frame)
+        self.calculate_button = QtGui.QPushButton('Calculate KS State', button_frame)
         self.calculate_button.setFixedWidth(150)
         self.calculate_button.setFixedHeight(50)
         self.calculate_button.clicked.connect(self.calculate_ks_state)
         button_layout.addWidget(self.calculate_button)
 
-        self.calculate_density_button = QtGui.QPushButton('Calculate\nelectron density',button_frame)
+        self.calculate_density_button = QtGui.QPushButton('Calculate\nelectron density', button_frame)
         self.calculate_density_button.setFixedWidth(150)
         self.calculate_density_button.setFixedHeight(50)
         self.calculate_density_button.clicked.connect(self.calculate_electron_density)
@@ -1710,7 +1711,7 @@ class KsStateWindow(QtGui.QDialog):
         self.plot_group.setTitle('Plot Options')
         self.layout.addWidget(self.plot_group)
 
-        self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget,self.parent.ks_densities,parent=self)
+        self.plot_widget = OptionWithTreeview(KsStatePlotOptionWidget, self.parent.ks_densities, parent=self)
 
         self.sub_layout2 = QtGui.QVBoxLayout(self.plot_group)
         self.sub_layout2.addWidget(self.plot_widget)
@@ -1723,7 +1724,6 @@ class KsStateWindow(QtGui.QDialog):
         self.current_calc_properties['label'] = self.label_entry.get_text()
         QtCore.QTimer.singleShot(100, self.check_engine)
 
-
     def calculate_ks_state(self):
         n_band_str = self.n_band_entry.get_text()
         if ',' in n_band_str:
@@ -1731,7 +1731,7 @@ class KsStateWindow(QtGui.QDialog):
             n_band = [int(x) for x in tr]
         elif '-' in n_band_str:
             n_band_split = n_band_str.split('-')
-            n_band = list(range(int(n_band_split[0]),1+int(n_band_split[1])))
+            n_band = list(range(int(n_band_split[0]), 1 + int(n_band_split[1])))
         else:
             n_band = [int(n_band_str)]
 
@@ -1746,50 +1746,51 @@ class KsStateWindow(QtGui.QDialog):
             k = [int(k_band_str)]
 
         if len(k) == 1:
-            k = k*len(n_band)
+            k = k * len(n_band)
         if len(n_band) == 1:
-            n_band = n_band*len(k)
+            n_band = n_band * len(k)
 
         label = self.label_entry.get_text()
-        label_list = [label]*len(k)
+        label_list = [label] * len(k)
 
-        to_do_list = zip(k,n_band,label_list)
-        map(self.calc_queue.put,to_do_list)
+        to_do_list = zip(k, n_band, label_list)
+        map(self.calc_queue.put, to_do_list)
         self.start_ks_calculation()
-
 
     def choose_nk(self):
         pass
 
     def start_ks_calculation(self):
-        k,n_band,label = self.calc_queue.get()
-        self.current_calc_properties = {'type':'ks density','k':k,'n_band':n_band,'label':label}
-        esc_handler.calculate_ks_density(self.parent.crystal_structure,[k,n_band])
+        k, n_band, label = self.calc_queue.get()
+        self.current_calc_properties = {'type': 'ks density', 'k': k, 'n_band': n_band, 'label': label}
+        esc_handler.calculate_ks_density(self.parent.crystal_structure, [k, n_band])
         QtCore.QTimer.singleShot(20, self.check_engine)
 
     def check_engine(self):
-        tasks=['ks density']
+        tasks = ['ks density']
         if esc_handler.is_engine_running(tasks=tasks):
-            self.parent.status_bar.set_engine_status(True,tasks=tasks)
+            self.parent.status_bar.set_engine_status(True, tasks=tasks)
             QtCore.QTimer.singleShot(100, self.check_engine)
         else:
             self.parent.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
-            if ('error' in message.lower() or len(err)>0):
-                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n','<br>')+'<br>Error:<br>'+err.replace('\n','<br>') \
+            if ('error' in message.lower() or len(err) > 0):
+                error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
+                                                                                                    '<br>') + '<br>Error:<br>' + err.replace(
+                    '\n', '<br>') \
                                 + '<br><br>Try following:<br>1.Check if the selected dft engine is correctly installed<br>' \
                                   '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
                 self.parent.error_dialog.showMessage(error_message)
 
             ks_dens = esc_handler.read_ks_state()
-            ks_dens.engine_information = {'scf':copy.deepcopy(self.parent.last_run_information['scf'])}
+            ks_dens.engine_information = {'scf': copy.deepcopy(self.parent.last_run_information['scf'])}
             label = self.current_calc_properties['label']
             if self.current_calc_properties['type'] == 'ks density':
                 n_band = self.current_calc_properties['n_band']
                 k = self.current_calc_properties['k']
-                key = "{} k{} n{}".format(label,k,n_band)
+                key = "{} k{} n{}".format(label, k, n_band)
             elif self.current_calc_properties['type'] == 'density':
-                key = label +' density'
+                key = label + ' density'
 
             if ks_dens is not None:
                 self.parent.ks_densities[key] = ks_dens
@@ -1810,7 +1811,7 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class EditStructureWindow(QtGui.QDialog):
-    def __init__(self,parent):
+    def __init__(self, parent):
         super(EditStructureWindow, self).__init__(parent)
         self.setWindowTitle('Edit Structure')
         self.setFixedSize(650, 700)
@@ -1830,7 +1831,6 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_box.setTitle('Unit Cell')
         self.verticalLayout.addWidget(self.unit_cell_box)
 
-
         self.unit_cell_layout = QtGui.QVBoxLayout(self.unit_cell_box)
         self.unit_cell_layout.setAlignment(QtCore.Qt.AlignTop)
 
@@ -1840,18 +1840,18 @@ class EditStructureWindow(QtGui.QDialog):
         self.unit_cell_option_layout.setAlignment(QtCore.Qt.AlignLeft)
         self.unit_cell_layout.addWidget(unit_cell_option_widget)
 
-        self.scale_entry = EntryWithLabel(self,'Scale')
+        self.scale_entry = EntryWithLabel(self, 'Scale')
         self.scale_entry.setFixedHeight(50)
         self.unit_cell_option_layout.addWidget(self.scale_entry)
         self.scale_entry.set_text('1.0')
         self.scale_entry.connect_editFinished(self.handle_change)
 
-        self.periodic_checkbox = QtGui.QCheckBox('Periodic',parent=self)
+        self.periodic_checkbox = QtGui.QCheckBox('Periodic', parent=self)
         self.periodic_checkbox.toggle()
         self.periodic_checkbox.stateChanged.connect(self.handle_change)
         self.unit_cell_option_layout.addWidget(self.periodic_checkbox)
 
-        self.unit_cell_table =  QtGui.QTableWidget(self.unit_cell_box)
+        self.unit_cell_table = QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
         self.unit_cell_table.setRowCount(3)
         self.unit_cell_table.setFixedWidth(328)
@@ -1877,7 +1877,7 @@ class EditStructureWindow(QtGui.QDialog):
         for i in range(3):
             for j in range(3):
                 item = QtGui.QTableWidgetItem()
-                self.unit_cell_table.setItem(i,j,item)
+                self.unit_cell_table.setItem(i, j, item)
 
         self.atom_box = QtGui.QGroupBox(self.structure_widget)
         self.atom_box.setTitle('Atoms')
@@ -1888,7 +1888,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.atom_table = QtGui.QTableWidget(self.atom_box)
         copy_action_atoms = CopySelectedCellsAction(self.atom_table)
         self.atom_table.addAction(copy_action_atoms)
-        paste_action = PasteIntoTable(self.atom_table,self)
+        paste_action = PasteIntoTable(self.atom_table, self)
         self.atom_table.addAction(paste_action)
 
         self.atom_table.setColumnCount(4)
@@ -1904,19 +1904,20 @@ class EditStructureWindow(QtGui.QDialog):
         self.atom_table_buttons_layout = QtGui.QHBoxLayout(self.atom_table_buttons_widget)
         self.atom_table_buttons_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.add_atom_button = QtGui.QPushButton('Add atom',self)
+        self.add_atom_button = QtGui.QPushButton('Add atom', self)
         self.add_atom_button.setFixedWidth(150)
         self.add_atom_button.clicked.connect(self.add_atom)
         self.atom_table_buttons_layout.addWidget(self.add_atom_button)
 
-        self.remove_atom_button = QtGui.QPushButton('Remove atoms',self)
+        self.remove_atom_button = QtGui.QPushButton('Remove atoms', self)
         self.remove_atom_button.setFixedWidth(150)
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
 
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok|QtGui.QDialogButtonBox.Apply)
+        self.buttonBox.setStandardButtons(
+            QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Apply)
         self.verticalLayout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept)
@@ -1940,7 +1941,6 @@ class EditStructureWindow(QtGui.QDialog):
             crystal_structure = self.read_tables()
             if crystal_structure is not None:
                 main.crystal_structure = crystal_structure
-
 
     def accept(self):
         self.apply()
@@ -1970,7 +1970,7 @@ class EditStructureWindow(QtGui.QDialog):
         item = self.atom_table.horizontalHeaderItem(3)
         item.setText("z")
 
-    def set_structure(self,structure):
+    def set_structure(self, structure):
         self.crystal_structure = structure
 
     def clear_unit_cell_table(self):
@@ -1995,17 +1995,17 @@ class EditStructureWindow(QtGui.QDialog):
         self.disconnect_tables()
 
         n_rows = self.atom_table.rowCount()
-        self.atom_table.setRowCount(n_rows+1)
+        self.atom_table.setRowCount(n_rows + 1)
         for j in range(4):
             item = QtGui.QTableWidgetItem()
-            self.atom_table.setItem(n_rows,j,item)
+            self.atom_table.setItem(n_rows, j, item)
         self.connect_tables()
 
-    def remove_atoms(self,*args,**kwargs):
-        atoms = kwargs.pop('atoms',None)
+    def remove_atoms(self, *args, **kwargs):
+        atoms = kwargs.pop('atoms', None)
         self.disconnect_tables()
         if atoms is None:
-           atoms = sorted(set(index.row() for index in self.atom_table.selectedIndexes()))
+            atoms = sorted(set(index.row() for index in self.atom_table.selectedIndexes()))
         for atom in atoms[::-1]:
             self.atom_table.removeRow(atom)
         self.connect_tables()
@@ -2026,7 +2026,7 @@ class EditStructureWindow(QtGui.QDialog):
                     unit_cell = self.crystal_structure.lattice_vectors
                     for i in range(3):
                         for j in range(3):
-                            self.unit_cell_table.item(i,j).setText("{0:1.6f}".format(unit_cell[i,j]/scale))
+                            self.unit_cell_table.item(i, j).setText("{0:1.6f}".format(unit_cell[i, j] / scale))
                     if not self.periodic_checkbox.checkState():
                         self.periodic_checkbox.toggle()
                 elif type(self.crystal_structure) is sst.MolecularStructure:
@@ -2035,10 +2035,10 @@ class EditStructureWindow(QtGui.QDialog):
 
                 n_atoms = self.crystal_structure.atoms.shape[0]
                 self.set_number_of_atoms(n_atoms)
-                for i,atom in enumerate(self.crystal_structure.atoms):
+                for i, atom in enumerate(self.crystal_structure.atoms):
                     coords = atom[0:3]
-                    for j,coord in enumerate(coords):
-                        item = self.atom_table.item(i,j+1)
+                    for j, coord in enumerate(coords):
+                        item = self.atom_table.item(i, j + 1)
                         item.setText('{0:1.6f}'.format(coord))
                     item = self.atom_table.item(i, 0)
                     item.setText(p_table[atom[3]])
@@ -2047,13 +2047,13 @@ class EditStructureWindow(QtGui.QDialog):
 
         self.connect_tables()
 
-    def set_number_of_atoms(self,N):
+    def set_number_of_atoms(self, N):
         self.atom_table.setRowCount(N)
         self.number_of_atoms = N
         for i in range(N):
             for j in range(4):
                 item = QtGui.QTableWidgetItem()
-                self.atom_table.setItem(i,j,item)
+                self.atom_table.setItem(i, j, item)
 
     def read_tables(self):
         try:
@@ -2066,20 +2066,20 @@ class EditStructureWindow(QtGui.QDialog):
             scale = 1.0
         if self.periodic_checkbox.checkState():
             try:
-                unit_cell = np.zeros((3,3))
+                unit_cell = np.zeros((3, 3))
                 for i in range(3):
                     for j in range(3):
-                        item = self.unit_cell_table.item(i,j)
-                        unit_cell[i,j] = float(item.text())
+                        item = self.unit_cell_table.item(i, j)
+                        unit_cell[i, j] = float(item.text())
 
-                unit_cell = unit_cell*scale
+                unit_cell = unit_cell * scale
             except Exception:
                 return None
         else:
             unit_cell = None
 
         n_rows = self.atom_table.rowCount()
-        atoms = np.zeros((n_rows,4))
+        atoms = np.zeros((n_rows, 4))
         for i in range(n_rows):
             try:
                 a_type = self.atom_table.item(i, 0).text()
@@ -2091,27 +2091,27 @@ class EditStructureWindow(QtGui.QDialog):
                 continue
             if a_type not in p_table_rev.keys():
                 continue
-            coord = np.zeros((1,3))
+            coord = np.zeros((1, 3))
             skip_bool = False
-            for j in range(1,4):
+            for j in range(1, 4):
                 try:
-                    coord[0,j-1] = float(self.atom_table.item(i,j).text())
+                    coord[0, j - 1] = float(self.atom_table.item(i, j).text())
                 except:
                     skip_bool = True
                     break
             if skip_bool:
                 continue
-            atoms[i,:3] = coord
+            atoms[i, :3] = coord
             if not a_type_is_number:
                 a_type = p_table_rev[a_type]
-            atoms[i,3] = a_type
+            atoms[i, 3] = a_type
 
-        atoms_clean = atoms[atoms[:,3]!=0,:]
+        atoms_clean = atoms[atoms[:, 3] != 0, :]
 
         if self.periodic_checkbox.checkState():
-            out_struc = sst.CrystalStructure(unit_cell,atoms_clean, scale=scale)
+            out_struc = sst.CrystalStructure(unit_cell, atoms_clean, scale=scale)
         else:
-            out_struc = sst.MolecularStructure(atoms_clean,scale=scale)
+            out_struc = sst.MolecularStructure(atoms_clean, scale=scale)
 
         return out_struc
 
@@ -2124,27 +2124,29 @@ class EditStructureWindow(QtGui.QDialog):
 
 
 class CentralWindow(QtGui.QWidget):
-    def __init__(self,parent=None, *args, **kwargs):
+    def __init__(self, parent=None, *args, **kwargs):
         super(CentralWindow, self).__init__(*args, **kwargs)
         self.project_loaded = False
         self.project_directory = None
-        self.parent=parent
+        self.parent = parent
         self._crystal_structure = None
         self.band_structures = {}
         self.optical_spectra = {}
         self.ks_densities = {}
-        self.project_properties = {'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''}
+        self.project_properties = {'title': '', 'dft engine': '', 'custom command': '', 'custom command active': False,
+                                   'custom dft folder': ''}
         self.esc_handler_options = {}
-        self.last_run_information = {'scf':{},'bandstructure':{},'gw':{},'optical spectrum':{},'relax':{},'phonon':{}}
+        self.last_run_information = {'scf': {}, 'bandstructure': {}, 'gw': {}, 'optical spectrum': {}, 'relax': {},
+                                     'phonon': {}}
 
-        self.temp_folder = os.path.expanduser("~")+"/.OpenDFT"
+        self.temp_folder = os.path.expanduser("~") + "/.OpenDFT"
 
         self.queue = queue.Queue()
 
         self.load_defaults()
 
         if self.defaults['default engine'] is None:
-            choose_engine_window = ChooseEngineWindow(self,self.defaults)
+            choose_engine_window = ChooseEngineWindow(self, self.defaults)
             choose_engine_window.exec_()
             if not choose_engine_window.success:
                 sys.exit()
@@ -2161,8 +2163,11 @@ class CentralWindow(QtGui.QWidget):
         self.layout = QtGui.QGridLayout(self)
 
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
-        self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization, data_dictionary=self.band_structures, parent=self)
-        self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization, data_dictionary=self.optical_spectra, parent=self,selection_mode='multiple')
+        self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization,
+                                                      data_dictionary=self.band_structures, parent=self)
+        self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization,
+                                                       data_dictionary=self.optical_spectra, parent=self,
+                                                       selection_mode='multiple')
         self.dft_engine_window = DftEngineWindow(self)
         self.scf_window = ScfWindow(parent=self)
         self.info_window = InfoWindow(parent=self)
@@ -2184,13 +2189,13 @@ class CentralWindow(QtGui.QWidget):
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
 
-        self.list_of_tabs = [self.mayavi_widget,self.dft_engine_window,self.band_structure_window,self.optical_spectra_window,self.scf_window,self.info_window]
-
+        self.list_of_tabs = [self.mayavi_widget, self.dft_engine_window, self.band_structure_window,
+                             self.optical_spectra_window, self.scf_window, self.info_window]
 
         self.tabWidget.addTab(self.list_of_tabs[0], 'Structure')
         self.tabWidget.addTab(self.list_of_tabs[1], 'DFT-Engine')
-        self.tabWidget.addTab(self.list_of_tabs[2],'Bandstructure')
-        self.tabWidget.addTab(self.list_of_tabs[3],'Optical Spectrum')
+        self.tabWidget.addTab(self.list_of_tabs[2], 'Bandstructure')
+        self.tabWidget.addTab(self.list_of_tabs[3], 'Optical Spectrum')
         self.tabWidget.addTab(self.list_of_tabs[4], 'Scf')
         self.tabWidget.addTab(self.list_of_tabs[5], 'Info')
 
@@ -2227,13 +2232,13 @@ class CentralWindow(QtGui.QWidget):
         return self._crystal_structure
 
     @crystal_structure.setter
-    def crystal_structure(self,value):
+    def crystal_structure(self, value):
         self._crystal_structure = value
         if self.dft_engine_window.band_structure_points is None and type(value) is sst.CrystalStructure:
             self.dft_engine_window.band_structure_points = sst.calculate_standard_path(value)
             self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
 
-    def tab_is_changed(self,i):
+    def tab_is_changed(self, i):
         self.list_of_tabs[i].do_select_event()
 
     def make_new_project(self):
@@ -2248,10 +2253,13 @@ class CentralWindow(QtGui.QWidget):
             self.configure_buttons()
 
     def initialize_project(self):
-        self.project_properties.update({'title': '','dft engine':'','custom command':'','custom command active':False,'custom dft folder':''})
+        self.project_properties.update(
+            {'title': '', 'dft engine': '', 'custom command': '', 'custom command active': False,
+             'custom dft folder': ''})
         self.window.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
-        if (esc_handler.pseudo_directory is not None) and (not os.path.isdir(self.project_directory + esc_handler.pseudo_directory)):
+        if (esc_handler.pseudo_directory is not None) and (
+                not os.path.isdir(self.project_directory + esc_handler.pseudo_directory)):
             os.mkdir(self.project_directory + esc_handler.pseudo_directory)
         self.project_loaded = True
 
@@ -2274,7 +2282,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
 
-    def load_project(self,*args,**kwargs):
+    def load_project(self, *args, **kwargs):
         folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
@@ -2288,7 +2296,7 @@ class CentralWindow(QtGui.QWidget):
             self.load_saved_results()
             self.dft_engine_window.update_all()
             self.tab_is_changed(self.tabWidget.currentIndex())
-            self.window.setWindowTitle("OpenDFT - "+self.project_directory)
+            self.window.setWindowTitle("OpenDFT - " + self.project_directory)
             self.project_loaded = True
             self.configure_buttons()
         elif not folder_name:
@@ -2302,12 +2310,19 @@ class CentralWindow(QtGui.QWidget):
         try:
             self.dft_engine_window.read_all_option_widgets()
 
-            option_dic_specific_handler = {'scf_options':esc_handler.scf_options,'general options':esc_handler.general_options,'bs options':esc_handler.bs_options,
-                 'phonon options':esc_handler.phonons_options,'optical spectrum options':esc_handler.optical_spectrum_options,
-                 'gw options':esc_handler.gw_options,'relax options':esc_handler.relax_options,'last run information':self.last_run_information}
+            option_dic_specific_handler = {'scf_options': esc_handler.scf_options,
+                                           'general options': esc_handler.general_options,
+                                           'bs options': esc_handler.bs_options,
+                                           'phonon options': esc_handler.phonons_options,
+                                           'optical spectrum options': esc_handler.optical_spectrum_options,
+                                           'gw options': esc_handler.gw_options,
+                                           'relax options': esc_handler.relax_options,
+                                           'last run information': self.last_run_information}
             self.esc_handler_options[esc_handler.engine_name] = option_dic_specific_handler
-            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures, 'optical spectra':self.optical_spectra,'esc handler options': self.esc_handler_options,
-                 'properties': self.project_properties,'dft engine':esc_handler.engine_name,'ks densities':self.ks_densities,'k path':self.dft_engine_window.band_structure_points}
+            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures,
+                 'optical spectra': self.optical_spectra, 'esc handler options': self.esc_handler_options,
+                 'properties': self.project_properties, 'dft engine': esc_handler.engine_name,
+                 'ks densities': self.ks_densities, 'k path': self.dft_engine_window.band_structure_points}
             with open(self.project_directory + '/save.pkl', 'wb') as handle:
                 pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
         except Exception as e:
@@ -2323,64 +2338,63 @@ class CentralWindow(QtGui.QWidget):
                 if k_path is not None:
                     self.dft_engine_window.band_structure_points = k_path
 
-                self.crystal_structure = b.pop('crystal structure',None)
+                self.crystal_structure = b.pop('crystal structure', None)
                 if self.crystal_structure is not None:
                     self.mayavi_widget.update_crystal_structure(self.crystal_structure)
                     self.mayavi_widget.update_plot()
 
-                loaded_bandstructure_dict = b.pop('band structure',None)
+                loaded_bandstructure_dict = b.pop('band structure', None)
                 if type(loaded_bandstructure_dict) == dict:
-                    for key,value in loaded_bandstructure_dict.items():
+                    for key, value in loaded_bandstructure_dict.items():
                         self.band_structures[key] = value
 
-                loaded_optical_spectra_dict = b.pop('optical spectra',None)
+                loaded_optical_spectra_dict = b.pop('optical spectra', None)
                 if type(loaded_optical_spectra_dict) == dict:
-                    for key,value in loaded_optical_spectra_dict.items():
+                    for key, value in loaded_optical_spectra_dict.items():
                         self.optical_spectra[key] = value
 
-                loaded_ksdens_dict = b.pop('ks densities',None)
-                if type(loaded_ksdens_dict ) == dict:
-                    for key,value in loaded_ksdens_dict.items():
+                loaded_ksdens_dict = b.pop('ks densities', None)
+                if type(loaded_ksdens_dict) == dict:
+                    for key, value in loaded_ksdens_dict.items():
                         self.ks_densities[key] = value
 
-                self.esc_handler_options = b.pop('esc handler options',{})
+                self.esc_handler_options = b.pop('esc handler options', {})
 
-                option_dic_specific_handler = self.esc_handler_options.pop(esc_handler.engine_name,None)
-
+                option_dic_specific_handler = self.esc_handler_options.pop(esc_handler.engine_name, None)
 
                 if option_dic_specific_handler is not None:
 
-                    last_run_information = option_dic_specific_handler.pop('last run information',None)
+                    last_run_information = option_dic_specific_handler.pop('last run information', None)
                     if last_run_information is not None:
                         self.last_run_information = last_run_information
 
-                    def set_esc_handler_dic_to_loaded_dic(esc_dic,loaded_dic):
+                    def set_esc_handler_dic_to_loaded_dic(esc_dic, loaded_dic):
                         if loaded_dic is not None:
                             for key, value in loaded_dic.items():
                                 if key in esc_dic.keys():
                                     esc_dic[key] = value
 
                     load_scf_options = option_dic_specific_handler.pop('scf_options', None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.scf_options,load_scf_options)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.scf_options, load_scf_options)
 
-                    load_general_options = option_dic_specific_handler.pop('general options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.general_options,load_general_options)
+                    load_general_options = option_dic_specific_handler.pop('general options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.general_options, load_general_options)
 
-                    load_bs_options = option_dic_specific_handler.pop('bs options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.bs_options,load_bs_options)
+                    load_bs_options = option_dic_specific_handler.pop('bs options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.bs_options, load_bs_options)
 
-                    load_phonon_options = option_dic_specific_handler.pop('phonon options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.phonons_options,load_phonon_options)
+                    load_phonon_options = option_dic_specific_handler.pop('phonon options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.phonons_options, load_phonon_options)
 
-                    load_gw_options = option_dic_specific_handler.pop('gw options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.gw_options,load_gw_options)
+                    load_gw_options = option_dic_specific_handler.pop('gw options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.gw_options, load_gw_options)
 
-                    load_optical_spectrum_options = option_dic_specific_handler.pop('optical spectrum options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.optical_spectrum_options,load_optical_spectrum_options)
+                    load_optical_spectrum_options = option_dic_specific_handler.pop('optical spectrum options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.optical_spectrum_options,
+                                                      load_optical_spectrum_options)
 
-                    load_relax_options = option_dic_specific_handler.pop('relax options',None)
-                    set_esc_handler_dic_to_loaded_dic(esc_handler.relax_options,load_relax_options)
-
+                    load_relax_options = option_dic_specific_handler.pop('relax options', None)
+                    set_esc_handler_dic_to_loaded_dic(esc_handler.relax_options, load_relax_options)
 
                 self.project_properties.update(b['properties'])
                 ## Update esc_handler ! DANGER ZONE !
@@ -2407,7 +2421,7 @@ class CentralWindow(QtGui.QWidget):
             logging.info('Default file not found')
             b = {}
 
-        default_engine = b.pop('default engine',None)
+        default_engine = b.pop('default engine', None)
 
         self.defaults['default engine'] = default_engine
 
@@ -2422,7 +2436,7 @@ class CentralWindow(QtGui.QWidget):
         # t = MyQThread(self.mayavi_widget.update_plot)
         # t.start()
 
-    def load_crystal_structure(self,filetype):
+    def load_crystal_structure(self, filetype):
         file_dialog = QtGui.QFileDialog()
 
         if filetype == 'exciting':
@@ -2441,8 +2455,8 @@ class CentralWindow(QtGui.QWidget):
             if len(file_name) == 0:
                 return
 
-            if filetype in ['exciting','quantum espresso']:
-                self.crystal_structure = general_handler.parse_input_file(filetype,file_name)
+            if filetype in ['exciting', 'quantum espresso']:
+                self.crystal_structure = general_handler.parse_input_file(filetype, file_name)
             elif filetype == 'cif':
                 parser = sst.StructureParser()
                 self.crystal_structure = parser.parse_cif_file(file_name)
@@ -2495,7 +2509,8 @@ class CentralWindow(QtGui.QWidget):
 
         open_structure_action_quantum_espresso = QtGui.QAction("quantum_espresso input file", self.window)
         open_structure_action_quantum_espresso.setStatusTip('Load crystal structure from quantum espresso input file')
-        open_structure_action_quantum_espresso.triggered.connect(lambda: self.load_crystal_structure('quantum espresso'))
+        open_structure_action_quantum_espresso.triggered.connect(
+            lambda: self.load_crystal_structure('quantum espresso'))
         self.import_structure_menu.addAction(open_structure_action_quantum_espresso)
 
         open_structure_action_cif = QtGui.QAction("cif", self.window)
@@ -2517,7 +2532,8 @@ class CentralWindow(QtGui.QWidget):
         self.import_results_menu.addAction(import_result_action_gw_bandstructure)
 
         import_result_action_optical_spectrum = QtGui.QAction("optical spectrum", self.window)
-        import_result_action_optical_spectrum.triggered.connect(lambda: self.open_load_result_window(['optical spectrum']))
+        import_result_action_optical_spectrum.triggered.connect(
+            lambda: self.open_load_result_window(['optical spectrum']))
         self.import_results_menu.addAction(import_result_action_optical_spectrum)
 
         import_result_action_phonon_bandstructure = QtGui.QAction("phonon bandstructure", self.window)
@@ -2570,7 +2586,7 @@ class CentralWindow(QtGui.QWidget):
             self.crystal_structure = new_struc
             self.update_structure_plot()
 
-    def check_engine(self,tasks):
+    def check_engine(self, tasks):
 
         tasks = [x.lower() for x in tasks]
         if self.dft_engine_window.abort_bool:
@@ -2585,8 +2601,8 @@ class CentralWindow(QtGui.QWidget):
                     self.scf_window.scf_widget.plot(self.scf_data)
             elif selected_tab_index == 5:
                 self.info_window.do_select_event()
-            QtCore.QTimer.singleShot(500,lambda: self.check_engine(tasks))
-            self.status_bar.set_engine_status(True,tasks=tasks)
+            QtCore.QTimer.singleShot(500, lambda: self.check_engine(tasks))
+            self.status_bar.set_engine_status(True, tasks=tasks)
             if 'relax' in tasks:
                 self.check_relax()
         else:
@@ -2611,12 +2627,12 @@ class CentralWindow(QtGui.QWidget):
                 error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
                 self.error_dialog.showMessage(error_message_load)
 
-    def update_run_information(self,tasks):
+    def update_run_information(self, tasks):
         if 'scf' in tasks:
             self.last_run_information['scf'].update(esc_handler.scf_options)
             self.last_run_information['scf']['timestamp'] = time.ctime()
         if 'bandstructure' in tasks or 'g0w0' in tasks:
-            bandstructure_options ={'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}
+            bandstructure_options = {'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}
             self.last_run_information['bandstructure'].update(bandstructure_options)
         if 'g0w0' in tasks:
             self.last_run_information['gw'].update(esc_handler.gw_options)
@@ -2627,7 +2643,7 @@ class CentralWindow(QtGui.QWidget):
         if 'optical spectrum' in tasks:
             self.last_run_information['optical spectrum'].update(esc_handler.optical_spectrum_options)
 
-    def load_results_from_engine(self,tasks,title=None):
+    def load_results_from_engine(self, tasks, title=None):
         if title is None:
             title = esc_handler.general_options['title']
 
@@ -2640,7 +2656,7 @@ class CentralWindow(QtGui.QWidget):
         if 'scf' in tasks and type(self.crystal_structure) is sst.MolecularStructure:
             energy_diagram = esc_handler.read_energy_diagram()
             if energy_diagram is not None:
-                energy_diagram.engine_information = {'scf':scf_info}
+                energy_diagram.engine_information = {'scf': scf_info}
                 self.band_structures[title] = energy_diagram
 
         if 'g0w0' in tasks:
@@ -2653,7 +2669,6 @@ class CentralWindow(QtGui.QWidget):
             engine_informations = []
             titles = [title]
 
-
             if 'bandstructure' in tasks:
                 if esc_handler.engine_name == 'quantum espresso':
                     coords = [x[0] for x in self.dft_engine_window.band_structure_points]
@@ -2662,21 +2677,28 @@ class CentralWindow(QtGui.QWidget):
                     band_structure_points = zip(new_coords, labels)
                     read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
                 elif esc_handler.engine_name == 'abinit':
-                    read_bandstructure = esc_handler.read_bandstructure(special_k_points=self.dft_engine_window.band_structure_points,crystal_structure=self.crystal_structure)
+                    read_bandstructure = esc_handler.read_bandstructure(
+                        special_k_points=self.dft_engine_window.band_structure_points,
+                        crystal_structure=self.crystal_structure)
                 else:
                     read_bandstructure = esc_handler.read_bandstructure()
                 read_bandstructures.append(read_bandstructure)
-                engine_information = {'scf':scf_info,'bandstructure':{'k path':copy.deepcopy(self.dft_engine_window.band_structure_points)}}
+                engine_information = {'scf': scf_info, 'bandstructure': {
+                    'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}}
                 engine_informations.append(engine_information)
 
             if 'g0w0' in tasks:
-                read_bandstructures.append(esc_handler.read_gw_bandstructure(special_k_points=self.dft_engine_window.band_structure_points,structure=self.crystal_structure))
-                engine_information = {'scf':scf_info,'bandstructure':{'k path':copy.deepcopy(self.dft_engine_window.band_structure_points)},'gw':copy.deepcopy(esc_handler.gw_options)}
+                read_bandstructures.append(
+                    esc_handler.read_gw_bandstructure(special_k_points=self.dft_engine_window.band_structure_points,
+                                                      structure=self.crystal_structure))
+                engine_information = {'scf': scf_info, 'bandstructure': {
+                    'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},
+                                      'gw': copy.deepcopy(esc_handler.gw_options)}
                 engine_informations.append(engine_information)
             if 'bandstructure' in tasks and 'g0w0' in tasks:
                 titles.append(title + '_gw')
 
-            for read_bandstructure, title,engine_information in zip(read_bandstructures, titles, engine_informations):
+            for read_bandstructure, title, engine_information in zip(read_bandstructures, titles, engine_informations):
                 if read_bandstructure is None:
                     continue
                 read_bandstructure.engine_information = engine_information
@@ -2685,13 +2707,18 @@ class CentralWindow(QtGui.QWidget):
         if 'relax' in tasks:
             self.check_relax()
         if 'phonons' in tasks:
-            engine_information = {'scf': scf_info, 'bandstructure': {'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},'phonon':copy.deepcopy(esc_handler.phonons_options)}
-            read_bandstructure = esc_handler.read_phonon_bandstructure(special_k_points=self.dft_engine_window.band_structure_points,structure=self.crystal_structure)
+            engine_information = {'scf': scf_info, 'bandstructure': {
+                'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)},
+                                  'phonon': copy.deepcopy(esc_handler.phonons_options)}
+            read_bandstructure = esc_handler.read_phonon_bandstructure(
+                special_k_points=self.dft_engine_window.band_structure_points, structure=self.crystal_structure)
             read_bandstructure.engine_information = engine_information
             self.band_structures[title] = read_bandstructure
             self.band_structure_window.update_tree()
         if 'optical spectrum' in tasks:
-            engine_information = {'scf': scf_info, 'optical spectrum':copy.deepcopy(esc_handler.optical_spectrum_options),'gw':gw_info}
+            engine_information = {'scf': scf_info,
+                                  'optical spectrum': copy.deepcopy(esc_handler.optical_spectrum_options),
+                                  'gw': gw_info}
             read_spectrum = esc_handler.read_optical_spectrum()
             read_spectrum.engine_information = engine_information
             self.optical_spectra[title] = read_spectrum
@@ -2703,9 +2730,9 @@ class CentralWindow(QtGui.QWidget):
 
     def open_state_vis_window(self):
         self.ks_state_window.plot_widget.update_tree()
-        self.ks_state_window.show( )
+        self.ks_state_window.show()
 
-    def open_structure_window(self,new=False):
+    def open_structure_window(self, new=False):
         if new:
             self.structure_window.set_structure(None)
         else:
@@ -2719,8 +2746,9 @@ class CentralWindow(QtGui.QWidget):
         if type(self.crystal_structure) is not sst.CrystalStructure:
             return
 
-        if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure and type(self.crystal_structure):
-            self.brillouin_window.close() # This is a hack because for some reason the picker is broken when you update the plot
+        if self.crystal_structure is not None and self.brillouin_window.mayavi_widget.crystal_structure is not self.crystal_structure and type(
+                self.crystal_structure):
+            self.brillouin_window.close()  # This is a hack because for some reason the picker is broken when you update the plot
             self.brillouin_window = BrillouinWindow(self)
             self.brillouin_window.mayavi_widget.set_crystal_structure(self.crystal_structure)
             self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
@@ -2728,8 +2756,8 @@ class CentralWindow(QtGui.QWidget):
 
         self.brillouin_window.show()
 
-    def open_load_result_window(self,task):
-        result_window = LoadResultsWindow(self,task)
+    def open_load_result_window(self, task):
+        result_window = LoadResultsWindow(self, task)
         result_window.show()
 
     def open_scripting_console(self):
@@ -2737,20 +2765,23 @@ class CentralWindow(QtGui.QWidget):
         self.console_window.show()
 
         def add_plot_to_queue(structure):
-            q_item = {'task':'plot structure','structure':structure}
+            q_item = {'task': 'plot structure', 'structure': structure}
             self.queue.put(q_item)
 
         def add_scf_to_queue(scf_data):
-            q_item = {'task':'plot scf','scf data':scf_data}
+            q_item = {'task': 'plot scf', 'scf data': scf_data}
             self.queue.put(q_item)
             time.sleep(0.3)
 
-        shared_vars = {'structure':self.crystal_structure,'engine':esc_handler,'plot_structure':add_plot_to_queue,'CrystalStructure':sst.CrystalStructure,
-                       'MolecularStructure':sst.MolecularStructure,'OpticalSpectrum':sst.OpticalSpectrum,'BandStructure':sst.BandStructure,'EnergyDiagram':sst.EnergyDiagram,
-                       'KohnShamDensity':sst.KohnShamDensity,'MolecularDensity':sst.MolecularDensity,'plot_scf':add_scf_to_queue}
+        shared_vars = {'structure': self.crystal_structure, 'engine': esc_handler, 'plot_structure': add_plot_to_queue,
+                       'CrystalStructure': sst.CrystalStructure,
+                       'MolecularStructure': sst.MolecularStructure, 'OpticalSpectrum': sst.OpticalSpectrum,
+                       'BandStructure': sst.BandStructure, 'EnergyDiagram': sst.EnergyDiagram,
+                       'KohnShamDensity': sst.KohnShamDensity, 'MolecularDensity': sst.MolecularDensity,
+                       'plot_scf': add_scf_to_queue}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
-    def configure_buttons(self,disable_all=False):
+    def configure_buttons(self, disable_all=False):
         self.dft_engine_window.configure_buttons(disable_all=disable_all)
         if self.project_directory is None:
             self.save_project_action.setEnabled(False)
@@ -2789,7 +2820,7 @@ class CentralWindow(QtGui.QWidget):
         phonon_check = self.dft_engine_window.phonons_option_widget.options == esc_handler.phonons_options
         optical_check = self.dft_engine_window.optical_spectrum_option_widget.options == esc_handler.optical_spectrum_options
 
-        checks = [scf_check,gw_check,phonon_check,optical_check]
+        checks = [scf_check, gw_check, phonon_check, optical_check]
 
         if not all(checks):
             warnings.warn('Option dictionaries were not connected anymore')
@@ -2803,13 +2834,14 @@ class CentralWindow(QtGui.QWidget):
         self.check_integrety()
         self.handle_queue()
 
+
 if __name__ == "__main__":
 
     current_time = time.localtime()
     current_time_string = [str(x) for x in current_time[:3]]
 
     # installation_folder = os.path.dirname(find_data_file(''))
-    temp_folder = os.path.expanduser("~")+"/.OpenDFT"
+    temp_folder = os.path.expanduser("~") + "/.OpenDFT"
 
     if not os.path.exists(temp_folder):
         os.makedirs(temp_folder)
