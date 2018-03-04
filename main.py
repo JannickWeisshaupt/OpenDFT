@@ -8,7 +8,7 @@ import os
 import numpy as np
 import warnings
 
-DEBUG = False
+DEBUG = True
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:
@@ -1814,9 +1814,12 @@ class EditStructureWindow(QtGui.QDialog):
     def __init__(self, parent):
         super(EditStructureWindow, self).__init__(parent)
         self.setWindowTitle('Edit Structure')
-        self.setFixedSize(650, 700)
+        self.setFixedSize(650, 750)
         self.parent = parent
         self.anything_changed = False
+
+        self.error_dialog = QtGui.QErrorMessage(parent=self)
+        self.error_dialog.resize(700, 600)
 
         self.crystal_structure = None
         self.number_of_atoms = 1
@@ -1885,6 +1888,25 @@ class EditStructureWindow(QtGui.QDialog):
 
         self.atom_layout = QtGui.QVBoxLayout(self.atom_box)
 
+        atom_options_widget = QtGui.QWidget(self)
+        self.atom_layout.addWidget(atom_options_widget)
+
+        atom_options_layout = QtGui.QHBoxLayout(atom_options_widget)
+        atom_options_layout.setAlignment(QtCore.Qt.AlignLeft)
+
+        unit_label = QtGui.QLabel(self)
+        unit_label.setText('Unit')
+        atom_options_layout.addWidget(unit_label)
+
+        self.unit_combobox = QtGui.QComboBox(self)
+        atom_options_layout.addWidget(self.unit_combobox)
+        self.unit_combobox.addItem('Crystal')
+        self.unit_combobox.addItem('Cartesian (Bohr)')
+
+        self.unit_combobox.setCurrentIndex(0)
+        self.unit_combobox.currentIndexChanged.connect(self.switch_units)
+        self.unit_combobox.setMaximumWidth(150)
+
         self.atom_table = QtGui.QTableWidget(self.atom_box)
         copy_action_atoms = CopySelectedCellsAction(self.atom_table)
         self.atom_table.addAction(copy_action_atoms)
@@ -1914,6 +1936,7 @@ class EditStructureWindow(QtGui.QDialog):
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
 
+
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(
@@ -1941,10 +1964,24 @@ class EditStructureWindow(QtGui.QDialog):
             crystal_structure = self.read_tables()
             if crystal_structure is not None:
                 main.crystal_structure = crystal_structure
+            else:
+                raise ValueError('Bad structure')
 
     def accept(self):
-        self.apply()
-        super(EditStructureWindow, self).accept()
+        try:
+            self.apply()
+        except ValueError:
+            msg = "The entered structure is not valid. Possible cause: Invalid unit cell. Do you want to close this window anyway? All entries will be lost. "
+            reply = QtGui.QMessageBox.question(self, 'Invalid structure',
+                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.Yes:
+                super(EditStructureWindow, self).accept()
+            else:
+                return
+        else:
+            super(EditStructureWindow, self).accept()
+
 
     def reject(self):
         if self.anything_changed:
@@ -2033,9 +2070,15 @@ class EditStructureWindow(QtGui.QDialog):
                     if self.periodic_checkbox.checkState():
                         self.periodic_checkbox.toggle()
 
-                n_atoms = self.crystal_structure.atoms.shape[0]
+                if self.unit_combobox.currentIndex() == 0:
+                    atoms = self.crystal_structure.atoms
+                elif self.unit_combobox.currentIndex() == 1:
+                    atoms = self.crystal_structure.calc_absolute_coordinates()
+
+                n_atoms = atoms.shape[0]
                 self.set_number_of_atoms(n_atoms)
-                for i, atom in enumerate(self.crystal_structure.atoms):
+
+                for i, atom in enumerate(atoms):
                     coords = atom[0:3]
                     for j, coord in enumerate(coords):
                         item = self.atom_table.item(i, j + 1)
@@ -2056,28 +2099,95 @@ class EditStructureWindow(QtGui.QDialog):
                 self.atom_table.setItem(i, j, item)
 
     def read_tables(self):
+        unit_cell,scale = self.read_unit_cell_table()
+        atoms = self.read_atom_table()
+
         try:
-            scale_string = self.scale_entry.get_text()
-            scale = float(scale_string)
-            if scale == 0:
-                raise Exception('Scale cannot be zero')
-        except Exception as e:
-            logging.exception(e)
-            scale = 1.0
-        if self.periodic_checkbox.checkState():
-            try:
-                unit_cell = np.zeros((3, 3))
-                for i in range(3):
-                    for j in range(3):
-                        item = self.unit_cell_table.item(i, j)
-                        unit_cell[i, j] = float(item.text())
-
-                unit_cell = unit_cell * scale
-            except Exception:
-                return None
+            if self.periodic_checkbox.checkState():
+                out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale,relative_coords=not bool(self.unit_combobox.currentIndex()))
+            else:
+                out_struc = sst.MolecularStructure(atoms)
+        except Exception:
+            return None
         else:
-            unit_cell = None
+            return out_struc
 
+    def handle_change(self):
+        self.anything_changed = True
+
+        if not self.periodic_checkbox.checkState():
+            self.unit_cell_table.setEnabled(False)
+            if self.unit_combobox.currentIndex() == 0:
+                self.unit_combobox.currentIndexChanged.disconnect()
+                self.unit_combobox.setCurrentIndex(1)
+                self.unit_combobox.currentIndexChanged.connect(self.switch_units)
+                self.switch_units(convert_periodic=True,periodic=True)
+
+            self.unit_combobox.setEnabled(False)
+            self.scale_entry.setEnabled(False)
+        else:
+            self.unit_combobox.setEnabled(True)
+            self.unit_cell_table.setEnabled(True)
+            self.scale_entry.setEnabled(True)
+
+        self.update_plot()
+
+    def update_plot(self):
+        crystal_structure = self.read_tables()
+        if crystal_structure is not None:
+            main.mayavi_widget.update_crystal_structure(crystal_structure)
+            main.mayavi_widget.update_plot()
+
+
+
+    def switch_units(self,event=None,periodic=None,unit=None,convert_periodic=False):
+        if periodic is None:
+            periodic = self.periodic_checkbox.checkState()
+        if unit is None:
+            unit = self.unit_combobox.currentIndex() # 0 for crystal 1 for cartesian
+
+        unit_cell,scale = self.read_unit_cell_table(periodic=periodic)
+        try:
+            atoms = self.read_atom_table()
+        except Exception:
+            atoms = None
+
+        if atoms is None or len(atoms)==0:
+            return
+
+        if unit_cell is None:
+            msg = 'Could not convert units. Unit cell is not valid. Do you want to proceed without conversion?'
+            reply = QtGui.QMessageBox.question(self, 'Invalid unit cell',
+                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.Yes:
+                if not self.periodic_checkbox.checkState():
+                    self.update_plot()
+                return
+            elif reply == QtGui.QMessageBox.No:
+                if convert_periodic:
+                    self.periodic_checkbox.stateChanged.disconnect()
+                    self.periodic_checkbox.toggle()
+                    self.periodic_checkbox.stateChanged.connect(self.handle_change)
+                else:
+                    self.unit_combobox.currentIndexChanged.disconnect()
+                    self.unit_combobox.setCurrentIndex(not self.unit_combobox.currentIndex())
+                    self.unit_combobox.currentIndexChanged.connect(self.switch_units)
+
+
+        elif convert_periodic and periodic:
+            out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale, relative_coords=unit)
+            atoms = out_struc.calc_absolute_coordinates()
+            conv_struc = sst.MolecularStructure(atoms)
+            self.crystal_structure = conv_struc
+            self.update_fields()
+        else:
+            out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale,relative_coords=unit)
+            self.crystal_structure = out_struc
+            self.update_fields()
+
+
+    def read_atom_table(self):
         n_rows = self.atom_table.rowCount()
         atoms = np.zeros((n_rows, 4))
         for i in range(n_rows):
@@ -2107,21 +2217,34 @@ class EditStructureWindow(QtGui.QDialog):
             atoms[i, 3] = a_type
 
         atoms_clean = atoms[atoms[:, 3] != 0, :]
+        return atoms_clean
 
-        if self.periodic_checkbox.checkState():
-            out_struc = sst.CrystalStructure(unit_cell, atoms_clean, scale=scale)
+    def read_unit_cell_table(self,periodic=None):
+        if periodic is None:
+            periodic = self.periodic_checkbox.checkState()
+
+        try:
+            scale_string = self.scale_entry.get_text()
+            scale = float(scale_string)
+            if scale == 0:
+                raise ValueError('Scale cannot be zero')
+        except Exception as e:
+            logging.exception(e)
+            scale = 1.0
+        if periodic:
+            try:
+                unit_cell = np.zeros((3, 3))
+                for i in range(3):
+                    for j in range(3):
+                        item = self.unit_cell_table.item(i, j)
+                        unit_cell[i, j] = float(item.text())
+
+                unit_cell = unit_cell * scale
+            except Exception:
+                return None,scale
         else:
-            out_struc = sst.MolecularStructure(atoms_clean, scale=scale)
-
-        return out_struc
-
-    def handle_change(self):
-        self.anything_changed = True
-        crystal_structure = self.read_tables()
-        if crystal_structure is not None:
-            main.mayavi_widget.update_crystal_structure(crystal_structure)
-            main.mayavi_widget.update_plot()
-
+            unit_cell = None
+        return unit_cell,scale
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self, parent=None, *args, **kwargs):
