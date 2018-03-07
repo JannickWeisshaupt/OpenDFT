@@ -8,7 +8,7 @@ import os
 import numpy as np
 import warnings
 
-DEBUG = True
+DEBUG = False
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:
@@ -1818,7 +1818,8 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setWindowTitle('Edit Structure')
-        self.setFixedSize(650, 800)
+        self.resize(1200,800)
+        self.setFixedHeight(800)
         self.parent = parent
         self.anything_changed = False
 
@@ -1830,8 +1831,15 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.main_layout = QtGui.QVBoxLayout(self.main_widget)
         # self.make_menubar()
 
+        self.sub_main_widget = QtGui.QWidget(self)
+        self.main_layout.addWidget(self.sub_main_widget)
+        self.sub_main_layout = QtGui.QHBoxLayout(self.sub_main_widget)
+
+        self.structure_visualization = MayaviQWidget(self.crystal_structure,parent=self)
+        self.sub_main_layout.addWidget(self.structure_visualization)
+
         self.structure_widget = QtGui.QWidget(self)
-        self.main_layout.addWidget(self.structure_widget)
+        self.sub_main_layout.addWidget(self.structure_widget)
 
         self.verticalLayout = QtGui.QVBoxLayout(self.structure_widget)
         self.unit_cell_box = QtGui.QGroupBox(self.structure_widget)
@@ -1968,6 +1976,7 @@ class EditStructureWindow(QtGui.QMainWindow):
             crystal_structure = self.read_tables()
             if crystal_structure is not None:
                 main.crystal_structure = crystal_structure
+                self.update_plot(mode='main')
             else:
                 raise ValueError('Bad structure')
 
@@ -2142,11 +2151,15 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.switch_enabled_fields()
         self.update_plot()
 
-    def update_plot(self):
+    def update_plot(self, mode='local'):
         crystal_structure = self.read_tables()
         if crystal_structure is not None:
-            main.mayavi_widget.update_crystal_structure(crystal_structure)
-            main.mayavi_widget.update_plot()
+            if mode == 'local':
+                self.structure_visualization.update_crystal_structure(crystal_structure)
+                self.structure_visualization.update_plot()
+            elif mode == 'main':
+                main.mayavi_widget.update_crystal_structure(crystal_structure)
+                main.mayavi_widget.update_plot()
 
     def switch_units(self,event=None,periodic=None,unit=None,convert_periodic=False):
         if periodic is None:
@@ -2269,6 +2282,7 @@ class EditStructureWindow(QtGui.QMainWindow):
 
     def open_spatial_transform_window(self):
         pass
+
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self, parent=None, *args, **kwargs):
@@ -2725,7 +2739,7 @@ class CentralWindow(QtGui.QWidget):
             self.save_results()
             self.parent.quit()
             logging.info('Program stopped normally')
-            sys.exit()
+            # sys.exit()
 
     def check_relax(self):
         new_struc = esc_handler.load_relax_structure()
@@ -2888,6 +2902,7 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window.anything_changed = False
         self.structure_window.update_fields()
         self.structure_window.switch_enabled_fields()
+        self.structure_window.update_plot()
         self.structure_window.show()
 
     def open_brillouin_window(self):

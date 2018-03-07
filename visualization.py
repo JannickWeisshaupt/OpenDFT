@@ -66,6 +66,7 @@ def convert_to_greek(input):
             result.append(el)
     return result
 
+
 def KnuthMorrisPratt(text, pattern):
 
     '''Yields all starting positions of copies of the pattern in the text.
@@ -97,6 +98,7 @@ the match that caused the yield.'''
         matchLen += 1
         if matchLen == len(pattern):
             yield startPos
+
 
 class BrillouinVisualization(HasTraits):
 
@@ -282,8 +284,6 @@ class StructureVisualization(HasTraits):
             self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
             self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
 
-
-
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
             x1 = line[0]
@@ -305,7 +305,6 @@ class StructureVisualization(HasTraits):
                 for j3 in range(repeat[2]):
                     offset = j1 * cell[0, :] + j2 * cell[1, :] + j3 * cell[2, :]
                     self.plot_single_unit_cell(offset)
-
 
     def plot_single_unit_cell(self,offset):
         cell = self.crystal_structure.lattice_vectors
