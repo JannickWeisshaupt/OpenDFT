@@ -694,7 +694,7 @@ class CodeInformationWindow(QtGui.QDialog):
 
             def add_dic_to_text(text, indic, increment=0):
                 dic = OrderedDict(sorted(indic.items(), key=lambda t: t[0]))
-                for key, value in dic.iteritems():
+                for key, value in dic.items():
                     text += ' ' * increment + key + ': ' + value + '\n'
                 return text
 
@@ -708,16 +708,15 @@ class CodeInformationWindow(QtGui.QDialog):
                 text += '  K path:\n'
                 for el, label in k_path:
                     text += '    {0:1.3f} {1:1.3f} {2:1.3f}'.format(*el) + '  ' + label + '\n'
-                for key, value in information['bandstructure'].iteritems():
+                for key, value in information['bandstructure'].items():
                     if key != 'k path':
                         text += key + ': ' + value + '\n'
 
-            rest_dic = {key: value for key, value in information.iteritems() if key not in ('scf', 'bandstructure')}
-            for key, value in rest_dic.iteritems():
+            rest_dic = {key: value for key, value in information.items() if key not in ('scf', 'bandstructure')}
+            for key, value in rest_dic.items():
                 text += '\n' + key.title() + ':\n'
                 text = add_dic_to_text(text, value, increment=2)
         except Exception as e:
-            print(e)
             logging.error(e)
             text = 'An error occured while reading the information'
 
@@ -2429,12 +2428,9 @@ class CentralWindow(QtGui.QWidget):
         esc_handler.reset_to_defaults()
         self.project_properties.clear()
         self.dft_engine_window.band_structure_points = None
-        for key, value in self.band_structures.items():
-            del self.band_structures[key]
-        for key, value in self.optical_spectra.items():
-            del self.optical_spectra[key]
-        for key, value in self.ks_densities.items():
-            del self.ks_densities[key]
+        self.band_structures.clear()
+        self.optical_spectra.clear()
+        self.ks_densities.clear()
         self.mayavi_widget.visualization.clear_plot()
         self.band_structure_window.plot_widget.clear_plot()
         self.band_structure_window.clear_treeview()
@@ -2772,6 +2768,10 @@ class CentralWindow(QtGui.QWidget):
                 self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
+            try:
+                message, err = message.decode(), err.decode()
+            except:
+                pass
             if ('error' in message.lower() or len(err) > 0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
                                                                                                     "<br>") + '<br>Error:<br>' + err.replace(
@@ -2835,7 +2835,7 @@ class CentralWindow(QtGui.QWidget):
                     coords = [x[0] for x in self.dft_engine_window.band_structure_points]
                     labels = [x[1] for x in self.dft_engine_window.band_structure_points]
                     new_coords = self.crystal_structure.convert_to_tpiba(coords)
-                    band_structure_points = zip(new_coords, labels)
+                    band_structure_points = list(zip(new_coords, labels))
                     read_bandstructure = esc_handler.read_bandstructure(special_k_points=band_structure_points)
                 elif esc_handler.engine_name == 'abinit':
                     read_bandstructure = esc_handler.read_bandstructure(

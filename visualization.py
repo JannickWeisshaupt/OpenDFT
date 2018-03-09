@@ -341,8 +341,7 @@ class StructureVisualization(HasTraits):
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,
-                                     resolution=30,
+                                     scale_factor=atom_size,resolution=26,
                                      color=atomic_color,figure=self.scene.mayavi_scene)
 
     def clear_density_plot(self):
@@ -822,7 +821,7 @@ class BandStructureVisualization(QtGui.QWidget):
             for xc, xl in band_structure.special_k_points:
                 self.ax.axvline(x=xc, color='k', linewidth=1.5)
 
-            unzipped_k = zip(*band_structure.special_k_points)
+            unzipped_k = list(zip(*band_structure.special_k_points))
             special_k_points = unzipped_k[0]
             special_k_points_label = convert_to_greek(unzipped_k[1])
 

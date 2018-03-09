@@ -199,7 +199,7 @@ Keyword Args:
 Returns:
     - None
         """
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+        if crystal_structure.n_atoms//2 >= int(self.scf_options['nbnd']):
             raise Exception('Too few bands')
 
         self._copy_default_pseudos(crystal_structure)
@@ -280,7 +280,7 @@ Returns:
         if self.relax_options['type'] not in ['relax', 'md', 'vc-relax','vc-md']:
             raise ValueError("Relax type must be relax, md, vc-relax or vc-md")
 
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+        if crystal_structure.n_atoms//2 >= int(self.scf_options['nbnd']):
             raise Exception('Too few bands')
         self._copy_default_pseudos(crystal_structure)
         file = self._make_input_file()
@@ -359,7 +359,7 @@ Returns:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
+        res = np.array(list(zip(range(1,len(scf_energy_list)+1), scf_energy_list)))
         if len(res) < 2:
             return None
         return res
