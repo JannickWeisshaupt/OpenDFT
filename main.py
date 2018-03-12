@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 from __future__ import division, absolute_import, print_function, unicode_literals
 import six
 import sys
