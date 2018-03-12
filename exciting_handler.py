@@ -1,3 +1,4 @@
+import six
 import numpy as np
 import solid_state_tools as sst
 import xml.etree.ElementTree as ET
@@ -9,7 +10,7 @@ import os
 import time
 import re
 import threading
-
+from little_helpers import convert_to_ordered
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
@@ -75,7 +76,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5','frozencore':'false','xctype':'GGA_PBE'}
+        self.scf_options = convert_to_ordered({'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5','frozencore':'false','xctype':'GGA_PBE'})
         self.scf_options_tooltip = {'do':"""Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
 Type: 	choose from:
 fromscratch
@@ -141,11 +142,11 @@ Default: 	GGA_PBE"""
         and thus nempty will determine the size of this basis set. Convergence with respect to this quantity should be checked."""
 
         self.general_options = {'title': 'title'}
-        self.bs_options = {'steps': '300'}
-        self.relax_options = {'method':'bfgs'}
+        self.bs_options = convert_to_ordered({'steps': '300'})
+        self.relax_options = convert_to_ordered({'method':'bfgs'})
         self.relax_options_tooltip = {}
 
-        self.gw_options = {'nempty':'0','ngridq':"2 2 2",'ibgw':'1','nbgw':'0'}
+        self.gw_options = convert_to_ordered({'nempty':'0','ngridq':"2 2 2",'ibgw':'1','nbgw':'0'})
 
         self.gw_options_tooltip = {'nempty':'Number of empty states (cutoff parameter) used in GW.\n'
                                             'If not specified, the same number as for the groundstate calculations is used.'}
@@ -153,12 +154,12 @@ Default: 	GGA_PBE"""
         self.gw_options_tooltip['ibgw'] = 'Lower band index for GW output.'
         self.gw_options_tooltip['nbgw'] = 'Upper band index for GW output.'
 
-        self.phonons_options = {'do':'fromscratch','ngridq':'2 2 2'}
+        self.phonons_options = convert_to_ordered({'do':'fromscratch','ngridq':'2 2 2'})
         self.phonons_options_tooltip = {}
 
-        self.optical_spectrum_options = {'xstype':'BSE','intv':'0.0 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
+        self.optical_spectrum_options = convert_to_ordered({'xstype':'BSE','intv':'0.0 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
                                          ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.0005',
-                                         'gqmax':"3.0",'vkloff':"0.231 0.151 0.432"}
+                                         'gqmax':"3.0",'vkloff':"0.231 0.151 0.432"})
         self.optical_spectrum_options_tooltip = {'nstlbse':'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
                                                  'nempty_screening':'Number of empty states.',
                                                  'vkloff':'k-point offset for screening Type: floats\n Do not use negative numbers',
@@ -418,7 +419,7 @@ Returns:
             ms = match.split(':')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(scf_list, scf_energy_list))
+        res = np.array(list(zip(scf_list, scf_energy_list)))
         if len(res) < 2:
             return None
         return res
@@ -441,7 +442,10 @@ Returns:
         except IOError as e:
             return None
 
-        titlestring = e.find('title').itertext().next()
+        try:
+            titlestring = next(e.find('title').itertext())
+        except Exception:
+            titlestring = e.find('title').itertext().next()
 
         bands = []
 
@@ -469,7 +473,7 @@ Returns:
                 else:
                     band[:, 1] = band[:, 1] - empirical_correction / 2
 
-        special_k_points_together = zip(special_k_points, special_k_points_label)
+        special_k_points_together = list(zip(special_k_points, special_k_points_label))
 
 
         return sst.BandStructure(bands, special_k_points=special_k_points_together)

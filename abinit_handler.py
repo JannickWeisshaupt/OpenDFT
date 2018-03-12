@@ -9,7 +9,7 @@ import re
 import threading
 from six import string_types
 from shutil import copyfile
-from little_helpers import find_data_file
+from little_helpers import find_data_file,convert_to_ordered
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -71,7 +71,7 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30'}
+        self.scf_options = convert_to_ordered({'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30'})
 
         self.scf_options_tooltip = {'ecut':""" Used for kinetic energy cutoff (in Hartree) which controls number of planewaves at given k point by:
 (1/2)[(2 Pi)*(k+Gmax)] 2 =ecut for Gmax.

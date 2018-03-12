@@ -9,7 +9,7 @@ import re
 import threading
 from six import string_types
 from shutil import copyfile
-from little_helpers import find_data_file
+from little_helpers import find_data_file, convert_to_ordered
 
 
 atomic_mass = pt.mass
@@ -70,8 +70,8 @@ Courses on modern electronic-structure theory with hands-on tutorials on the Qua
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
-                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7',"restart_mode":'from_scratch','nstep':'50'}
+        self.scf_options = convert_to_ordered({'ecutwfc':'30.0','ecutrho':'300.0','input_dft':'PBE','k points':'6 6 6','k point shift':'1 1 1','k points band':'30','nbnd':'10',
+                            'diagonalization':'david','conv_thr':'1e-8','mixing_mode':'plain','mixing_beta':'0.7',"restart_mode":'from_scratch','nstep':'50'})
 
 
         self.scf_options_tooltip = {'ecutwfc':'kinetic energy cutoff (Ry) for wavefunctions','ecutrho':"""Kinetic energy cutoff (Ry) for charge density and potential

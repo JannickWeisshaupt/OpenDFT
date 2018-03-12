@@ -3,6 +3,8 @@ import numpy as np
 import sys
 import os
 import traceback
+from collections import OrderedDict
+
 
 class no_error_dictionary:
     def __init__(self,dic_in):
@@ -95,6 +97,8 @@ class PasteIntoTable(QtGui.QAction):
         self.parent.connect_tables()
         self.parent.handle_change()
 
+def convert_to_ordered(d):
+    return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
 def set_procname(newname):
     from ctypes import cdll, byref, create_string_buffer

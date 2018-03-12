@@ -7,7 +7,7 @@ import time
 from scipy.spatial import ConvexHull,Voronoi
 import os
 from little_helpers import find_data_file
-
+from collections import OrderedDict
 
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 import pymatgen as mg
@@ -370,7 +370,9 @@ class GeneralHandler():
         from abinit_handler import Handler
         self.abinit_handler = Handler
 
-        self.handlers = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler,'abinit':self.abinit_handler}
+        d = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler,'abinit':self.abinit_handler}
+        self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
+
 
 
     def is_handler_available(self,engine_name):
