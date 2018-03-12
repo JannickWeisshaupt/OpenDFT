@@ -12,6 +12,8 @@ import matplotlib
 from encodings import ascii
 from encodings import idna
 from encodings import unicode_escape
+import ruamel.yaml
+
 
 scipy_path = os.path.dirname(scipy.__file__) #use this if you are also using scipy in your application
 

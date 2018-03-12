@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from __future__ import division, absolute_import, print_function, unicode_literals
+import six
 import sys
 
 if not sys.getfilesystemencoding():
@@ -1773,6 +1774,8 @@ class KsStateWindow(QtGui.QDialog):
         else:
             self.parent.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
+            if type(message) == bytes:
+                message, err = message.decode(), err.decode()
             if ('error' in message.lower() or len(err) > 0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
                                                                                                     '<br>') + '<br>Error:<br>' + err.replace(
@@ -2574,8 +2577,8 @@ class CentralWindow(QtGui.QWidget):
         try:
             with open(self.temp_folder + '/defaults.pkl', 'rb') as handle:
                 b = pickle.load(handle)
-        except IOError:
-            logging.info('Default file not found')
+        except Exception as e:
+            logging.info('Default file not found or invalid')
             b = {}
 
         default_engine = b.pop('default engine', None)
@@ -2768,10 +2771,8 @@ class CentralWindow(QtGui.QWidget):
                 self.scf_window.scf_widget.plot(self.scf_data)
             self.status_bar.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
-            try:
+            if type(message) == bytes:
                 message, err = message.decode(), err.decode()
-            except:
-                pass
             if ('error' in message.lower() or len(err) > 0):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
                                                                                                     "<br>") + '<br>Error:<br>' + err.replace(
