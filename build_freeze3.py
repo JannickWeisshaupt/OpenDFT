@@ -27,7 +27,12 @@ build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyfa
                      "include_files": [(str(scipy_path), "scipy"), #for scipy
                     (matplotlib.get_data_path(), "mpl-data"),'/home/jannick/python_programs/OpenDFT/data','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/bond_lengths.json',
                                        '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/func_groups.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/libxc_docs.json',
-                                       '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/periodic_table.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/reconstructions_archive.json'
+                                       '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/periodic_table.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/reconstructions_archive.json',
+                                       '/usr/local/lib/python3.4/site-packages/PyQt4','/home/jannick/.local/lib/python3.4/site-packages/mayavi','/home/jannick/.local/lib/python3.4/site-packages/ruamel',
+                                       '/home/jannick/.local/lib/python3.4/site-packages/pyface','/home/jannick/.local/lib/python3.4/site-packages/tvtk',
+                                       '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/bond_lengths.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/func_groups.json',
+                                       '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/libxc_docs.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/periodic_table.json',
+                                       '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/reconstructions_archive.json'
                                        ],
 
                      "includes":['PyQt4.QtCore','PyQt4.QtGui','pymatgen','pymatgen.symmetry.bandstructure','mayavi','PyQt4'],

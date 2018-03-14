@@ -296,7 +296,7 @@ Returns:
             ms = match.split()
             scf_energy_list.append(float(ms[2]))
             iteration_number.append(int(ms[1]))
-        res = np.array(zip(iteration_number, scf_energy_list))
+        res = np.array(list(zip(iteration_number, scf_energy_list)))
         if len(res) < 2:
             return None
         return res
@@ -501,10 +501,8 @@ density
             filename = '/density_k{0:d}_b{1:d}_s1'.format(*bs_point)
             os.rename(self.project_directory+self.working_dirctory+filename,self.project_directory+self.working_dirctory+'/density.out')
 
-
         t = threading.Thread(target=rename_result)
         t.start()
-
 
         os.chdir(self.project_directory)
 

@@ -16,7 +16,8 @@ import copy
 import numpy as np
 import matplotlib as mpl
 mpl.use('Qt4Agg')
-mpl.rcParams['backend.qt4']='PySide'
+
+# mpl.rcParams['backend.qt4']='PySide'
 from little_helpers import find_data_file
 from bisect import bisect
 # mpl.rc('font',**{'size': 22, 'family':'serif','serif':['Palatino']})

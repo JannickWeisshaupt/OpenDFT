@@ -9,7 +9,7 @@ import os
 import numpy as np
 import warnings
 
-DEBUG = False
+DEBUG = True
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:
@@ -1754,7 +1754,8 @@ class KsStateWindow(QtGui.QDialog):
         label_list = [label] * len(k)
 
         to_do_list = zip(k, n_band, label_list)
-        map(self.calc_queue.put, to_do_list)
+        for el in to_do_list:
+            self.calc_queue.put(el)
         self.start_ks_calculation()
 
     def choose_nk(self):
@@ -2382,7 +2383,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/test_abinit/"
+                project_directory = r"/home/jannick/OpenDFT_projects/python3/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -2441,6 +2442,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.plot_widget.clear_plot()
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
+        self.window.setWindowTitle("OpenDFT")
 
     def load_project(self, *args, **kwargs):
         folder_name = kwargs.pop('folder_name', None)
@@ -2453,12 +2455,19 @@ class CentralWindow(QtGui.QWidget):
             self.project_directory = folder_name
             os.chdir(self.project_directory)
             esc_handler.project_directory = self.project_directory
-            self.load_saved_results()
-            self.dft_engine_window.update_all()
-            self.tab_is_changed(self.tabWidget.currentIndex())
-            self.window.setWindowTitle("OpenDFT - " + self.project_directory)
-            self.project_loaded = True
-            self.configure_buttons()
+            try:
+                self.load_saved_results()
+            except Exception as e:
+                self.reset_results_and_plots()
+                stack_trace = get_stacktrace_as_string()
+                err_msg = 'Project seems to be corrupt and could not be loaded. Loading failed with error message:<br>'+stack_trace
+                self.error_dialog.showMessage(err_msg)
+            else:
+                self.dft_engine_window.update_all()
+                self.tab_is_changed(self.tabWidget.currentIndex())
+                self.window.setWindowTitle("OpenDFT - " + self.project_directory)
+                self.project_loaded = True
+                self.configure_buttons()
         elif not folder_name:
             return
         else:

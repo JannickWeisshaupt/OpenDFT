@@ -267,7 +267,7 @@ Returns:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
+        res = np.array(list(zip(range(1,len(scf_energy_list)+1), scf_energy_list)))
 
         if len(res) < 2:
             return None
