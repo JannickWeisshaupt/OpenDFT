@@ -285,7 +285,6 @@ class StructureVisualization(HasTraits):
             self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
             self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
 
-
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
             x1 = line[0]
@@ -345,7 +344,6 @@ class StructureVisualization(HasTraits):
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
                                      scale_factor=atom_size,resolution=50,
                                      color=atomic_color,figure=self.scene.mayavi_scene)
-
 
     def clear_density_plot(self):
         if self.cp is not None:
