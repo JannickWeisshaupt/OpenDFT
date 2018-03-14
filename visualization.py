@@ -285,6 +285,7 @@ class StructureVisualization(HasTraits):
             self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
             self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
 
+
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
             x1 = line[0]
@@ -342,8 +343,9 @@ class StructureVisualization(HasTraits):
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,resolution=26,
+                                     scale_factor=atom_size,resolution=50,
                                      color=atomic_color,figure=self.scene.mayavi_scene)
+
 
     def clear_density_plot(self):
         if self.cp is not None:
@@ -394,61 +396,17 @@ class StructureVisualization(HasTraits):
         self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
         self.density_plotted = ks_density
 
-
-    # def bonds_to_paths(self,bonds):
-    # """See here my failed attempt on graph theory. Seems there is a reason that there is a mathematical field to it. Who would have thought?"""
-    #     def is_bond_in_path(path,bond):
-    #         a = KnuthMorrisPratt(path,bond)
-    #         b = KnuthMorrisPratt(path,bond[::-1])
-    #         try:
-    #             next(a)
-    #             return True
-    #         except StopIteration:
-    #             pass
-    #
-    #         try:
-    #             next(b)
-    #             return True
-    #         except StopIteration:
-    #             pass
-    #         return False
-    #
-    #     def find_all_connection(bonds, point):
-    #         connections = []
-    #         for bond in bonds:
-    #             if point in bond:
-    #                 if point == bond[0]:
-    #                     connections.append(bond[1])
-    #                 else:
-    #                     connections.append(bond[0])
-    #         return connections
-    #
-    #     paths = []
-    #     for bond in bonds:
-    #         path = bond
-    #         p1 = bond[0]
-    #         while True:
-    #             p1_con = find_all_connection(bonds,p1)
-    #             if len(p1_con) == 1:
-    #                 break
-    #             for connection in p1_con:
-    #                 if not is_bond_in_path(path,[p1,connection]):
-    #                     path.append[p1_con[0]]
-
-
-
-
-
     def plot_bonds(self,repeat=[1,1,1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
+        paths = sst.bonds_to_path(bonds)
 
-        for bond in bonds:
-            i1 = bond[0]
-            i2 = bond[1]
-            p1 = abs_coord_atoms[i1,:3]
-            p2 = abs_coord_atoms[i2,:3]
-            self.scene.mlab.plot3d([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
+        for path in paths:
+            x = abs_coord_atoms[path,0]
+            y = abs_coord_atoms[path,1]
+            z = abs_coord_atoms[path,2]
+
+            self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
 
 
 class OpticalSpectrumVisualization(QtGui.QWidget):

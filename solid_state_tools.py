@@ -6,6 +6,7 @@ from bisect import bisect
 import time
 from scipy.spatial import ConvexHull,Voronoi
 import os
+import copy
 from little_helpers import find_data_file
 from collections import OrderedDict
 
@@ -578,6 +579,37 @@ def calculate_path_length(structure,k_path):
     return points
 
 
+def bonds_to_path(bonds_in):
+    bonds = copy.deepcopy(bonds_in)
+    paths = []
+    path = []
+
+    while len(bonds)>0:
+
+        if len(path) == 0:
+            path = bonds[0]
+            del bonds[0]
+        else:
+            last_el = path[-1]
+            for i, bond in enumerate(bonds):
+                if last_el == bond[0]:
+                    path.append(bond[1])
+                    del bonds[i]
+                    break
+                elif last_el == bond[1]:
+                    path.append(bond[0])
+                    del bonds[i]
+                    break
+                elif i == len(bonds)-1:
+                    paths.append(path)
+                    path = []
+    if len(path) > 0:
+        paths.append(path)
+    return paths
+
+
+
+
 if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
@@ -589,26 +621,29 @@ if __name__ == "__main__":
 
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
-    coords = crystal_structure.calc_absolute_coordinates(repeat=[1,1,2])
+    coords = crystal_structure.calc_absolute_coordinates(repeat=[2,2,2])
+    bonds = crystal_structure.find_bonds(coords)
     print(crystal_structure.find_bonds(coords))
 
-    import mayavi.mlab as mlab
-
-    ts = time.time()
-    w_points = construct_brillouin_vertices(crystal_structure)
-    brillouin_edges = construct_convex_hull(w_points)
-
-
-    mlab.points3d(w_points[:,0],w_points[:,1],w_points[:,2],color=(0.7, 0.7, 0.7),scale_factor=.1,)
-
-    mlab.triangular_mesh(w_points[:,0],w_points[:,1],w_points[:,2],brillouin_edges,opacity=0.7,color=(0.5,0.5,0.5))
-
-    # for i,connection in enumerate(brillouin_edges):
-    #     for con in connection:
-    #         bond = [i,con]
-    #         mlab.plot3d(w_points[bond, 0], w_points[bond, 1], w_points[bond, 2])
-
-    mlab.show()
+    bond_path = bonds_to_path(bonds)
+    print(bond_path)
+    # import mayavi.mlab as mlab
+    #
+    # ts = time.time()
+    # w_points = construct_brillouin_vertices(crystal_structure)
+    # brillouin_edges = construct_convex_hull(w_points)
+    #
+    #
+    # mlab.points3d(w_points[:,0],w_points[:,1],w_points[:,2],color=(0.7, 0.7, 0.7),scale_factor=.1,)
+    #
+    # mlab.triangular_mesh(w_points[:,0],w_points[:,1],w_points[:,2],brillouin_edges,opacity=0.7,color=(0.5,0.5,0.5))
+    #
+    # # for i,connection in enumerate(brillouin_edges):
+    # #     for con in connection:
+    # #         bond = [i,con]
+    # #         mlab.plot3d(w_points[bond, 0], w_points[bond, 1], w_points[bond, 2])
+    #
+    # mlab.show()
 
 
         # parser = StructureParser()
