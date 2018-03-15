@@ -2369,7 +2369,8 @@ class CentralWindow(QtGui.QWidget):
         self.window = MainWindow(self)
         self.window.setWindowTitle("OpenDFT")
         self.window.setWindowIcon(QtGui.QIcon('icon.ico'))
-        self.window.setGeometry(50, 50, 1300, 900)
+        self.window.setMinimumSize(1000,900)
+        self.window.resize(1300, 1000)
         self.window.setCentralWidget(self)
         self.make_menu_bar()
 

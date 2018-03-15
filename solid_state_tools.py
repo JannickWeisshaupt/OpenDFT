@@ -580,11 +580,12 @@ def calculate_path_length(structure,k_path):
 
 
 def bonds_to_path(bonds_in):
+
     bonds = copy.deepcopy(bonds_in)
     paths = []
     path = []
 
-    while len(bonds)>0:
+    while len(bonds) > 0:
 
         if len(path) == 0:
             path = bonds[0]
