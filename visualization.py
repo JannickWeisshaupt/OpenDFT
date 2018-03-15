@@ -421,9 +421,9 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         self.toolbar = NavigationToolbar(self.canvas, self)
 
-        # color = self.palette().color(QtGui.QPalette.Base)
-        # self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
-        self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
+        color = self.palette().color(QtGui.QPalette.Base)
+        self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
+        # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
         # self.figure.patch.set_alpha(1.0)
         # self.figure.patch.set_facecolor('blue')
 
@@ -668,9 +668,9 @@ class BandStructureVisualization(QtGui.QWidget):
 
         self.toolbar = NavigationToolbar(self.canvas, self)
 
-        # color = self.palette().color(QtGui.QPalette.Base)
-        # self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
-        self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236/ 255])
+        color = self.palette().color(QtGui.QPalette.Base)
+        self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
+        # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236/ 255])
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -868,9 +868,9 @@ class ScfVisualization(QtGui.QWidget):
         self.first_plot_bool = True
         self.canvas = FigureCanvas(self.figure)
 
-        # color = self.palette().color(QtGui.QPalette.Base)
-        # self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
-        self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
+        color = self.palette().color(QtGui.QPalette.Base)
+        self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
+        # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
         # self.figure.patch.set_facecolor('none')
         # self.figure.patch.set_alpha(0.0)
 

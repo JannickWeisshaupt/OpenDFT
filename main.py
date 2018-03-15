@@ -827,7 +827,7 @@ class DftEngineWindow(QtGui.QWidget):
 
         self.scroll_area = QtGui.QScrollArea(parent=self)
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFixedHeight(800)
+        # self.scroll_area.setFixedHeight(800)
         self.scroll_area.setWidget(mygroupbox)
 
         self.layout.addWidget(self.scroll_area)
@@ -868,40 +868,36 @@ class DftEngineWindow(QtGui.QWidget):
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
+        button_size = (150,50)
+
         self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation',
                                                                        self.button_widget)
-        self.start_ground_state_calculation_button.setFixedWidth(150)
-        self.start_ground_state_calculation_button.setFixedHeight(50)
+        self.start_ground_state_calculation_button.setFixedSize(*button_size)
         self.start_ground_state_calculation_button.clicked.connect(self.start_ground_state_calculation)
         self.button_layout.addWidget(self.start_ground_state_calculation_button)
 
         self.start_relax_button = QtGui.QPushButton('Start Structure\nRelaxation', self.button_widget)
-        self.start_relax_button.setFixedWidth(150)
-        self.start_relax_button.setFixedHeight(50)
+        self.start_relax_button.setFixedSize(*button_size)
         self.start_relax_button.clicked.connect(self.start_relax)
         self.button_layout.addWidget(self.start_relax_button)
 
         self.start_gw_button = QtGui.QPushButton('Start GW', self.button_widget)
-        self.start_gw_button.setFixedWidth(150)
-        self.start_gw_button.setFixedHeight(50)
+        self.start_gw_button.setFixedSize(*button_size)
         self.start_gw_button.clicked.connect(self.start_gw)
         self.button_layout.addWidget(self.start_gw_button)
 
         self.start_phonon_button = QtGui.QPushButton('Start Phonon\nBandstructure', self.button_widget)
-        self.start_phonon_button.setFixedWidth(150)
-        self.start_phonon_button.setFixedHeight(50)
+        self.start_phonon_button.setFixedSize(*button_size)
         self.start_phonon_button.clicked.connect(self.start_phonons)
         self.button_layout.addWidget(self.start_phonon_button)
 
         self.start_optical_spectrum_button = QtGui.QPushButton('Calculate optical\nspectrum', self.button_widget)
-        self.start_optical_spectrum_button.setFixedWidth(150)
-        self.start_optical_spectrum_button.setFixedHeight(50)
+        self.start_optical_spectrum_button.setFixedSize(*button_size)
         self.start_optical_spectrum_button.clicked.connect(self.start_optical_spectrum_calculation)
         self.button_layout.addWidget(self.start_optical_spectrum_button)
 
         self.abort_calculation_button = QtGui.QPushButton('Abort Calculation', self.button_widget)
-        self.abort_calculation_button.setFixedWidth(150)
-        self.abort_calculation_button.setFixedHeight(50)
+        self.abort_calculation_button.setFixedSize(*button_size)
         self.abort_calculation_button.clicked.connect(self.abort_calculation)
         self.button_layout.addWidget(self.abort_calculation_button)
 
@@ -910,11 +906,6 @@ class DftEngineWindow(QtGui.QWidget):
 
         self.layout.addWidget(self.button_widget)
 
-        # trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
-        #                                , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
-        #                             [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
-        # trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
-        # self.band_structure_points = list(zip(trash_bs_points, trash_bs_labels))
         self.band_structure_points = None
         self.show()
 
@@ -1081,8 +1072,8 @@ class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         layout = QtGui.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        # layout.setContentsMargins(0, 0, 0, 0)
+        # layout.setSpacing(0)
         self.scf_widget = ScfVisualization(parent=self)
         layout.addWidget(self.scf_widget)
 
@@ -2369,8 +2360,8 @@ class CentralWindow(QtGui.QWidget):
         self.window = MainWindow(self)
         self.window.setWindowTitle("OpenDFT")
         self.window.setWindowIcon(QtGui.QIcon('icon.ico'))
-        self.window.setMinimumSize(1000,900)
-        self.window.resize(1300, 1000)
+        self.window.setMinimumSize(700,700)
+        self.window.resize(1300, 1100)
         self.window.setCentralWidget(self)
         self.make_menu_bar()
 
