@@ -342,7 +342,7 @@ class StructureVisualization(HasTraits):
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
             self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,resolution=50,
+                                     scale_factor=atom_size,resolution=150,
                                      color=atomic_color,figure=self.scene.mayavi_scene)
 
     def clear_density_plot(self):
@@ -423,6 +423,14 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         color = self.palette().color(QtGui.QPalette.Base)
         self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
+
+        if sum([color.red(),color.blue(),color.green()])/3 < 100:
+            self.dark_mode = True
+            self.bg_color = [color.red()/255,color.green()/255,color.blue()/255]
+        else:
+            self.dark_mode = False
+            self.bg_color = None
+
         # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
         # self.figure.patch.set_alpha(1.0)
         # self.figure.patch.set_facecolor('blue')
@@ -542,6 +550,9 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
             self.ax = self.figure.add_subplot(111)
             self.ax.format_coord = lambda x, y: u'E = {0:1.2f} eV, ε = {1:1.3f}'.format(x,y)
         self.ax.cla()
+
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure,self.ax,self.bg_color)
 
         entry_values = self.read_entries()
         Emin = entry_values['Emin']
@@ -669,8 +680,14 @@ class BandStructureVisualization(QtGui.QWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         color = self.palette().color(QtGui.QPalette.Base)
-        self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
-        # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236/ 255])
+        self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
+
+        if sum([color.red(),color.blue(),color.green()])/3 < 100:
+            self.dark_mode = True
+            self.bg_color = [color.red()/255,color.green()/255,color.blue()/255]
+        else:
+            self.dark_mode = False
+            self.bg_color = None
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -706,6 +723,8 @@ class BandStructureVisualization(QtGui.QWidget):
         self.last_bandstructure = band_structure
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
+
+
         if type(band_structure) is sst.EnergyDiagram:
             self.plot_energy_diagram(band_structure)
         elif type(band_structure) is sst.BandStructure:
@@ -736,6 +755,8 @@ class BandStructureVisualization(QtGui.QWidget):
         self.ax.format_coord = lambda x, y: 'E = {0:1.2f} eV, E_gap = {1:1.2f} eV'.format(*self.make_interactive_text_energy_diagram(x,y,energy_diagram))
 
         self.ax.cla()
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure,self.ax,self.bg_color)
 
         energies = energy_diagram.energies
         labels = energy_diagram.labels
@@ -760,13 +781,23 @@ class BandStructureVisualization(QtGui.QWidget):
             self.ax.text(text_pos,energy,label,verticalalignment='center', horizontalalignment=alignment)
 
         self.ax.set_ylabel("Energy eV")
-        self.ax.set_title('Energy diagram. Homo-Lumo gap = {0:1.2f} eV'.format(gap))
+        if self.dark_mode:
+            title_color = 'white'
+        else:
+            title_color = 'black'
+        self.ax.set_title('Energy diagram. Homo-Lumo gap = {0:1.2f} eV'.format(gap),color=title_color)
 
     def plot_bandstructure(self,band_structure):
         self.ax.format_coord = lambda x, y: 'k_d = {0:1.1f}, E = {1:1.2f} eV, Gap = {2:1.2f} eV'.format(
             *self.make_interactive_text(x, y, band_structure))
 
         self.ax.cla()
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure,self.ax,self.bg_color)
+            title_color = 'white'
+        else:
+            title_color = 'black'
+
         for band in band_structure.bands:
             self.ax.plot(band[:, 0], band[:, 1], color='#1f77b4', linewidth=2)
 
@@ -788,6 +819,8 @@ class BandStructureVisualization(QtGui.QWidget):
             special_k_points = []
             special_k_points_label = []
 
+
+
         if band_structure.bs_type == 'electronic':
             bandgap = band_structure.bandgap
             k_bandgap = band_structure.k_bandgap
@@ -801,10 +834,10 @@ class BandStructureVisualization(QtGui.QWidget):
             else:
                 title_bandgap = ' $E_g$ = %1.1f eV' % bandgap + ' (direct)'
 
-            self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25)
+            self.ax.set_title('KS bandstructure,' + title_bandgap, fontsize=25,color=title_color)
         else:
             self.ax.set_ylim(bottom=0)
-            self.ax.set_title('Phonon bandstructure', fontsize=25)
+            self.ax.set_title('Phonon bandstructure', fontsize=25,color=title_color)
 
     def make_interactive_text(self,k_in,E,band_structure):
         bands = band_structure.bands
@@ -869,10 +902,14 @@ class ScfVisualization(QtGui.QWidget):
         self.canvas = FigureCanvas(self.figure)
 
         color = self.palette().color(QtGui.QPalette.Base)
-        self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
-        # self.figure.patch.set_facecolor([236 / 255, 236 / 255, 236 / 255])
-        # self.figure.patch.set_facecolor('none')
-        # self.figure.patch.set_alpha(0.0)
+        self.figure.patch.set_facecolor([color.red()/255,color.green()/255,color.blue()/255])
+
+        if sum([color.red(),color.blue(),color.green()])/3 < 100:
+            self.dark_mode = True
+            self.bg_color = [color.red()/255,color.green()/255,color.blue()/255]
+        else:
+            self.dark_mode = False
+            self.bg_color = None
 
         self.toolbar = NavigationToolbar(self.canvas, self)
 
@@ -897,6 +934,9 @@ class ScfVisualization(QtGui.QWidget):
         if self.first_plot_bool:
             self.ax = self.figure.add_subplot(111)
         self.ax.cla()
+
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure,self.ax,self.bg_color)
 
         xmax = int(round(scf_data[:,0].max()))+1
         xmin = int(scf_data[:,0].min())
@@ -926,6 +966,19 @@ class ScfVisualization(QtGui.QWidget):
             self.first_plot_bool = False
             self.figure.tight_layout()
         self.canvas.draw()
+
+
+def set_dark_mode_matplotlib(f,ax,color):
+    ax.tick_params(axis='x', colors='white')
+    ax.tick_params(axis='y', colors='white')
+    ax.spines['bottom'].set_color('white')
+    ax.spines['top'].set_color('white')
+    ax.spines['left'].set_color('white')
+    ax.spines['right'].set_color('white')
+    ax.xaxis.label.set_color('white')
+    ax.yaxis.label.set_color('white')
+    ax.set_facecolor(color)
+
 
 
 if __name__ == "__main__":
