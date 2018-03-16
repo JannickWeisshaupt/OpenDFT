@@ -20,14 +20,24 @@ OpenDFT runs on windows and linux and python versions 2 and 3. In order to be ab
 
 ##### User install
 
-First install the vtk library for python with:
+OpenDFT depends on QT4, which is already installed on many systems. 
+If it is not installed, you can install it for distributions with the debian package
+manager (ubuntu, debian, linux mint) with
 
-sudo apt-get install python-vtk
+sudo apt-get install qt4-default
 
 Then download the packaged OpenDFT program from the [release](https://github.com/JannickWeisshaupt/OpenDFT/releases) page
 Unzip the file and execute the OpenDFT executable in the folder from a terminal: <br>
 cd OpenDFT<br>
 ./OpenDFT
+
+Add following command to your ~/.bashrc in order to be able to open 
+OpenDFT everywhere from the terminal
+
+alias OpenDFT=/directory/where/you/where/you/want/to/install/OpenDFT/OpenDFT <br>
+
+Now you can start OpenDFT with the command "OpenDFT" in the terminal.
+
 
 ##### Developer install
 
@@ -35,17 +45,17 @@ One of the dependencies (mayavi) is not easy to install for python3 on linux . T
 recommend to use python2. Here is a step-by-step instruction how to install OpenDFT:
 
 sudo apt-get update<br>
-sudo apt-get install python-numpy python-pip python-scipy python-matplotlib<br>
-sudo apt-get install python-dev -y <br>
-sudo apt-get install python-qt4 <br>
-sudo apt-get install python-vtk python-setuptools python-configobj <br>
-sudo pip install mayavi (or "pip install --user mayavi". 
+sudo apt-get install python3-numpy python3-pip python3-scipy python3-matplotlib<br>
+sudo apt-get install python3-dev -y <br>
+sudo apt-get install python3-qt4 <br>
+sudo apt-get install python3-vtk python3-setuptools python3-configobj <br>
+sudo pip3 install mayavi (or "pip3 install --user mayavi". 
 Then always do this for the following commmand) <br>
 
-sudo apt-get install python-pyside <br>
-sudo pip install six <br>
-sudo pip install periodictable <br>
-sudo pip install pymatgen (This is optional and will add optional functionality)<br>
+sudo apt-get install python3-pyside <br>
+sudo pip3 install six <br>
+sudo pip3 install periodictable <br>
+sudo pip3 install pymatgen (This is optional and will add optional functionality)<br>
 sudo apt-get install git <br>
 
 cd folder/where/you/want/to/install/ <br>
