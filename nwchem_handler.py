@@ -122,18 +122,6 @@ Returns:
         file.close()
         self._start_engine(blocking=blocking)
 
-        # if band_structure_points is not None:
-        #     def run_bs():
-        #         while self.is_engine_running():
-        #             time.sleep(0.001)
-        #         file = self._make_input_file(filename='bands.in')
-        #         self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
-        #         file.close()
-        #         self._start_engine(filename='bands.in')
-        #
-        #
-        #     t = threading.Thread(target=run_bs)
-        #     t.start()
 
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
@@ -252,24 +240,22 @@ Returns:
         scf_energy_list = []
 
         hits = [i for i,l in enumerate(info_text.split('\n')) if l.strip().startswith('iter')]
-        if len(hits)==0:
-            return None
-        else:
+        if len(hits)>0:
             hit = hits[0]
-        for line in info_text.split('\n')[hit+2:]:
-            sline = line.split()
-            if len(sline)==0:
-                break
-            scf_energy_list.append(float(sline[1]))
+            for line in info_text.split('\n')[hit+2:]:
+                sline = line.split()
+                if len(sline)==0:
+                    break
+                scf_energy_list.append(float(sline[1]))
 
-        matches = re.findall(r"Total SCF energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+        matches = re.findall(r"Total \w\w\w energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
         for match in matches:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
         res = np.array(list(zip(range(1,len(scf_energy_list)+1), scf_energy_list)))
 
-        if len(res) < 2:
+        if len(res) == 0:
             return None
         return res
 
@@ -619,11 +605,11 @@ if __name__ == '__main__':
     crystal_structure = sst.MolecularStructure(atoms)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/nwchem_test"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/nwchem3"
     # handler.start_ground_state(crystal_structure)
     # handler.read_scf_status()
-    energies = handler.read_energy_diagram()
-
+    energies = handler.read_scf_status()
+    print(energies)
     # handler.calculate_electron_density(crystal_structure)
     # while handler.is_engine_running():
     #     time.sleep(0.1)

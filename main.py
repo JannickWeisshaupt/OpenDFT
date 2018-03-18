@@ -16,6 +16,13 @@ else:
     warnings.simplefilter('ignore', UserWarning)
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
+
+import imp
+try:
+    imp.find_module('PySide.QtGui') # test if PySide if available
+except ImportError:
+    os.environ['QT_API'] = 'pyqt' # signal to pyface that PyQt4 should be used
+
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
     OpticalSpectrumVisualization, colormap_list, BrillouinVisualization
