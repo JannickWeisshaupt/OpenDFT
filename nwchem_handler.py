@@ -239,15 +239,29 @@ Returns:
 
         scf_energy_list = []
 
-        hits = [i for i,l in enumerate(info_text.split('\n')) if l.strip().startswith('iter')]
+        # this is for future use
+        matches = re.findall('SCF calculation type: \w*',info_text)
+        if len(matches) == 0:
+            calculation_type = 'scf'
+            task = 'scf'
+        else:
+            calculation_type = matches[0].split(':')[1].strip().lower()
+            task = ''
+
+        hits = [i for i,l in enumerate(info_text.split('\n')) if l.strip().startswith('iter') or l.strip().startswith('convergence')]
         if len(hits)>0:
             hit = hits[0]
-            for line in info_text.split('\n')[hit+2:]:
-                sline = line.split()
-                if len(sline)==0:
-                    break
-                scf_energy_list.append(float(sline[1]))
+            header_line =info_text.split('\n')[hit].split()
+            energy_index = header_line.index('energy')
 
+            for line in info_text.split('\n')[hit+2:]:
+                sline = line.split('  ')
+                sline = [x for x in sline if len(x) > 0]
+                if len(sline) <= energy_index:
+                    break
+                scf_energy_list.append(float(sline[energy_index].split()[0]))
+
+        # find only final result
         matches = re.findall(r"Total \w\w\w energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
         for match in matches:
             ms = match.split('=')
