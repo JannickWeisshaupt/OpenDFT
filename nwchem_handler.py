@@ -5,6 +5,7 @@ import subprocess
 import os
 import re
 import time
+from little_helpers import convert_to_ordered
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -71,7 +72,7 @@ At the same time continued development is needed to enable NWChem to effectively
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = {'basis': 'cc-pvdz','method':'scf','spin state':'singlet','spin restriction':'RHF'}
+        self.scf_options = convert_to_ordered({'basis': 'cc-pvdz','method':'scf','spin state':'singlet','spin restriction':'RHF'})
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -79,13 +80,12 @@ At the same time continued development is needed to enable NWChem to effectively
         self.relax_options = {}
         self.relax_options_tooltip = {}
 
-        self.gw_options = {}
+        self.gw_options = convert_to_ordered({})
         self.gw_options_tooltip = {}
-        self.phonons_options = {}
+        self.phonons_options = convert_to_ordered({})
         self.phonons_options_tooltip = {}
-        self.optical_spectrum_options = {}
+        self.optical_spectrum_options = convert_to_ordered({})
         self.optical_spectrum_options_tooltip = {}
-
 
         self.relax_file_timestamp = None
 
@@ -121,7 +121,6 @@ Returns:
         self._add_scf_to_file(file,crystal_structure)
         file.close()
         self._start_engine(blocking=blocking)
-
 
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
@@ -429,7 +428,7 @@ Returns:
         data = data / data.max()
         return sst.MolecularDensity(data,lattice_vecs,origin)
 
-    def calculate_ks_density(self, crystal_structure, bs_point):
+    def calculate_ks_density(self, crystal_structure, bs_point, limits=None, grid=(100,100,100)):
         """This method starts a calculation of a specific electronic state in a subprocess.
 
 Args:
@@ -450,12 +449,12 @@ Returns:
         self._add_geometry(file,crystal_structure,auto=False)
         self._add_basis(file,crystal_structure)
         # self._add_scf_field_to_file(file)
-        self._add_dplot_to_file(file,crystal_structure,orbital=bs_point[1])
+        self._add_dplot_to_file(file,crystal_structure, orbital=bs_point[1],limits=limits,grid=grid)
         file.write('task dplot\n')
         file.close()
         self._start_engine()
 
-    def calculate_electron_density(self,crystal_structure):
+    def calculate_electron_density(self,crystal_structure,limits=None,grid=(100,100,100)):
         """This method starts a calculation of the total (pseudo-) electron density in a subprocess.
 
 Args:
@@ -473,7 +472,7 @@ Returns:
         self._add_geometry(file,crystal_structure,auto=False)
         self._add_basis(file,crystal_structure)
         # self._add_scf_field_to_file(file)
-        self._add_dplot_to_file(file,crystal_structure)
+        self._add_dplot_to_file(file,crystal_structure, limits=limits, grid=grid)
         file.write('task dplot\n')
         file.close()
         self._start_engine()
@@ -581,7 +580,8 @@ Returns:
 
         file.write('end\n')
 
-    def _add_dplot_to_file(self,file,crystal_structure,limits=None,orbital=None):
+    def _add_dplot_to_file(self,file,crystal_structure,limits=None,orbital=None,grid=(100,100,100)):
+
         if limits is None:
             edge = 0.5
             limits = np.zeros((3,3))
@@ -591,7 +591,7 @@ Returns:
                 tr_range = coord.max()-coord.min()
                 if tr_range < 0.5:
                     tr_range = 5
-                limits[i,:] = [coord.min()-tr_range*edge,coord.max()+tr_range*edge,100]
+                limits[i,:] = [coord.min()-tr_range*edge,coord.max()+tr_range*edge,grid[i]]
 
 
 
