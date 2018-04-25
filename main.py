@@ -25,7 +25,7 @@ except ImportError:
 
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
-    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization
+    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import no_error_dictionary, CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
@@ -1514,6 +1514,16 @@ class OptionWithTreeview(PlotWithTreeview):
         super(OptionWithTreeview, self).__init__(side_panel, data_dictionary, parent)
         self.add_result_key('None')
 
+    def open_slice_widget(self):
+        indexes = self.treeview.selectedIndexes()
+        if len(indexes) == 0:
+            return
+        item = self.treeview.itemFromIndex(indexes[0])
+        bs_name = item.text(0)
+
+        m = VolumeSlicer(data=self.data_dictionary[bs_name].density,crystal_structure=main.crystal_structure)
+        m.configure_traits()
+
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
         if len(indexes) == 0:
@@ -1636,6 +1646,11 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.apply_button.setFixedSize(100, 50)
         self.apply_button.clicked.connect(self.parent.handle_item_changed)
         self.button_layout.addWidget(self.apply_button)
+
+        self.slice_button = QtGui.QPushButton('Slice')
+        self.slice_button.setFixedSize(100, 50)
+        self.slice_button.clicked.connect(self.parent.open_slice_widget)
+        self.button_layout.addWidget(self.slice_button)
 
     def get_options(self):
         opacity = self.opacity_slider.get_value()
@@ -2382,7 +2397,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/python3/"
+                project_directory = r"/home/jannick/OpenDFT_projects/libh4_3/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -2397,9 +2412,12 @@ class CentralWindow(QtGui.QWidget):
     @crystal_structure.setter
     def crystal_structure(self, value):
         self._crystal_structure = value
-        if self.dft_engine_window.band_structure_points is None and type(value) is sst.CrystalStructure:
-            self.dft_engine_window.band_structure_points = sst.calculate_standard_path(value)
-            self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
+        try:
+            if self.dft_engine_window.band_structure_points is None and type(value) is sst.CrystalStructure:
+                self.dft_engine_window.band_structure_points = sst.calculate_standard_path(value)
+                self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
+        except Exception as e:
+            logging.error('Could not calculate standard path')
 
     def tab_is_changed(self, i):
         self.list_of_tabs[i].do_select_event()

@@ -5,13 +5,19 @@ from __future__ import generators
 import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 from pyface.qt import QtGui, QtCore
-from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button
-from traitsui.api import View, Item, Group
+from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button, Array
+from traitsui.api import View, Item, Group, HGroup
+
+from mayavi import mlab
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
     SceneEditor
+from mayavi.core.api import Engine, PipelineBase, Source
+
+from tvtk.api import tvtk
+from tvtk.pyface.scene import Scene
 from tvtk.tools import visual
+
 import solid_state_tools as sst
-from mayavi.core.api import Engine
 import copy
 import numpy as np
 import matplotlib as mpl
@@ -355,6 +361,11 @@ class StructureVisualization(HasTraits):
         cur_view = self.scene.mlab.view()
         cur_roll = self.scene.mlab.roll()
 
+        if cur_view is None:
+            cur_view = self.scene.mlab.view()
+        if cur_roll is None:
+            cur_roll = self.scene.mlab.roll()
+
         dens = ks_density.density
         dens_plot = np.tile(dens,repeat)
 
@@ -405,6 +416,227 @@ class StructureVisualization(HasTraits):
             z = abs_coord_atoms[path,2]
 
             self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
+
+
+class VolumeSlicer(HasTraits):
+    # The data to plot
+    data = Array()
+    crystal_structure = None
+
+    # The 4 views displayed
+    scene3d = Instance(MlabSceneModel, ())
+    scene_x = Instance(MlabSceneModel, ())
+    scene_y = Instance(MlabSceneModel, ())
+    scene_z = Instance(MlabSceneModel, ())
+
+    # The data source
+    data_src3d = Instance(Source)
+
+
+    # The image plane widgets of the 3D scene
+    ipw_3d_x = Instance(PipelineBase)
+    ipw_3d_y = Instance(PipelineBase)
+    ipw_3d_z = Instance(PipelineBase)
+
+    _axis_names = dict(x=0, y=1, z=2)
+
+
+    #---------------------------------------------------------------------------
+    def __init__(self, **traits):
+        super(VolumeSlicer, self).__init__(**traits)
+        # Force the creation of the image_plane_widgets:
+        self.ipw_3d_x
+        self.ipw_3d_y
+        self.ipw_3d_z
+
+
+
+    #---------------------------------------------------------------------------
+    # Default values
+    #---------------------------------------------------------------------------
+    def _data_src3d_default(self):
+        return mlab.pipeline.scalar_field(self.data,
+                            figure=self.scene3d.mayavi_scene)
+
+    def make_ipw_3d(self, axis_name):
+        ipw = mlab.pipeline.image_plane_widget(self.data_src3d,
+                        figure=self.scene3d.mayavi_scene,
+                        plane_orientation='%s_axes' % axis_name)
+        return ipw
+
+    def _ipw_3d_x_default(self):
+        return self.make_ipw_3d('x')
+
+    def _ipw_3d_y_default(self):
+        return self.make_ipw_3d('y')
+
+    def _ipw_3d_z_default(self):
+        return self.make_ipw_3d('z')
+
+
+    #---------------------------------------------------------------------------
+    # Scene activation callbaks
+    #---------------------------------------------------------------------------
+    @on_trait_change('scene3d.activated')
+    def display_scene3d(self):
+        outline = mlab.pipeline.outline(self.data_src3d,
+                        figure=self.scene3d.mayavi_scene,
+                        )
+        self.plot_atoms()
+        self.plot_bonds()
+
+        self.scene3d.mlab.view(40, 50)
+        # Interaction properties can only be changed after the scene
+        # has been created, and thus the interactor exists
+        for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
+            # Turn the interaction off
+            ipw.ipw.interaction = 0
+        self.scene3d.scene.background = (0, 0, 0)
+        # Keep the view always pointing up
+        self.scene3d.scene.interactor.interactor_style = \
+                                 tvtk.InteractorStyleTerrain()
+
+
+    def make_side_view(self, axis_name):
+        scene = getattr(self, 'scene_%s' % axis_name)
+
+        # To avoid copying the data, we take a reference to the
+        # raw VTK dataset, and pass it on to mlab. Mlab will create
+        # a Mayavi source from the VTK without copying it.
+        # We have to specify the figure so that the data gets
+        # added on the figure we are interested in.
+        outline = mlab.pipeline.outline(
+                            self.data_src3d.mlab_source.dataset,
+                            figure=scene.mayavi_scene,
+                            )
+        ipw = mlab.pipeline.image_plane_widget(
+                            outline,
+                            plane_orientation='%s_axes' % axis_name)
+        setattr(self, 'ipw_%s' % axis_name, ipw)
+
+        # Synchronize positions between the corresponding image plane
+        # widgets on different views.
+        ipw.ipw.sync_trait('slice_position',
+                            getattr(self, 'ipw_3d_%s'% axis_name).ipw)
+
+        # Make left-clicking create a crosshair
+        ipw.ipw.left_button_action = 0
+        # Add a callback on the image plane widget interaction to
+        # move the others
+        def move_view(obj, evt):
+            position = obj.GetCurrentCursorPosition()
+            for other_axis, axis_number in self._axis_names.items():
+                if other_axis == axis_name:
+                    continue
+                ipw3d = getattr(self, 'ipw_3d_%s' % other_axis)
+                ipw3d.ipw.slice_position = position[axis_number]
+
+        ipw.ipw.add_observer('InteractionEvent', move_view)
+        ipw.ipw.add_observer('StartInteractionEvent', move_view)
+
+        # Center the image plane widget
+        ipw.ipw.slice_position = 0.5*self.data.shape[
+                    self._axis_names[axis_name]]
+
+        # Position the view for the scene
+        views = dict(x=( 0, 90),
+                     y=(90, 90),
+                     z=( 0,  0),
+                     )
+        scene.mlab.view(*views[axis_name])
+        # 2D interaction: only pan and zoom
+        scene.scene.interactor.interactor_style = \
+                                 tvtk.InteractorStyleImage()
+        scene.scene.background = (0, 0, 0)
+
+    def plot_atoms(self, repeat=[1, 1, 1]):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        #Rescaling of atomic coords
+        src_shape = self.data.shape
+        for i,s in enumerate(src_shape):
+            abs_coord_atoms[:,i] = abs_coord_atoms[:,i]*(s-1)/np.linalg.norm(self.crystal_structure.lattice_vectors[:,i])+np.ones((n_atoms,))
+
+        species = set(abs_coord_atoms[:,3].astype(np.int))
+        n_species = len(species)
+
+        for specie in species:
+            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
+            sub_coords = abs_coord_atoms[species_mask,:]
+
+            cov_radius = cov_radii[specie]
+            atom_size = 0.4*np.log(specie)+0.6
+            try:
+                atomic_color = colors[specie]
+            except KeyError:
+                atomic_color = (0.8,0.8,0.8)
+            self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
+                                     scale_factor=5*atom_size,resolution=150,
+                                     color=atomic_color,figure=self.scene3d.mayavi_scene)
+
+    def plot_bonds(self,repeat=[1,1,1]):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        #Rescaling of atomic coords
+        src_shape = self.data.shape
+        for i,s in enumerate(src_shape):
+            abs_coord_atoms[:,i] = abs_coord_atoms[:,i]*(s-1)/np.linalg.norm(self.crystal_structure.lattice_vectors[:,i])+np.ones((n_atoms,))
+
+
+        paths = sst.bonds_to_path(bonds)
+
+        for path in paths:
+            x = abs_coord_atoms[path,0]
+            y = abs_coord_atoms[path,1]
+            z = abs_coord_atoms[path,2]
+
+            self.scene3d.mlab.plot3d(x,y,z, tube_radius=5*0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
+
+
+    @on_trait_change('scene_x.activated')
+    def display_scene_x(self):
+        return self.make_side_view('x')
+
+    @on_trait_change('scene_y.activated')
+    def display_scene_y(self):
+        return self.make_side_view('y')
+
+    @on_trait_change('scene_z.activated')
+    def display_scene_z(self):
+        return self.make_side_view('z')
+
+
+    #---------------------------------------------------------------------------
+    # The layout of the dialog created
+    #---------------------------------------------------------------------------
+    view = View(HGroup(
+                  Group(
+                       Item('scene_y',
+                            editor=SceneEditor(scene_class=Scene),
+                            height=250, width=300),
+                       Item('scene_z',
+                            editor=SceneEditor(scene_class=Scene),
+                            height=250, width=300),
+                       show_labels=False,
+                  ),
+                  Group(
+                       Item('scene_x',
+                            editor=SceneEditor(scene_class=Scene),
+                            height=250, width=300),
+                       Item('scene3d',
+                            editor=SceneEditor(scene_class=MayaviScene),
+                            height=250, width=300),
+                       show_labels=False,
+                  ),
+                ),
+                resizable=True,
+                title='Volume Slicer',
+                )
+
+
 
 
 class OpticalSpectrumVisualization(QtGui.QWidget):
@@ -982,4 +1214,15 @@ def set_dark_mode_matplotlib(f,ax,color):
 
 
 if __name__ == "__main__":
-    vis = StructureVisualization(None)
+    # vis = StructureVisualization(None)
+
+    x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
+    data = np.sin(3 * x) / x + 0.05 * z ** 2 + np.cos(3 * y)
+
+    atoms = np.array([[0, 0, 0, 6], [0.25, .25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[1.0, 0.0, 0], [0.0, 1, 0.0], [0, 0.0, 1.0]])
+    from solid_state_tools import CrystalStructure
+    crystal_structure = CrystalStructure(unit_cell, atoms)
+
+    m = VolumeSlicer(data=data,crystal_structure=crystal_structure)
+    m.configure_traits()
