@@ -447,15 +447,8 @@ class VolumeSlicer(HasTraits):
 
     def rescale_polydata_points(self,polydata):
         pts = np.array(polydata.points) - 1
-
         unit_cell = self.crystal_structure.lattice_vectors
-        # Transform the points to the unit cell:
-        larger_cell= np.zeros((3,3))
-        larger_cell[0,:]=unit_cell[0,:]
-        larger_cell[1,:]=unit_cell[1,:]
-        larger_cell[2,:]=unit_cell[2,:]
-
-        polydata.points = np.dot(pts, larger_cell / np.array(self.data.shape)[:, np.newaxis])
+        polydata.points = np.dot(pts, unit_cell / np.array(self.data.shape)[:, np.newaxis])
 
     def make_ipw_3d(self):
         cut_plane = mlab.pipeline.scalar_cut_plane(self.data_src3d,
