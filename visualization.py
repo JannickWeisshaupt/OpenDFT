@@ -419,6 +419,129 @@ class StructureVisualization(HasTraits):
 
 
 class VolumeSlicer(HasTraits):
+    data = Array()
+    crystal_structure = None
+    colormap = 'hot'
+
+    scene3d = Instance(MlabSceneModel, ())
+
+    # The data source
+    data_src3d = Instance(Source)
+
+    ipw_3d = Instance(PipelineBase)
+
+    _axis_names = dict(x=0, y=1, z=2)
+
+    #---------------------------------------------------------------------------
+    def __init__(self, **traits):
+        super(VolumeSlicer, self).__init__(**traits)
+        # Force the creation of the image_plane_widgets:
+        self.ipw_3d
+
+    # def _ipw_3d_default(self):
+    #     return self.make_ipw_3d()
+
+    def _data_src3d_default(self):
+        return mlab.pipeline.scalar_field(self.data,
+                            figure=self.scene3d.mayavi_scene)
+
+    def rescale_polydata_points(self,polydata):
+        pts = np.array(polydata.points) - 1
+
+        unit_cell = self.crystal_structure.lattice_vectors
+        # Transform the points to the unit cell:
+        larger_cell= np.zeros((3,3))
+        larger_cell[0,:]=unit_cell[0,:]
+        larger_cell[1,:]=unit_cell[1,:]
+        larger_cell[2,:]=unit_cell[2,:]
+
+        polydata.points = np.dot(pts, larger_cell / np.array(self.data.shape)[:, np.newaxis])
+
+    def make_ipw_3d(self):
+        cut_plane = mlab.pipeline.scalar_cut_plane(self.data_src3d,
+                        figure=self.scene3d.mayavi_scene,colormap=self.colormap)
+        # cut_plane.implicit_plane.origin = (1, 1, 1)
+        cut_plane.implicit_plane.widget.enabled = False
+
+        polydata = cut_plane.actor.actors[0].mapper.input
+        self.rescale_polydata_points(polydata)
+
+        return cut_plane
+
+
+    @on_trait_change('scene3d.activated')
+    def display_scene3d(self):
+        outline = mlab.pipeline.outline(self.data_src3d,
+                        figure=self.scene3d.mayavi_scene,
+                        )
+
+        polydata = outline.actor.actors[0].mapper.input
+        self.rescale_polydata_points(polydata)
+
+        cut_plane = self.make_ipw_3d()
+
+        self.plot_atoms()
+        self.plot_bonds()
+
+        self.scene3d.mlab.view(40, 50)
+        # Interaction properties can only be changed after the scene
+        # has been created, and thus the interactor exists
+        # for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
+        #     # Turn the interaction off
+        #     ipw.ipw.interaction = 0
+        self.scene3d.scene.background = (0, 0, 0)
+        # Keep the view always pointing up
+        self.scene3d.scene.interactor.interactor_style = \
+                                 tvtk.InteractorStyleTerrain()
+
+    def plot_atoms(self, repeat=[1, 1, 1]):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        species = set(abs_coord_atoms[:,3].astype(np.int))
+        n_species = len(species)
+
+        for specie in species:
+            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
+            sub_coords = abs_coord_atoms[species_mask,:]
+
+            cov_radius = cov_radii[specie]
+            atom_size = 0.4*np.log(specie)+0.6
+            try:
+                atomic_color = colors[specie]
+            except KeyError:
+                atomic_color = (0.8,0.8,0.8)
+            self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
+                                     scale_factor=atom_size,resolution=150,
+                                     color=atomic_color,figure=self.scene3d.mayavi_scene)
+
+    def plot_bonds(self,repeat=[1,1,1]):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
+        n_atoms = abs_coord_atoms.shape[0]
+
+        paths = sst.bonds_to_path(bonds)
+
+        for path in paths:
+            x = abs_coord_atoms[path,0]
+            y = abs_coord_atoms[path,1]
+            z = abs_coord_atoms[path,2]
+
+            self.scene3d.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
+
+    view = View(
+                  Group(
+                       Item('scene3d',
+                            editor=SceneEditor(scene_class=MayaviScene),
+                            height=250, width=300),
+                       show_labels=False,
+                  ),
+                resizable=True,
+                title='Volume Slicer',
+                )
+
+
+class VolumeSlicerOld(HasTraits):
     # The data to plot
     data = Array()
     crystal_structure = None
@@ -459,9 +582,12 @@ class VolumeSlicer(HasTraits):
                             figure=self.scene3d.mayavi_scene)
 
     def make_ipw_3d(self, axis_name):
-        ipw = mlab.pipeline.image_plane_widget(self.data_src3d,
+        ipw = mlab.pipeline.scalar_cut_plane(self.data_src3d,
                         figure=self.scene3d.mayavi_scene,
                         plane_orientation='%s_axes' % axis_name)
+        polydata = ipw.actor.actors[0].mapper.input
+        self.rescale_polydata_points(polydata)
+
         return ipw
 
     def _ipw_3d_x_default(self):
@@ -473,6 +599,17 @@ class VolumeSlicer(HasTraits):
     def _ipw_3d_z_default(self):
         return self.make_ipw_3d('z')
 
+    def rescale_polydata_points(self,polydata):
+        pts = np.array(polydata.points) - 1
+
+        unit_cell = self.crystal_structure.lattice_vectors
+        # Transform the points to the unit cell:
+        larger_cell= np.zeros((3,3))
+        larger_cell[0,:]=unit_cell[0,:]
+        larger_cell[1,:]=unit_cell[1,:]
+        larger_cell[2,:]=unit_cell[2,:]
+
+        polydata.points = np.dot(pts, larger_cell / np.array(self.data.shape)[:, np.newaxis])
 
     #---------------------------------------------------------------------------
     # Scene activation callbaks
@@ -482,15 +619,19 @@ class VolumeSlicer(HasTraits):
         outline = mlab.pipeline.outline(self.data_src3d,
                         figure=self.scene3d.mayavi_scene,
                         )
+
+        polydata = outline.actor.actors[0].mapper.input
+        self.rescale_polydata_points(polydata)
+
         self.plot_atoms()
         self.plot_bonds()
 
         self.scene3d.mlab.view(40, 50)
         # Interaction properties can only be changed after the scene
         # has been created, and thus the interactor exists
-        for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
-            # Turn the interaction off
-            ipw.ipw.interaction = 0
+        # for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
+        #     # Turn the interaction off
+        #     ipw.ipw.interaction = 0
         self.scene3d.scene.background = (0, 0, 0)
         # Keep the view always pointing up
         self.scene3d.scene.interactor.interactor_style = \
@@ -523,6 +664,7 @@ class VolumeSlicer(HasTraits):
         ipw.ipw.left_button_action = 0
         # Add a callback on the image plane widget interaction to
         # move the others
+
         def move_view(obj, evt):
             position = obj.GetCurrentCursorPosition()
             for other_axis, axis_number in self._axis_names.items():
@@ -553,11 +695,6 @@ class VolumeSlicer(HasTraits):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         n_atoms = abs_coord_atoms.shape[0]
 
-        #Rescaling of atomic coords
-        src_shape = self.data.shape
-        for i,s in enumerate(src_shape):
-            abs_coord_atoms[:,i] = abs_coord_atoms[:,i]*(s-1)/np.linalg.norm(self.crystal_structure.lattice_vectors[:,i])+np.ones((n_atoms,))
-
         species = set(abs_coord_atoms[:,3].astype(np.int))
         n_species = len(species)
 
@@ -572,19 +709,13 @@ class VolumeSlicer(HasTraits):
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
             self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=5*atom_size,resolution=150,
+                                     scale_factor=atom_size,resolution=150,
                                      color=atomic_color,figure=self.scene3d.mayavi_scene)
 
     def plot_bonds(self,repeat=[1,1,1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
         n_atoms = abs_coord_atoms.shape[0]
-
-        #Rescaling of atomic coords
-        src_shape = self.data.shape
-        for i,s in enumerate(src_shape):
-            abs_coord_atoms[:,i] = abs_coord_atoms[:,i]*(s-1)/np.linalg.norm(self.crystal_structure.lattice_vectors[:,i])+np.ones((n_atoms,))
-
 
         paths = sst.bonds_to_path(bonds)
 
@@ -593,20 +724,20 @@ class VolumeSlicer(HasTraits):
             y = abs_coord_atoms[path,1]
             z = abs_coord_atoms[path,2]
 
-            self.scene3d.mlab.plot3d(x,y,z, tube_radius=5*0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
+            self.scene3d.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
 
 
-    @on_trait_change('scene_x.activated')
-    def display_scene_x(self):
-        return self.make_side_view('x')
-
-    @on_trait_change('scene_y.activated')
-    def display_scene_y(self):
-        return self.make_side_view('y')
-
-    @on_trait_change('scene_z.activated')
-    def display_scene_z(self):
-        return self.make_side_view('z')
+    # @on_trait_change('scene_x.activated')
+    # def display_scene_x(self):
+    #     return self.make_side_view('x')
+    #
+    # @on_trait_change('scene_y.activated')
+    # def display_scene_y(self):
+    #     return self.make_side_view('y')
+    #
+    # @on_trait_change('scene_z.activated')
+    # def display_scene_z(self):
+    #     return self.make_side_view('z')
 
 
     #---------------------------------------------------------------------------
@@ -1220,7 +1351,7 @@ if __name__ == "__main__":
     data = np.sin(3 * x) / x + 0.05 * z ** 2 + np.cos(3 * y)
 
     atoms = np.array([[0, 0, 0, 6], [0.25, .25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[1.0, 0.0, 0], [0.0, 1, 0.0], [0, 0.0, 1.0]])
+    unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0.0]])
     from solid_state_tools import CrystalStructure
     crystal_structure = CrystalStructure(unit_cell, atoms)
 

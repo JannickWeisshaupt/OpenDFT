@@ -1521,7 +1521,9 @@ class OptionWithTreeview(PlotWithTreeview):
         item = self.treeview.itemFromIndex(indexes[0])
         bs_name = item.text(0)
 
-        m = VolumeSlicer(data=self.data_dictionary[bs_name].density,crystal_structure=main.crystal_structure)
+        plot_options = self.plot_widget.get_options()
+
+        m = VolumeSlicer(data=self.data_dictionary[bs_name].density,crystal_structure=main.crystal_structure,colormap=plot_options['colormap'])
         m.configure_traits()
 
     def handle_item_changed(self):
