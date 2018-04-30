@@ -101,11 +101,12 @@ def convert_to_ordered(d):
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
 def set_procname(newname):
-    from ctypes import cdll, byref, create_string_buffer
-    libc = cdll.LoadLibrary('libc.so.6')    #Loading a 3rd party library C
-    buff = create_string_buffer(len(newname)+1) #Note: One larger than the name (man prctl says that)
-    buff.value = newname                 #Null terminated string as it should be
-    libc.prctl(15, byref(buff), 0, 0, 0)
+    if sys.platform in ['linux', 'linux2']:
+        from ctypes import cdll, byref, create_string_buffer
+        libc = cdll.LoadLibrary('libc.so.6')    #Loading a 3rd party library C
+        buff = create_string_buffer(len(newname)+1) #Note: One larger than the name (man prctl says that)
+        buff.value = newname                 #Null terminated string as it should be
+        libc.prctl(15, byref(buff), 0, 0, 0)
 
 def get_proc_name():
     from ctypes import cdll, byref, create_string_buffer

@@ -2766,7 +2766,7 @@ class CentralWindow(QtGui.QWidget):
             self.save_results()
             self.parent.quit()
             logging.info('Program stopped normally')
-            # sys.exit()
+            sys.exit()
 
     def check_relax(self):
         new_struc = esc_handler.load_relax_structure()
