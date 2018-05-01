@@ -9,7 +9,7 @@ import os
 import numpy as np
 import warnings
 
-DEBUG = True
+DEBUG = False
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:

@@ -257,11 +257,14 @@ class StructureVisualization(HasTraits):
         self.crystal_structure = crystal_structure
         self.density_plotted = None
         self.cp = None
+        self.mayavi_atoms = []
+        self.mayavi_bonds = []
+        self.mayavi_unitcell = []
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
-    @on_trait_change('scene.activated,show_unitcell,show_bonds,show_atoms,n_x,n_y,n_z')
+    @on_trait_change('scene.activated,n_x,n_y,n_z')
     def update_plot(self,*args,**kwargs):
         if 'keep_view' in kwargs.keys():
             keep_view = kwargs['keep_view']
@@ -290,6 +293,38 @@ class StructureVisualization(HasTraits):
         if keep_view:
             self.scene.mlab.view(azimuth=cur_view[0],elevation=cur_view[1],distance=cur_view[2],focalpoint=cur_view[3],figure=self.scene.mayavi_scene)
             self.scene.mlab.roll(cur_roll,figure=self.scene.mayavi_scene)
+
+    @on_trait_change('show_atoms')
+    def _show_atoms_event(self):
+        if self.show_atoms:
+            repeat = [self.n_x, self.n_y, self.n_z]
+            self.plot_atoms(repeat)
+        else:
+            for mayavi_atom in self.mayavi_atoms:
+                mayavi_atom.remove()
+            self.mayavi_atoms = []
+
+    @on_trait_change('show_bonds')
+    def _show_bonds_event(self):
+        if self.show_bonds:
+            repeat = [self.n_x, self.n_y, self.n_z]
+            self.plot_bonds(repeat)
+        else:
+            for mayavi_bond in self.mayavi_bonds:
+                mayavi_bond.remove()
+            self.mayavi_bonds = []
+
+    @on_trait_change('show_unitcell')
+    def _show_unitcell_event(self):
+        if self.show_unitcell:
+            repeat = [self.n_x, self.n_y, self.n_z]
+            self.plot_unit_cell(repeat)
+        else:
+            for cell_vector in self.mayavi_unitcell:
+                cell_vector.remove()
+            self.mayavi_unitcell = []
+
+
 
     def check_if_line_exists(self,p1,p2,list_of_lines):
         for line in list_of_lines:
@@ -329,7 +364,8 @@ class StructureVisualization(HasTraits):
         p8 = offset+a1+a2+a3
 
         coords = np.array([p1,p2,p5,p3,p1,p4,p6,p8,p7,p4,p6,p2,p5,p8,p7,p3])
-        self.scene.mlab.plot3d(coords[:,0],coords[:,1],coords[:,2], tube_radius=0.05,figure=self.scene.mayavi_scene)
+        mayavi_cellvector = self.scene.mlab.plot3d(coords[:,0],coords[:,1],coords[:,2], tube_radius=0.05,figure=self.scene.mayavi_scene)
+        self.mayavi_unitcell.append(mayavi_cellvector)
 
     def plot_atoms(self, repeat=[1, 1, 1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
@@ -347,9 +383,10 @@ class StructureVisualization(HasTraits):
                 atomic_color = colors[specie]
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
-            self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,resolution=150,
+            mayavi_atom = self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
+                                     scale_factor=atom_size,resolution=50,
                                      color=atomic_color,figure=self.scene.mayavi_scene)
+            self.mayavi_atoms.append(mayavi_atom)
 
     def clear_density_plot(self):
         if self.cp is not None:
@@ -415,8 +452,8 @@ class StructureVisualization(HasTraits):
             y = abs_coord_atoms[path,1]
             z = abs_coord_atoms[path,2]
 
-            self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
-
+            mayavi_bond = self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
+            self.mayavi_bonds.append(mayavi_bond)
 
 class VolumeSlicer(HasTraits):
     data = Array()
