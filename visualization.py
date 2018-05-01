@@ -421,7 +421,6 @@ class StructureVisualization(HasTraits):
 class VolumeSlicer(HasTraits):
     data = Array()
     crystal_structure = None
-    colormap = 'hot'
 
     scene3d = Instance(MlabSceneModel, ())
 
@@ -450,20 +449,34 @@ class VolumeSlicer(HasTraits):
         unit_cell = self.crystal_structure.lattice_vectors
         polydata.points = np.dot(pts, unit_cell / np.array(self.data.shape)[:, np.newaxis])
 
-    def make_ipw_3d(self):
+    def make_ipw_3d(self,colormap=None):
+        if colormap is None:
+            colormap = 'hot'
+
         cut_plane = mlab.pipeline.scalar_cut_plane(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,colormap=self.colormap)
+                        figure=self.scene3d.mayavi_scene,colormap=colormap)
         # cut_plane.implicit_plane.origin = (1, 1, 1)
-        cut_plane.implicit_plane.widget.enabled = False
+        # cut_plane.implicit_plane.widget.enabled = False
 
         polydata = cut_plane.actor.actors[0].mapper.input
         self.rescale_polydata_points(polydata)
 
         return cut_plane
 
+    def set_data(self,data,crystal_structure):
+        self.data = data
+        self.crystal_structure = crystal_structure
 
     @on_trait_change('scene3d.activated')
-    def display_scene3d(self):
+    def display_scene3d(self,colormap=None):
+        self.scene3d.mlab.clf(figure=self.scene3d.mayavi_scene)
+
+        if len(self.data) == 0 or self.crystal_structure is None:
+            return
+
+        self.plot_atoms()
+        self.plot_bonds()
+
         outline = mlab.pipeline.outline(self.data_src3d,
                         figure=self.scene3d.mayavi_scene,
                         )
@@ -471,18 +484,14 @@ class VolumeSlicer(HasTraits):
         polydata = outline.actor.actors[0].mapper.input
         self.rescale_polydata_points(polydata)
 
-        cut_plane = self.make_ipw_3d()
-
-        self.plot_atoms()
-        self.plot_bonds()
-
+        cut_plane = self.make_ipw_3d(colormap=colormap)
         self.scene3d.mlab.view(40, 50)
         # Interaction properties can only be changed after the scene
         # has been created, and thus the interactor exists
         # for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
         #     # Turn the interaction off
         #     ipw.ipw.interaction = 0
-        self.scene3d.scene.background = (0, 0, 0)
+
         # Keep the view always pointing up
         self.scene3d.scene.interactor.interactor_style = \
                                  tvtk.InteractorStyleTerrain()

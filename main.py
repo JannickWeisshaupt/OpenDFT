@@ -9,7 +9,7 @@ import os
 import numpy as np
 import warnings
 
-DEBUG = False
+DEBUG = True
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:
@@ -1364,6 +1364,23 @@ class ChooseEngineWindow(QtGui.QDialog):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(linkStr))
 
 
+class VolumeSlicerWidget(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(VolumeSlicerWidget, self).__init__(parent)
+
+        self.resize(900, 600)
+        layout = QtGui.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.mayavi_widget = VolumeSlicer()
+        # self.mayavi_widget.configure_traits()
+        self.ui = self.mayavi_widget.edit_traits(parent=self,
+                                                 kind='subpanel').control
+        layout.addWidget(self.ui)
+        self.ui.setParent(self)
+
+
+
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None, running_text='Engine is running', not_running_text='Engine inactive'):
         QtGui.QWidget.__init__(self)
@@ -1523,8 +1540,9 @@ class OptionWithTreeview(PlotWithTreeview):
 
         plot_options = self.plot_widget.get_options()
 
-        m = VolumeSlicer(data=self.data_dictionary[bs_name].density,crystal_structure=main.crystal_structure,colormap=plot_options['colormap'])
-        m.configure_traits()
+        main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density,main.crystal_structure)
+        main.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
+        main.volume_slicer_window.show()
 
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
@@ -2364,6 +2382,7 @@ class CentralWindow(QtGui.QWidget):
         self.brillouin_window = BrillouinWindow(self)
         self.console_window = ConsoleWindow(self)
         self.information_window = CodeInformationWindow(self)
+        self.volume_slicer_window = VolumeSlicerWidget(self)
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
