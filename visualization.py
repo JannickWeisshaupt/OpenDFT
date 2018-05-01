@@ -431,11 +431,19 @@ class VolumeSlicer(HasTraits):
 
     _axis_names = dict(x=0, y=1, z=2)
 
+    show_unitcell = Bool(True)
+    show_bonds = Bool(True)
+    show_atoms = Bool(True)
+
     #---------------------------------------------------------------------------
     def __init__(self, **traits):
         super(VolumeSlicer, self).__init__(**traits)
         # Force the creation of the image_plane_widgets:
         self.ipw_3d
+        self.cut_plane = None
+        self.mayavi_atoms = []
+        self.mayavi_bonds = []
+        self.mayavi_unitcell = None
 
     # def _ipw_3d_default(self):
     #     return self.make_ipw_3d()
@@ -449,14 +457,12 @@ class VolumeSlicer(HasTraits):
         unit_cell = self.crystal_structure.lattice_vectors
         polydata.points = np.dot(pts, unit_cell / np.array(self.data.shape)[:, np.newaxis])
 
-    def make_ipw_3d(self,colormap=None):
-        if colormap is None:
-            colormap = 'hot'
 
+    def make_ipw_3d(self):
         cut_plane = mlab.pipeline.scalar_cut_plane(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,colormap=colormap)
+                        figure=self.scene3d.mayavi_scene,colormap=self.colormap)
         # cut_plane.implicit_plane.origin = (1, 1, 1)
-        # cut_plane.implicit_plane.widget.enabled = False
+        cut_plane.implicit_plane.widget.enabled = False
 
         polydata = cut_plane.actor.actors[0].mapper.input
         self.rescale_polydata_points(polydata)
@@ -467,36 +473,75 @@ class VolumeSlicer(HasTraits):
         self.data = data
         self.crystal_structure = crystal_structure
 
-    @on_trait_change('scene3d.activated')
     def display_scene3d(self,colormap=None):
-        self.scene3d.mlab.clf(figure=self.scene3d.mayavi_scene)
+        self.clear_scene()
 
         if len(self.data) == 0 or self.crystal_structure is None:
             return
 
-        self.plot_atoms()
-        self.plot_bonds()
+        if colormap is not None:
+            self.colormap = colormap
 
-        outline = mlab.pipeline.outline(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,
-                        )
+        if self.show_atoms:
+            self.plot_atoms()
+        if self.show_bonds:
+            self.plot_bonds()
+        if self.show_unitcell:
+            self.plot_unitcell()
 
-        polydata = outline.actor.actors[0].mapper.input
+
+        self.cut_plane = self.make_ipw_3d()
+        self.scene3d.mlab.view(40, 50)
+
+        self.scene3d.scene.interactor.interactor_style = tvtk.InteractorStyleTerrain()
+
+    @on_trait_change('show_atoms')
+    def _show_atoms_event(self):
+        if self.show_atoms:
+            self.plot_atoms()
+        else:
+            for mayavi_atom in self.mayavi_atoms:
+                mayavi_atom.remove()
+            self.mayavi_atoms = []
+
+    @on_trait_change('show_bonds')
+    def _show_bonds_event(self):
+        if self.show_bonds:
+            self.plot_bonds()
+        else:
+            for mayavi_bond in self.mayavi_bonds:
+                mayavi_bond.remove()
+            self.mayavi_bonds = []
+
+    @on_trait_change('show_unitcell')
+    def _show_unitcell_event(self):
+        if self.show_unitcell:
+            self.plot_unitcell()
+        else:
+            if self.mayavi_unitcell is not None:
+                self.mayavi_unitcell.remove()
+                self.mayavi_unitcell = None
+
+    def clear_scene(self):
+        self.scene3d.mlab.clf(figure=self.scene3d.mayavi_scene)
+        if self.cut_plane is not None:
+            self.cut_plane.remove()
+            self.cut_plane = None
+        if self.mayavi_unitcell is not None:
+            self.mayavi_unitcell.remove()
+            self.mayavi_unitcell = None
+
+    def plot_unitcell(self):
+        self.mayavi_unitcell = mlab.pipeline.outline(self.data_src3d,
+                                        figure=self.scene3d.mayavi_scene,reset_zoom=False,colormap=self.colormap
+                                        )
+
+        polydata = self.mayavi_unitcell.actor.actors[0].mapper.input
         self.rescale_polydata_points(polydata)
 
-        cut_plane = self.make_ipw_3d(colormap=colormap)
-        self.scene3d.mlab.view(40, 50)
-        # Interaction properties can only be changed after the scene
-        # has been created, and thus the interactor exists
-        # for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
-        #     # Turn the interaction off
-        #     ipw.ipw.interaction = 0
-
-        # Keep the view always pointing up
-        self.scene3d.scene.interactor.interactor_style = \
-                                 tvtk.InteractorStyleTerrain()
 
     def plot_atoms(self, repeat=[1, 1, 1]):
+        self.mayavi_atoms = []
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         n_atoms = abs_coord_atoms.shape[0]
 
@@ -513,11 +558,13 @@ class VolumeSlicer(HasTraits):
                 atomic_color = colors[specie]
             except KeyError:
                 atomic_color = (0.8,0.8,0.8)
-            self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
+            mayavi_atom = self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
                                      scale_factor=atom_size,resolution=150,
                                      color=atomic_color,figure=self.scene3d.mayavi_scene)
+            self.mayavi_atoms.append(mayavi_atom)
 
     def plot_bonds(self,repeat=[1,1,1]):
+        self.mayavi_bonds = []
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
         n_atoms = abs_coord_atoms.shape[0]
@@ -529,13 +576,14 @@ class VolumeSlicer(HasTraits):
             y = abs_coord_atoms[path,1]
             z = abs_coord_atoms[path,2]
 
-            self.scene3d.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
+            mayavi_bond = self.scene3d.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
+            self.mayavi_bonds.append(mayavi_bond)
 
     view = View(
                   Group(
                        Item('scene3d',
                             editor=SceneEditor(scene_class=MayaviScene),
-                            height=250, width=300),
+                            height=250, width=300),Group('_','show_unitcell','show_bonds','show_atoms',orientation='horizontal'),
                        show_labels=False,
                   ),
                 resizable=True,
