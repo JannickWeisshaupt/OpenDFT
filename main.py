@@ -2539,7 +2539,7 @@ class CentralWindow(QtGui.QWidget):
         esc_handler.project_directory = self.project_directory
         try:
             with open(self.project_directory + '/save.pkl', 'rb') as handle:
-                b = pickle.load(handle)
+                b = pickle.load(handle, encoding='latin1')
 
                 k_path = b.pop('k path', None)
                 if k_path is not None:
