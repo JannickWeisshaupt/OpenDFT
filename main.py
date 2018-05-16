@@ -19,7 +19,7 @@ os.environ['ETS_TOOLKIT'] = 'qt4'
 
 import imp
 try:
-    imp.find_module('PySide.QtGui') # test if PySide if available
+    imp.find_module('PySide') # test if PySide if available
 except ImportError:
     os.environ['QT_API'] = 'pyqt' # signal to pyface that PyQt4 should be used
 

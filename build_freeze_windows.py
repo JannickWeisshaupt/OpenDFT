@@ -14,8 +14,8 @@ build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyfa
                                   'tvtk.pyface.ui.qt4','pyface.qt','pyface.qt.QtGui','pyface.qt.QtCore','numpy','matplotlib','mayavi'],
                      "include_files": [(str(scipy_path), "scipy"), #for scipy
                     (matplotlib.get_data_path(), "mpl-data"),'./data',r'C:\Users\weisshau\AppData\Local\Programs\Python\Python36-32\Lib\site-packages\ruamel'],
-                     "includes":['PyQt4.QtCore','PyQt4.QtGui','pymatgen','pymatgen.symmetry.bandstructure','mayavi','PyQt4'],
-                     'excludes':'Tkinter',
+                     "includes":['pymatgen','pymatgen.symmetry.bandstructure','mayavi'],
+                     'excludes':['Tkinter','PyQt4','mpl_toolkits'],
                     "namespace_packages": ['mayavi']
                     }
 
