@@ -107,6 +107,9 @@ def set_procname(newname):
         buff = create_string_buffer(len(newname)+1) #Note: One larger than the name (man prctl says that)
         buff.value = newname                 #Null terminated string as it should be
         libc.prctl(15, byref(buff), 0, 0, 0)
+    else:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(newname.decode())
 
 def get_proc_name():
     from ctypes import cdll, byref, create_string_buffer

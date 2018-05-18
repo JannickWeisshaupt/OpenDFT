@@ -270,7 +270,9 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
-        self.setWindowIcon(QtGui.QIcon(find_data_file('icon.ico')))
+        app_icon = QtGui.QIcon()
+        app_icon.addFile(find_data_file('icon.ico'), QtCore.QSize(238,238))
+        self.setWindowIcon(app_icon)
         self.error_widget = QtGui.QErrorMessage(parent=self)
 
         self.update_fields_timer = QtCore.QTimer()
