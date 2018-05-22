@@ -1173,8 +1173,11 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')[0]
+        filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')
+
         if filename:
+            if type(filename) in [list,tuple]:
+                filename = filename[0]
             self.plot_widget.export(filename, self.data_dictionary[bs_name], code=code)
 
     def show_info_selected_item(self):

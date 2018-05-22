@@ -1115,6 +1115,28 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
         return energy_out,epsilon_out
 
+    def export(self,filename,spectrum,code=False):
+        energy = spectrum.energy
+        all_epsilons = spectrum.all_epsilons
+        spectrum_exists = [True if x is not None else False for x in all_epsilons]
+        nr_of_spectra = sum(spectrum_exists)
+        data = np.zeros((len(energy),nr_of_spectra+1))
+
+        i = 1
+        for epsilon in all_epsilons:
+            if epsilon is None:
+                continue
+            else:
+                data[:,i] = epsilon
+                i+=1
+
+        full_header = ['epsilon1','epsilon1_11','epsilon1_22','epsilon1_33','epsilon2','epsilon2_11','epsilon2_22','epsilon2_33']
+
+        from itertools import compress
+        header = 'Energy [eV] ' + ' '.join(list(compress(full_header, spectrum_exists)))
+
+        np.savetxt(filename,data,header=header)
+
 
 class BandStructureVisualization(QtGui.QWidget):
     def __init__(self, parent=None):
