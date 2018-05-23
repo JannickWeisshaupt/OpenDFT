@@ -1099,7 +1099,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         elif mode == 'gaussian':
             def broaden_function(x, width):
                 return np.exp(-x ** 2 / (2 * width ** 2))
-        elif mode == 'none':
+        elif mode == 'none' or width is None:
             return energy,epsilon
 
         E_range = energy.max() - energy.min()
@@ -1116,18 +1116,27 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         return energy_out,epsilon_out
 
     def export(self,filename,spectrum,code=False):
+        entry_values = self.read_entries()
+        gamma = entry_values['Gamma']
+        broaden_mode = entry_values['broaden mode']
+
         energy = spectrum.energy
+
+        E_plot, epsilon_plot = self.broaden_spectrum(energy, spectrum.epsilon2, width=gamma, mode=broaden_mode)
+
         all_epsilons = spectrum.all_epsilons
         spectrum_exists = [True if x is not None else False for x in all_epsilons]
         nr_of_spectra = sum(spectrum_exists)
-        data = np.zeros((len(energy),nr_of_spectra+1))
+        data = np.zeros((len(E_plot),nr_of_spectra+1))
+        data[:,0] = E_plot
 
         i = 1
         for epsilon in all_epsilons:
             if epsilon is None:
                 continue
             else:
-                data[:,i] = epsilon
+                E_plot, epsilon_plot = self.broaden_spectrum(energy, epsilon, width=gamma, mode=broaden_mode)
+                data[:,i] = epsilon_plot
                 i+=1
 
         full_header = ['epsilon1','epsilon1_11','epsilon1_22','epsilon1_33','epsilon2','epsilon2_11','epsilon2_22','epsilon2_33']
