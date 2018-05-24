@@ -508,6 +508,8 @@ class VolumeSlicer(HasTraits):
 
     def set_data(self,data,crystal_structure):
         self.data = data
+        self.data_src3d.scalar_data = data
+        self.data_src3d.update()
         self.crystal_structure = crystal_structure
 
     def display_scene3d(self,colormap=None):
