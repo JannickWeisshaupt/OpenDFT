@@ -537,6 +537,8 @@ class VolumeSlicer(HasTraits):
 
     def set_data(self,data,crystal_structure):
         self.data = data
+        self.data_src3d.scalar_data = data
+        self.data_src3d.update()
         self.crystal_structure = crystal_structure
 
     def display_scene3d(self,colormap=None):
@@ -1128,7 +1130,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         elif mode == 'gaussian':
             def broaden_function(x, width):
                 return np.exp(-x ** 2 / (2 * width ** 2))
-        elif mode == 'none':
+        elif mode == 'none' or width is None:
             return energy,epsilon
 
         E_range = energy.max() - energy.min()
@@ -1143,6 +1145,37 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         energy_out = np.linspace(energy.min()-conv_range/2,energy.max()+conv_range/2,len(epsilon_out))
 
         return energy_out,epsilon_out
+
+    def export(self,filename,spectrum,code=False):
+        entry_values = self.read_entries()
+        gamma = entry_values['Gamma']
+        broaden_mode = entry_values['broaden mode']
+
+        energy = spectrum.energy
+
+        E_plot, epsilon_plot = self.broaden_spectrum(energy, spectrum.epsilon2, width=gamma, mode=broaden_mode)
+
+        all_epsilons = spectrum.all_epsilons
+        spectrum_exists = [True if x is not None else False for x in all_epsilons]
+        nr_of_spectra = sum(spectrum_exists)
+        data = np.zeros((len(E_plot),nr_of_spectra+1))
+        data[:,0] = E_plot
+
+        i = 1
+        for epsilon in all_epsilons:
+            if epsilon is None:
+                continue
+            else:
+                E_plot, epsilon_plot = self.broaden_spectrum(energy, epsilon, width=gamma, mode=broaden_mode)
+                data[:,i] = epsilon_plot
+                i+=1
+
+        full_header = ['epsilon1','epsilon1_11','epsilon1_22','epsilon1_33','epsilon2','epsilon2_11','epsilon2_22','epsilon2_33']
+
+        from itertools import compress
+        header = 'Energy [eV] ' + ' '.join(list(compress(full_header, spectrum_exists)))
+
+        np.savetxt(filename,data,header=header)
 
 
 class BandStructureVisualization(QtGui.QWidget):

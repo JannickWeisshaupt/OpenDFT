@@ -189,9 +189,15 @@ class EnergyDiagram(object):
 
 
 class OpticalSpectrum:
-    def __init__(self,energy,epsilon2,epsilon1=None):
-        self.energy = energy # energy in eV
+    def __init__(self, energy, epsilon2, epsilon1=None):
+        self.energy = energy  # energy in eV
         self.engine_information = None
+        self.epsilon2_11 = None
+        self.epsilon2_22 = None
+        self.epsilon2_33 = None
+        self.epsilon1_11 = None
+        self.epsilon1_22 = None
+        self.epsilon1_33 = None
 
         if type(epsilon2) == list or type(epsilon2)== tuple:
             self.epsilon2_11 = epsilon2[0]
@@ -208,6 +214,10 @@ class OpticalSpectrum:
             self.epsilon1 = (self.epsilon1_11 + self.epsilon1_22 + self.epsilon1_33) / 3
         else:
             self.epsilon1 = epsilon1
+
+        self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2]
+
+
 
 class StructureParser:
     def __init__(self):

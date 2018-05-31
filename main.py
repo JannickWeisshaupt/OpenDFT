@@ -1175,8 +1175,11 @@ class PlotWithTreeview(QtGui.QWidget):
         index = self.treeview.selectedIndexes()[0]
         item = self.treeview.itemFromIndex(index)
         bs_name = item.text(0)
-        filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')[0]
+        filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')
+
         if filename:
+            if type(filename) in [list,tuple]:
+                filename = filename[0]
             self.plot_widget.export(filename, self.data_dictionary[bs_name], code=code)
 
     def show_info_selected_item(self):
@@ -1560,6 +1563,8 @@ class OptionWithTreeview(PlotWithTreeview):
         if bs_name != 'None':
             main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]), **plot_options)
             main.information_window.show_information(self.data_dictionary[bs_name].engine_information, bs_name)
+            if main.volume_slicer_window.isVisible():
+                self.open_slice_widget() # this forces a replot and does not do any other harm
 
     def update_tree(self):
         self.treeview.clear()
