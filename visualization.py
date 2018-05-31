@@ -53,6 +53,13 @@ for i in range(39,49):
 for i in range(71,80):
     colors[i] = (0,1,1)
 
+lut = np.zeros((255,4)) # colormap for atoms
+lut[:,:] = np.array([100,100,100,255])
+for key,color in colors.items():
+    color_255 = [255*x for x in color]
+    opacity = 255
+    lut[key-1, :] = np.array(color_255+[opacity,])
+
 try:
     with open(find_data_file('/data/colormaps.dat')) as f:
         t = f.read()
@@ -257,8 +264,8 @@ class StructureVisualization(HasTraits):
         self.crystal_structure = crystal_structure
         self.density_plotted = None
         self.cp = None
-        self.mayavi_atoms = []
-        self.mayavi_bonds = []
+        self.mayavi_atom = None
+        self.mayavi_bonds = None
         self.mayavi_unitcell = []
 
     def clear_plot(self):
@@ -300,9 +307,8 @@ class StructureVisualization(HasTraits):
             repeat = [self.n_x, self.n_y, self.n_z]
             self.plot_atoms(repeat)
         else:
-            for mayavi_atom in self.mayavi_atoms:
-                mayavi_atom.remove()
-            self.mayavi_atoms = []
+            self.mayavi_atom.remove()
+            self.mayavi_atom = None
 
     @on_trait_change('show_bonds')
     def _show_bonds_event(self):
@@ -310,9 +316,7 @@ class StructureVisualization(HasTraits):
             repeat = [self.n_x, self.n_y, self.n_z]
             self.plot_bonds(repeat)
         else:
-            for mayavi_bond in self.mayavi_bonds:
-                mayavi_bond.remove()
-            self.mayavi_bonds = []
+            self.remove_bonds()
 
     @on_trait_change('show_unitcell')
     def _show_unitcell_event(self):
@@ -369,24 +373,37 @@ class StructureVisualization(HasTraits):
 
     def plot_atoms(self, repeat=[1, 1, 1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
-        species = set(abs_coord_atoms[:,3].astype(np.int))
-        n_species = len(species)
-        n_atoms = abs_coord_atoms.shape[0]
+        # species = set(abs_coord_atoms[:,3].astype(np.int))
 
-        for specie in species:
-            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
-            sub_coords = abs_coord_atoms[species_mask,:]
+        atom_size = 0.4 * np.log(abs_coord_atoms[:,3]) + 0.6
 
-            cov_radius = cov_radii[specie]
-            atom_size = 0.4*np.log(specie)+0.6
-            try:
-                atomic_color = colors[specie]
-            except KeyError:
-                atomic_color = (0.8,0.8,0.8)
-            mayavi_atom = self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,resolution=50,
-                                     color=atomic_color,figure=self.scene.mayavi_scene)
-            self.mayavi_atoms.append(mayavi_atom)
+        pts = self.scene.mlab.points3d(abs_coord_atoms[:, 0], abs_coord_atoms[:, 1], abs_coord_atoms[:, 2], scale_factor=0.8, vmin=1, vmax=256,figure=self.scene.mayavi_scene,resolution=20)
+
+        pts.module_manager.scalar_lut_manager.lut.table = lut
+
+        pts.glyph.scale_mode = 'scale_by_vector'
+        pts.mlab_source.dataset.point_data.vectors = np.tile(atom_size,(3,1)).T
+
+        pts.mlab_source.dataset.point_data.scalars = abs_coord_atoms[:,3]
+        self.mayavi_atom = pts
+
+        # n_species = len(species)
+        # n_atoms = abs_coord_atoms.shape[0]
+        #
+        # for specie in species:
+        #     species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
+        #     sub_coords = abs_coord_atoms[species_mask,:]
+        #
+        #     cov_radius = cov_radii[specie]
+        #     atom_size = 0.4*np.log(specie)+0.6
+        #     try:
+        #         atomic_color = colors[specie]
+        #     except KeyError:
+        #         atomic_color = (0.8,0.8,0.8)
+        #     mayavi_atom = self.scene.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
+        #                              scale_factor=atom_size,resolution=50,
+        #                              color=atomic_color,figure=self.scene.mayavi_scene)
+        #     self.mayavi_atoms.append(mayavi_atom)
 
     def clear_density_plot(self):
         if self.cp is not None:
@@ -445,15 +462,28 @@ class StructureVisualization(HasTraits):
     def plot_bonds(self,repeat=[1,1,1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
-        paths = sst.bonds_to_path(bonds)
 
-        for path in paths:
-            x = abs_coord_atoms[path,0]
-            y = abs_coord_atoms[path,1]
-            z = abs_coord_atoms[path,2]
+        self.mayavi_atom.mlab_source.dataset.lines = np.array(bonds)
 
-            mayavi_bond = self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
-            self.mayavi_bonds.append(mayavi_bond)
+        tube = mlab.pipeline.tube(self.mayavi_atom, tube_radius=0.15)
+        tube.filter.radius_factor = 1.
+        # tube.filter.vary_radius = 'vary_radius_by_scalar'
+        self.mayavi_bonds = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
+        self.mayavi_atom.mlab_source.update()
+
+        # paths = sst.bonds_to_path(bonds)
+        #
+        # for path in paths:
+        #     x = abs_coord_atoms[path,0]
+        #     y = abs_coord_atoms[path,1]
+        #     z = abs_coord_atoms[path,2]
+        #
+        #     mayavi_bond = self.scene.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene.mayavi_scene)
+        #     self.mayavi_bonds.append(mayavi_bond)
+
+    def remove_bonds(self):
+        if self.mayavi_bonds:
+            self.mayavi_bonds.remove()
 
 class VolumeSlicer(HasTraits):
     data = Array()
@@ -479,7 +509,6 @@ class VolumeSlicer(HasTraits):
         self.ipw_3d
         self.cut_plane = None
         self.mayavi_atoms = []
-        self.mayavi_bonds = []
         self.mayavi_unitcell = None
 
     # def _ipw_3d_default(self):
@@ -547,7 +576,7 @@ class VolumeSlicer(HasTraits):
             self.plot_bonds()
         else:
             for mayavi_bond in self.mayavi_bonds:
-                mayavi_bond.remove()
+                self.remove_bonds()
             self.mayavi_bonds = []
 
     @on_trait_change('show_unitcell')
