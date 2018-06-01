@@ -245,8 +245,8 @@ class OpticalSpectrum:
         else:
             self.epsilon1 = epsilon1
 
-        self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2_11,
-                             self.epsilon1_22, self.epsilon1_33, self.epsilon2]
+        self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2, self.epsilon2_11,
+                             self.epsilon1_22, self.epsilon1_33]
 
 
 class StructureParser:
@@ -379,7 +379,7 @@ class StructureParser:
 
 class ComputationalMethods(object):
     def __init__(self, methods):
-        all_methods = ['periodic', 'non-periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax',
+        self.all_methods = ['periodic', 'non-periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax',
                        'bandstructure']
         self.descriptions = {'periodic': 'Periodic structures (crystals)',
                              'non-periodic': 'Non periodic structures (molecules)',
@@ -389,12 +389,20 @@ class ComputationalMethods(object):
                              'bandstructure': 'Calculation of the band structure'}
 
         if methods is None:
-            methods = all_methods
+            methods = self.all_methods
         for method in methods:
-            if method not in all_methods:
+            if method not in self.all_methods:
                 raise ValueError(
-                    'methods: ' + str(method) + ' is not known. Available methods are ' + ', '.join(all_methods))
+                    'methods: ' + str(method) + ' is not known. Available methods are ' + ', '.join(self.all_methods))
         self.methods = methods
+
+    def add(self,method):
+        if method not in self.all_methods:
+            raise ValueError(
+                'methods: ' + str(method) + ' is not known. Available methods are ' + ', '.join(self.all_methods))
+
+        self.methods.append(method)
+
 
     def get_description(self, item):
         return self.descriptions[item]
@@ -419,9 +427,12 @@ class GeneralHandler():
         self.nwchem_handler = Handler
         from abinit_handler import Handler
         self.abinit_handler = Handler
+        from ocean_handlers import OceanQe,OceanAbinit
+        self.ocean_qe_handler = OceanQe
+        self.ocean_abi_handler = OceanAbinit
 
         d = {'exciting': self.exciting_handler, 'quantum espresso': self.quantum_espresso_handler,
-             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler}
+             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit+ocean":self.ocean_abi_handler,'quantum espresso + ocean':self.ocean_qe_handler}
         self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
     def is_handler_available(self, engine_name):
