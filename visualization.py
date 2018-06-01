@@ -341,7 +341,7 @@ class StructureVisualization(HasTraits):
 
         atom_size = 0.4 * np.log(abs_coord_atoms[:,3]) + 0.6
 
-        pts = self.scene.mlab.points3d(abs_coord_atoms[:, 0], abs_coord_atoms[:, 1], abs_coord_atoms[:, 2], scale_factor=0.8, vmin=1, vmax=256,figure=self.scene.mayavi_scene,resolution=20)
+        pts = self.scene.mlab.points3d(abs_coord_atoms[:, 0], abs_coord_atoms[:, 1], abs_coord_atoms[:, 2], scale_factor=0.6, vmin=1, vmax=256,figure=self.scene.mayavi_scene,resolution=20)
 
         pts.module_manager.scalar_lut_manager.lut.table = lut
 
