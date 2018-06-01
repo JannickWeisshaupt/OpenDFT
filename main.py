@@ -3071,6 +3071,11 @@ if __name__ == "__main__":
                         filename=temp_folder + "/logfiles/" + "_".join(current_time_string) + ".log")
     logging.info('Program started')
 
+    import vtk
+    vtk_output = vtk.vtkFileOutputWindow()  # redirects vtk errors to log file
+    vtk_output.SetFileName(temp_folder+"/logfiles/vtk_log.txt")
+    vtk.vtkOutputWindow().SetInstance(vtk_output)
+
     set_procname(b'OpenDFT')
 
     app = QtGui.QApplication.instance()

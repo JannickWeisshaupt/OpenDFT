@@ -4,6 +4,7 @@ from __future__ import generators
 
 import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
+
 from pyface.qt import QtGui, QtCore
 from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button, Array
 from traitsui.api import View, Item, Group, HGroup
@@ -325,7 +326,7 @@ class StructureVisualization(HasTraits):
         for i,vec_sum in enumerate(possible_sums):
             grid_points[i,:] = vec_sum[0]*a1 + vec_sum[1]*a2 + vec_sum[2]*a3
 
-        mayavi_grid = self.scene.mlab.points3d(grid_points[:,0],grid_points[:,1],grid_points[:,2], figure=self.scene.mayavi_scene, scale_factor=0.0,resolution=5)
+        mayavi_grid = self.scene.mlab.points3d(grid_points[:,0],grid_points[:,1],grid_points[:,2], np.ones_like(grid_points[:,0]), figure=self.scene.mayavi_scene, scale_factor=0.0,resolution=5)
         mayavi_grid.mlab_source.dataset.lines = np.array(list(connections))
 
         tube = mlab.pipeline.tube(mayavi_grid, tube_radius=0.05)
