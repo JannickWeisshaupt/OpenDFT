@@ -99,7 +99,9 @@ class CrystalStructure(object):
                 abs_coord_out = abs_coord.reshape((n_repeat*self.n_atoms,4))
         return abs_coord_out
 
-    def find_bonds(self,abs_coords):
+    def find_bonds_old(self,abs_coords):
+        import time
+        st = time.time()
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:,:3]
 
@@ -111,8 +113,25 @@ class CrystalStructure(object):
                 dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
                 if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.3:
                     dist_mat[j1, j2] = dist
-                    bonds.append([j1,j2]);
+                    bonds.append([j1,j2])
+        print(time.time()-st)
         return bonds
+
+    def find_bonds(self,abs_coords):
+        n_atoms = abs_coords.shape[0]
+        abs_coords_pure = abs_coords[:,:3]
+
+        bonds = set()
+        cov_radii_array = np.array([cov_radii[int(x)] for x in abs_coords[:,3]])
+        for j1 in range(n_atoms):
+            dist = np.linalg.norm(abs_coords_pure[j1+1:,:]-abs_coords_pure[j1,:], axis=1)
+            mask_array = dist < (cov_radii_array[j1+1:]+cov_radii[int(abs_coords[j1,3])])*1.3
+            indexes = np.where(mask_array)[0]
+            for index in indexes:
+                if j1 != index:
+                    bonds.add((j1,index+j1+1))
+
+        return list(bonds)
 
     def convert_to_tpiba(self,band_structure_points):
         if type(band_structure_points) in [list,tuple]:
@@ -641,8 +660,7 @@ if __name__ == "__main__":
     bonds = crystal_structure.find_bonds(coords)
     print(crystal_structure.find_bonds(coords))
 
-    bond_path = bonds_to_path(bonds)
-    print(bond_path)
+
     # import mayavi.mlab as mlab
     #
     # ts = time.time()
