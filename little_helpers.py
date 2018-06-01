@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 
 class no_error_dictionary:
-    def __init__(self,dic_in):
+    def __init__(self, dic_in):
         self.dic = dic_in
 
     def __getitem__(self, key):
@@ -19,16 +19,18 @@ class no_error_dictionary:
 
 def flatten_dictionary(dictionary):
     new_dic = {}
-    for key,value in dictionary.items():
-        for key2,value in value.items():
-            new_dic[key+'_'+key2] = value
+    for key, value in dictionary.items():
+        for key2, value in value.items():
+            new_dic[key + '_' + key2] = value
     return new_dic
 
 
 class CopySelectedCellsAction(QtGui.QAction):
     def __init__(self, table_widget):
         if not isinstance(table_widget, QtGui.QTableWidget):
-            raise ValueError(str('CopySelectedCellsAction must be initialised with a QTableWidget. A %s was given.' % type(table_widget)))
+            raise ValueError(str(
+                'CopySelectedCellsAction must be initialised with a QTableWidget. A %s was given.' % type(
+                    table_widget)))
         super(CopySelectedCellsAction, self).__init__("Copy", table_widget)
         self.setShortcut('Ctrl+c')
         self.triggered.connect(self.copy_cells_to_clipboard)
@@ -55,7 +57,7 @@ class CopySelectedCellsAction(QtGui.QAction):
             for r in range(nrows):
                 for c in range(ncols):
                     clipboard += columns[c][r]
-                    if c != (ncols-1):
+                    if c != (ncols - 1):
                         clipboard += '\t'
                 clipboard += '\n'
 
@@ -63,10 +65,13 @@ class CopySelectedCellsAction(QtGui.QAction):
             sys_clip = QtGui.QApplication.clipboard()
             sys_clip.setText(clipboard)
 
+
 class PasteIntoTable(QtGui.QAction):
-    def __init__(self, table_widget,parent):
+    def __init__(self, table_widget, parent):
         if not isinstance(table_widget, QtGui.QTableWidget):
-            raise ValueError(str('CopySelectedCellsAction must be initialised with a QTableWidget. A %s was given.' % type(table_widget)))
+            raise ValueError(str(
+                'CopySelectedCellsAction must be initialised with a QTableWidget. A %s was given.' % type(
+                    table_widget)))
         super(PasteIntoTable, self).__init__("Copy", table_widget)
         self.setShortcut('Ctrl+v')
         self.parent = parent
@@ -82,7 +87,6 @@ class PasteIntoTable(QtGui.QAction):
         sys_clip = QtGui.QApplication.clipboard()
         clipboard = sys_clip.text()
 
-
         rows = clipboard.split('\n')
         n_rows = len(rows)
         col_0 = rows[0].split()
@@ -90,19 +94,20 @@ class PasteIntoTable(QtGui.QAction):
 
         # data = np.zeros((n_rows,n_col))
 
-        for i,row in enumerate(rows):
+        for i, row in enumerate(rows):
             col = row.split()
-            for j,el in enumerate(col):
-                self.table_widget.item(i+i0,j+j0).setText(el)
+            for j, el in enumerate(col):
+                self.table_widget.item(i + i0, j + j0).setText(el)
         self.parent.connect_tables()
         self.parent.handle_change()
+
 
 def find_possible_sums(repeat):
     possible_sums = set()
 
-    for i in range(repeat[0]+1):
-        for j in range(repeat[1]+1):
-            for l in range(repeat[2]+1):
+    for i in range(repeat[0] + 1):
+        for j in range(repeat[1] + 1):
+            for l in range(repeat[2] + 1):
                 pos_sum = (i, j, l)
                 possible_sums.add(pos_sum)
     return possible_sums
@@ -110,27 +115,29 @@ def find_possible_sums(repeat):
 
 def find_grid_connections(possible_sums):
     connections = set()
-    for i,pos_sum in enumerate(possible_sums):
-        for j,pos_sum_1 in enumerate(possible_sums):
-            diff_sum = (abs(x-y) for x,y in zip(pos_sum,pos_sum_1))
+    for i, pos_sum in enumerate(possible_sums):
+        for j, pos_sum_1 in enumerate(possible_sums):
+            diff_sum = (abs(x - y) for x, y in zip(pos_sum, pos_sum_1))
             if sum(diff_sum) == 1:
-                connections.add(tuple(sorted([i,j])))
+                connections.add(tuple(sorted([i, j])))
     return connections
 
 
 def convert_to_ordered(d):
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
+
 def set_procname(newname):
     if sys.platform in ['linux', 'linux2']:
         from ctypes import cdll, byref, create_string_buffer
-        libc = cdll.LoadLibrary('libc.so.6')    #Loading a 3rd party library C
-        buff = create_string_buffer(len(newname)+1) #Note: One larger than the name (man prctl says that)
-        buff.value = newname                 #Null terminated string as it should be
+        libc = cdll.LoadLibrary('libc.so.6')  # Loading a 3rd party library C
+        buff = create_string_buffer(len(newname) + 1)  # Note: One larger than the name (man prctl says that)
+        buff.value = newname  # Null terminated string as it should be
         libc.prctl(15, byref(buff), 0, 0, 0)
     else:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(newname.decode())
+
 
 def get_proc_name():
     from ctypes import cdll, byref, create_string_buffer
@@ -139,6 +146,7 @@ def get_proc_name():
     # 16 == PR_GET_NAME from <linux/prctl.h>
     libc.prctl(16, byref(buff), 0, 0, 0)
     return buff.value
+
 
 def find_data_file(filename):
     if getattr(sys, 'frozen', False):
@@ -151,9 +159,10 @@ def find_data_file(filename):
 
     return datadir + filename
 
+
 def get_stacktrace_as_string():
     exc_type, exc_value, exc_traceback = sys.exc_info()
     error = traceback.format_exception(exc_type, exc_value, exc_traceback)
     joined_error = '<br>'.join(error)
-    joined_error = joined_error.replace(' ','&#160;')
+    joined_error = joined_error.replace(' ', '&#160;')
     return joined_error

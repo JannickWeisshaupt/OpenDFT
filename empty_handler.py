@@ -31,6 +31,7 @@ def convert_greek(input):
             result.append(el)
     return result
 
+
 class Handler:
     def __init__(self):
         self.engine_name = 'empty'
@@ -73,11 +74,11 @@ class Handler:
         raise NotImplementedError()
 
     def start_ground_state(self, crystal_structure, band_structure_points=None):
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+        if crystal_structure.n_atoms // 2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
 
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure)
+        self._add_scf_to_file(file, crystal_structure)
         file.close()
         self._start_engine()
 
@@ -86,10 +87,9 @@ class Handler:
                 while self.is_engine_running():
                     time.sleep(0.001)
                 file = self._make_input_file(filename='bands.in')
-                self._add_scf_to_file(file,crystal_structure,calculation='bands',band_points=band_structure_points)
+                self._add_scf_to_file(file, crystal_structure, calculation='bands', band_points=band_structure_points)
                 file.close()
                 self._start_engine(filename='bands.in')
-
 
             t = threading.Thread(target=run_bs)
             t.start()
@@ -104,16 +104,16 @@ class Handler:
         raise NotImplementedError
 
     def start_relax(self, crystal_structure):
-        if crystal_structure.n_atoms//2 >= self.scf_options['nbnd']:
+        if crystal_structure.n_atoms // 2 >= self.scf_options['nbnd']:
             raise Exception('Too few bands')
 
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure,calculation='relax')
+        self._add_scf_to_file(file, crystal_structure, calculation='relax')
         file.close()
         self._start_engine()
 
     def load_relax_structure(self):
-        file = self.project_directory+self.working_dirctory+self.info_file
+        file = self.project_directory + self.working_dirctory + self.info_file
         if not os.path.isfile(file):
             return None
         if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
@@ -123,44 +123,44 @@ class Handler:
         with open(file) as f:
             text = f.readlines()
 
-        matched_lines = [i for i,line in enumerate(text) if 'atomic_positions' in line.lower()]
+        matched_lines = [i for i, line in enumerate(text) if 'atomic_positions' in line.lower()]
         if len(matched_lines) == 0:
             return None
         highest_index = max(matched_lines)
         species = []
         coords = []
-        for line in text[highest_index+1:]:
+        for line in text[highest_index + 1:]:
             try:
                 res = line.split()
                 species.append(p_table_rev[res[0]])
                 coords.append(np.array([float(x) for x in res[1:]]))
             except Exception:
-                if len(res)==0:
+                if len(res) == 0:
                     continue
                 else:
                     break
 
-        atoms = np.zeros((len(species),4))
-        for i,atom in enumerate(zip(species,coords)):
-            atoms[i,:3] = atom[1]
-            atoms[i,3] = atom[0]
+        atoms = np.zeros((len(species), 4))
+        for i, atom in enumerate(zip(species, coords)):
+            atoms[i, :3] = atom[1]
+            atoms[i, 3] = atom[0]
 
         matched_line = [i for i, line in enumerate(text) if 'lattice parameter' in line.lower()]
         line = text[matched_line[0]]
-        res = line.split('=')[1].replace('a.u.','')
+        res = line.split('=')[1].replace('a.u.', '')
         a = float(res)
 
         matched_line = [i for i, line in enumerate(text) if 'a(1) =' in line.lower()][0]
-        lattice_vectors = np.zeros((3,3))
+        lattice_vectors = np.zeros((3, 3))
 
-        for i in range(matched_line,matched_line+3):
+        for i in range(matched_line, matched_line + 3):
             line = text[i]
             res = line.split('=')[1]
-            res = res.replace('(','').replace(')','').split()
+            res = res.replace('(', '').replace(')', '').split()
             res = np.array([float(x) for x in res])
-            lattice_vectors[i-matched_line,:] = res*a
+            lattice_vectors[i - matched_line, :] = res * a
 
-        return sst.CrystalStructure(lattice_vectors,atoms)
+        return sst.CrystalStructure(lattice_vectors, atoms)
 
     def read_scf_status(self):
         try:
@@ -170,24 +170,23 @@ class Handler:
         info_text = f.read()
         f.close()
 
-
         scf_energy_list = []
         matches = re.findall(r"total energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
         for match in matches:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(zip(range(1,len(scf_energy_list)+1), scf_energy_list))
+        res = np.array(zip(range(1, len(scf_energy_list) + 1), scf_energy_list))
         if len(res) < 2:
             return None
         return res
 
-    def read_bandstructure(self,special_k_points=None):
+    def read_bandstructure(self, special_k_points=None):
         try:
             f = open(self.project_directory + self.working_dirctory + '/bands.out', 'r')
         except IOError:
             return None
-        text = f.read().replace('-',' -')
+        text = f.read().replace('-', ' -')
         f.close()
 
         k_points = []
@@ -198,60 +197,60 @@ class Handler:
             line = line.strip()
             if line.strip().startswith('k ='):
                 line_list = line.split()
-                read_k_point = [float(line_list[2]),float(line_list[3]),float(line_list[4])]
+                read_k_point = [float(line_list[2]), float(line_list[3]), float(line_list[4])]
                 k_points.append(read_k_point)
 
                 if special_k_points is not None:
-                    for k_point,label in special_k_points:
-                        if np.linalg.norm( np.array(read_k_point) - k_point)<0.001:
-                            special_k_point_initial.append([len(k_points)-1,label])
+                    for k_point, label in special_k_points:
+                        if np.linalg.norm(np.array(read_k_point) - k_point) < 0.001:
+                            special_k_point_initial.append([len(k_points) - 1, label])
                             break
 
                 found_line = True
                 e_numbers = []
                 continue
-            if found_line and len(line)>0:
+            if found_line and len(line) > 0:
                 e_split = line.split()
                 e_numbers.extend([float(x) for x in e_split])
-            elif found_line and len(line) == 0 and len(e_numbers)>0:
+            elif found_line and len(line) == 0 and len(e_numbers) > 0:
                 energy_values.append(e_numbers)
                 found_line = False
 
-        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+',text)
+        matches = re.findall('number of electrons[\s\t]*=[\s\t]*[-+]?\d*\.\d+', text)
         n_electrons = int(float(matches[0].split('=')[1]))
 
         n_bands = len(energy_values[0])
         n_k_points = len(k_points)
         bands = []
         k_array = np.zeros(n_k_points)
-        for i in range(1,n_k_points):
-            k_array[i] = np.linalg.norm(np.array(k_points[i])-np.array(k_points[i-1])) + k_array[i-1]
+        for i in range(1, n_k_points):
+            k_array[i] = np.linalg.norm(np.array(k_points[i]) - np.array(k_points[i - 1])) + k_array[i - 1]
 
         for i in range(n_bands):
-            band = np.zeros((n_k_points,2))
-            band[:,0] = k_array
+            band = np.zeros((n_k_points, 2))
+            band[:, 0] = k_array
 
             e_band = [x[i] for x in energy_values]
-            band[:,1] = e_band
+            band[:, 1] = e_band
             bands.append(band)
 
-        special_k_points_out = [[k_array[i],label] for i,label in special_k_point_initial]
+        special_k_points_out = [[k_array[i], label] for i, label in special_k_point_initial]
 
         try:
-            valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
+            valence_bands = [band for i, band in enumerate(bands) if i < n_electrons // 2]
             cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
 
-            evalence = max( [band[:,1].max() for band in valence_bands] )
-            econd = min([band[:,1].min() for band in cond_bands])
+            evalence = max([band[:, 1].max() for band in valence_bands])
+            econd = min([band[:, 1].min() for band in cond_bands])
 
-            efermi = evalence + (econd-evalence)/2
+            efermi = evalence + (econd - evalence) / 2
             for band in bands:
                 band[:, 1] = band[:, 1] - efermi
 
         except Exception:
             pass
 
-        return sst.BandStructure(bands,special_k_points=special_k_points_out)
+        return sst.BandStructure(bands, special_k_points=special_k_points_out)
 
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         raise NotImplementedError
@@ -264,7 +263,7 @@ class Handler:
 
     def read_ks_state(self):
 
-        with open(self.project_directory+self.working_dirctory+ '/rho.dat') as f:
+        with open(self.project_directory + self.working_dirctory + '/rho.dat') as f:
             text = f.readlines()
         total_res = []
         for line in text[2:]:
@@ -274,29 +273,32 @@ class Handler:
             numbers = [float(x) for x in res]
             total_res.extend(numbers)
 
-        n_grid = [int(text[i].split()[0]) for i in range(3,6)]
+        n_grid = [int(text[i].split()[0]) for i in range(3, 6)]
 
         l_data = np.array(total_res)
-        data = l_data.reshape(n_grid,order='C')
+        data = l_data.reshape(n_grid, order='C')
 
         data = data / data.max()
         return sst.KohnShamDensity(data)
 
     def calculate_ks_density(self, crystal_structure, bs_point):
         f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':7, 'filplot': 'e_density', 'kpoint(1)':bs_point[0], 'kband(1)':bs_point[1]}
-        self._write_block(f,'&inputpp',inputpp_dic)
-        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
-        self._write_block(f,'&plot',plot_dic)
+        inputpp_dic = {'prefix': self.general_options['title'],
+                       'outdir': self.project_directory + self.working_dirctory, 'plot_num': 7, 'filplot': 'e_density',
+                       'kpoint(1)': bs_point[0], 'kband(1)': bs_point[1]}
+        self._write_block(f, '&inputpp', inputpp_dic)
+        plot_dic = {'iflag': 3, 'output_format': 6, 'fileout': 'rho.dat'}
+        self._write_block(f, '&plot', plot_dic)
         f.close()
         self._start_pp_process()
 
-    def calculate_electron_density(self,crystal_structure):
+    def calculate_electron_density(self, crystal_structure):
         f = self._make_input_file(filename='pp.in')
-        inputpp_dic = {'prefix':self.general_options['title'],'outdir':self.project_directory + self.working_dirctory, 'plot_num':0, 'filplot': 'e_density'}
-        self._write_block(f,'&inputpp',inputpp_dic)
-        plot_dic = {'iflag':3,'output_format':6,'fileout':'rho.dat'}
-        self._write_block(f,'&plot',plot_dic)
+        inputpp_dic = {'prefix': self.general_options['title'],
+                       'outdir': self.project_directory + self.working_dirctory, 'plot_num': 0, 'filplot': 'e_density'}
+        self._write_block(f, '&inputpp', inputpp_dic)
+        plot_dic = {'iflag': 3, 'output_format': 6, 'fileout': 'rho.dat'}
+        self._write_block(f, '&plot', plot_dic)
         f.close()
         self._start_pp_process()
 

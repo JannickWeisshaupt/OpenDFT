@@ -22,6 +22,7 @@ else:
     shell_bool = False
     search_command = 'which'
 
+
 def convert_greek(input):
     result = []
     for el in input:
@@ -30,6 +31,7 @@ def convert_greek(input):
         else:
             result.append(el)
     return result
+
 
 class Handler:
     def __init__(self):
@@ -61,7 +63,7 @@ At the same time continued development is needed to enable NWChem to effectively
         self._timestamp_tasks = {}
 
         self.supported_methods = sst.ComputationalMethods(
-            ['non-periodic', 'scf','relax'])
+            ['non-periodic', 'scf', 'relax'])
 
         self.project_directory = None
         self.input_filename = 'scf.in'
@@ -72,7 +74,8 @@ At the same time continued development is needed to enable NWChem to effectively
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = convert_to_ordered({'basis': 'cc-pvdz','method':'scf','spin state':'singlet','spin restriction':'RHF'})
+        self.scf_options = convert_to_ordered(
+            {'basis': 'cc-pvdz', 'method': 'scf', 'spin state': 'singlet', 'spin restriction': 'RHF'})
         self.scf_options_tooltip = {}
 
         self.general_options = {'title': 'title'}
@@ -90,7 +93,8 @@ At the same time continued development is needed to enable NWChem to effectively
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen([search_command, 'nwchem'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
+        p = subprocess.Popen([search_command, 'nwchem'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
@@ -99,7 +103,7 @@ At the same time continued development is needed to enable NWChem to effectively
     def parse_input_file(self, filename):
         raise NotImplementedError()
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
+    def start_ground_state(self, crystal_structure, band_structure_points=None, blocking=False):
         """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
 
 Args:
@@ -118,7 +122,7 @@ Returns:
     - None
         """
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure)
+        self._add_scf_to_file(file, crystal_structure)
         file.close()
         self._start_engine(blocking=blocking)
 
@@ -133,7 +137,7 @@ Returns:
         """
         raise NotImplementedError
 
-    def start_gw(self, crystal_structure, band_structure_points=None,blocking=False):
+    def start_gw(self, crystal_structure, band_structure_points=None, blocking=False):
         """This method starts a g0w0 calculation in a subprocess. The configuration is stored in gw_options.
 
 Args:
@@ -179,7 +183,7 @@ Returns:
     - None
         """
         file = self._make_input_file()
-        self._add_scf_to_file(file,crystal_structure,calculation='optimize')
+        self._add_scf_to_file(file, crystal_structure, calculation='optimize')
         file.close()
         self._start_engine()
 
@@ -189,7 +193,7 @@ Returns:
 Returns:
     - CrystalStructure or MolecularStructure object depending on the material under study.
         """
-        file = self.project_directory+self.working_dirctory+self.info_file
+        file = self.project_directory + self.working_dirctory + self.info_file
         if not os.path.isfile(file):
             return None
         if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
@@ -199,27 +203,27 @@ Returns:
         with open(file) as f:
             text = f.readlines()
 
-        matched_lines = [i for i,line in enumerate(text) if 'output coordinates in a.u.' in line.lower()]
+        matched_lines = [i for i, line in enumerate(text) if 'output coordinates in a.u.' in line.lower()]
         if len(matched_lines) == 0:
             return None
         highest_index = max(matched_lines)
         species = []
         coords = []
-        for line in text[highest_index+4:]:
+        for line in text[highest_index + 4:]:
             try:
                 res = line.split()
                 species.append(p_table_rev[res[1].title()])
                 coords.append(np.array([float(x) for x in res[3:]]))
             except Exception:
-                if len(res)==0:
+                if len(res) == 0:
                     continue
                 else:
                     break
 
-        atoms = np.zeros((len(species),4))
-        for i,atom in enumerate(zip(species,coords)):
-            atoms[i,:3] = atom[1]
-            atoms[i,3] =atom[0]
+        atoms = np.zeros((len(species), 4))
+        for i, atom in enumerate(zip(species, coords)):
+            atoms[i, :3] = atom[1]
+            atoms[i, 3] = atom[0]
 
         return sst.MolecularStructure(atoms)
 
@@ -239,7 +243,7 @@ Returns:
         scf_energy_list = []
 
         # this is for future use
-        matches = re.findall('SCF calculation type: \w*',info_text)
+        matches = re.findall('SCF calculation type: \w*', info_text)
         if len(matches) == 0:
             calculation_type = 'scf'
             task = 'scf'
@@ -247,13 +251,14 @@ Returns:
             calculation_type = matches[0].split(':')[1].strip().lower()
             task = ''
 
-        hits = [i for i,l in enumerate(info_text.split('\n')) if l.strip().startswith('iter') or l.strip().startswith('convergence')]
-        if len(hits)>0:
+        hits = [i for i, l in enumerate(info_text.split('\n')) if
+                l.strip().startswith('iter') or l.strip().startswith('convergence')]
+        if len(hits) > 0:
             hit = hits[0]
-            header_line =info_text.split('\n')[hit].split()
+            header_line = info_text.split('\n')[hit].split()
             energy_index = header_line.index('energy')
 
-            for line in info_text.split('\n')[hit+2:]:
+            for line in info_text.split('\n')[hit + 2:]:
                 sline = line.split('  ')
                 sline = [x for x in sline if len(x) > 0]
                 if len(sline) <= energy_index:
@@ -266,13 +271,13 @@ Returns:
             ms = match.split('=')
             scf_energy_list.append(float(ms[1]))
 
-        res = np.array(list(zip(range(1,len(scf_energy_list)+1), scf_energy_list)))
+        res = np.array(list(zip(range(1, len(scf_energy_list) + 1), scf_energy_list)))
 
         if len(res) == 0:
             return None
         return res
 
-    def read_bandstructure(self,special_k_points=None):
+    def read_bandstructure(self, special_k_points=None):
         """This method reads the result of a electronic band structure calculation.
 
 Keyword args:
@@ -340,31 +345,30 @@ Returns:
         #
         # labels = [str(i+1) for i,energie in enumerate(energies)]
 
-        hits = [i for i,l in enumerate(text) if 'final molecular orbital analysis' in l.lower()]
+        hits = [i for i, l in enumerate(text) if 'final molecular orbital analysis' in l.lower()]
         if len(hits) == 0:
             return None
         hit = hits[-1]
 
         energies = []
         occupations = []
-        for line in text[hit+1:]:
+        for line in text[hit + 1:]:
             try:
                 if not line.strip().startswith('Vector'):
                     continue
                 sline = line.split('E=')
-                if len(sline)==0:
+                if len(sline) == 0:
                     continue
-                energies.append(float(sline[1].strip().replace('D','e'))*hartree)
+                energies.append(float(sline[1].strip().replace('D', 'e')) * hartree)
                 sline2 = line.split('Occ=')[1]
                 sline3 = sline2.split('E=')[0]
-                sline3 = sline3.replace('D','e')
+                sline3 = sline3.replace('D', 'e')
                 occupations.append(float(sline3))
             except Exception:
                 pass
 
-
-        labels = ['' for i,energie in enumerate(energies)]
-        return sst.EnergyDiagram(energies,labels,occupations=occupations)
+        labels = ['' for i, energie in enumerate(energies)]
+        return sst.EnergyDiagram(energies, labels, occupations=occupations)
 
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
         """This method reads the result of a gw electronic band structure calculation.
@@ -399,15 +403,15 @@ Returns:
 Returns:
     - ks_density:       A KohnShamDensity or MolecularDensity object with the latest result found.
         """
-        with open(self.project_directory+self.working_dirctory+ '/chargedensity.cube') as f:
+        with open(self.project_directory + self.working_dirctory + '/chargedensity.cube') as f:
             text = f.readlines()
-        origin = np.array(text[2].split()[1:],dtype=np.float)
-        lattice_vecs = np.zeros((3,3))
+        origin = np.array(text[2].split()[1:], dtype=np.float)
+        lattice_vecs = np.zeros((3, 3))
         for i in range(3):
-            line = text[3+i]
-            coords = np.array(line.split()[1:],dtype=np.float)
+            line = text[3 + i]
+            coords = np.array(line.split()[1:], dtype=np.float)
             steps = int(line.split()[0])
-            lattice_vecs[i,:3] = coords*(steps-1)
+            lattice_vecs[i, :3] = coords * (steps - 1)
 
         total_res = []
         for line in text[2:]:
@@ -417,18 +421,18 @@ Returns:
             numbers = [float(x) for x in res]
             total_res.extend(numbers)
 
-        n_grid = [int(text[i].split()[0]) for i in range(3,6)]
+        n_grid = [int(text[i].split()[0]) for i in range(3, 6)]
 
         l_data = np.array(total_res)
-        data = l_data.reshape(n_grid,order='C')
+        data = l_data.reshape(n_grid, order='C')
 
         if data.min() == data.max():
             return None
 
         data = data / data.max()
-        return sst.MolecularDensity(data,lattice_vecs,origin)
+        return sst.MolecularDensity(data, lattice_vecs, origin)
 
-    def calculate_ks_density(self, crystal_structure, bs_point, limits=None, grid=(100,100,100)):
+    def calculate_ks_density(self, crystal_structure, bs_point, limits=None, grid=(100, 100, 100)):
         """This method starts a calculation of a specific electronic state in a subprocess.
 
 Args:
@@ -445,16 +449,16 @@ Returns:
     - None
                 """
         file = self._make_input_file()
-        file.write('title '+'"'+self.general_options['title']+'"\n')
-        self._add_geometry(file,crystal_structure,auto=False)
-        self._add_basis(file,crystal_structure)
+        file.write('title ' + '"' + self.general_options['title'] + '"\n')
+        self._add_geometry(file, crystal_structure, auto=False)
+        self._add_basis(file, crystal_structure)
         # self._add_scf_field_to_file(file)
-        self._add_dplot_to_file(file,crystal_structure, orbital=bs_point[1],limits=limits,grid=grid)
+        self._add_dplot_to_file(file, crystal_structure, orbital=bs_point[1], limits=limits, grid=grid)
         file.write('task dplot\n')
         file.close()
         self._start_engine()
 
-    def calculate_electron_density(self,crystal_structure,limits=None,grid=(100,100,100)):
+    def calculate_electron_density(self, crystal_structure, limits=None, grid=(100, 100, 100)):
         """This method starts a calculation of the total (pseudo-) electron density in a subprocess.
 
 Args:
@@ -468,11 +472,11 @@ Returns:
     - None
                 """
         file = self._make_input_file()
-        file.write('title '+'"'+self.general_options['title']+'"\n')
-        self._add_geometry(file,crystal_structure,auto=False)
-        self._add_basis(file,crystal_structure)
+        file.write('title ' + '"' + self.general_options['title'] + '"\n')
+        self._add_geometry(file, crystal_structure, auto=False)
+        self._add_basis(file, crystal_structure)
         # self._add_scf_field_to_file(file)
-        self._add_dplot_to_file(file,crystal_structure, limits=limits, grid=grid)
+        self._add_dplot_to_file(file, crystal_structure, limits=limits, grid=grid)
         file.write('task dplot\n')
         file.close()
         self._start_engine()
@@ -518,13 +522,13 @@ Returns:
                 return False
 
     def _add_scf_to_file(self, file, crystal_structure, calculation='scf', band_points=None):
-        file.write('title '+'"'+self.general_options['title']+'"\n')
-        self._add_geometry(file,crystal_structure)
-        self._add_basis(file,crystal_structure)
+        file.write('title ' + '"' + self.general_options['title'] + '"\n')
+        self._add_geometry(file, crystal_structure)
+        self._add_basis(file, crystal_structure)
         self._add_scf_field_to_file(file)
         file.write('task ' + self.scf_options['method'])
         if calculation == 'optimize':
-            file.write(' '+calculation)
+            file.write(' ' + calculation)
         file.write('\n')
 
     def _make_input_file(self, filename='scf.in'):
@@ -533,7 +537,7 @@ Returns:
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _start_engine(self, filename='scf.in',blocking=False):
+    def _start_engine(self, filename='scf.in', blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
@@ -542,7 +546,7 @@ Returns:
 
         outname = filename.split('.')[0] + '.out'
         final_command = [None]
-        final_command[0] = command[0] +' '+ filename + ' >' + outname
+        final_command[0] = command[0] + ' ' + filename + ' >' + outname
 
         self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
@@ -551,68 +555,63 @@ Returns:
             while self.is_engine_running():
                 time.sleep(0.1)
 
-
-    def _add_geometry(self,file,crystal_structure,auto=False):
+    def _add_geometry(self, file, crystal_structure, auto=False):
         if not auto:
             auto_string = 'noautoz nocenter noautosym'
         else:
             auto_string = ''
-        file.write('geometry units atomic '+auto_string+'\n')
+        file.write('geometry units atomic ' + auto_string + '\n')
 
         for atom in crystal_structure.atoms:
-            file.write('    '+p_table[atom[3]].lower())
+            file.write('    ' + p_table[atom[3]].lower())
             file.write(" {0:1.9f} {1:1.9f} {2:1.9f}\n".format(*atom[:3]))
         file.write('end\n')
 
-    def _add_basis(self,file,crystal_structure):
+    def _add_basis(self, file, crystal_structure):
         file.write('basis\n')
-        file.write('    *'+ ' library ' + self.scf_options['basis']+'\n')
+        file.write('    *' + ' library ' + self.scf_options['basis'] + '\n')
         # for atom in crystal_structure.atoms:
         #     file.write('    '+p_table[atom[3]].lower() + ' library ' + self.scf_options['basis']+'\n')
         file.write('end\n')
 
-    def _add_scf_field_to_file(self,file,input=False):
+    def _add_scf_field_to_file(self, file, input=False):
         file.write('scf\n')
         if input:
             file.write('    vectors input scf.movecs\n')
-        file.write('   '+self.scf_options['spin state']+'\n')
-        file.write('   '+self.scf_options['spin restriction']+'\n')
+        file.write('   ' + self.scf_options['spin state'] + '\n')
+        file.write('   ' + self.scf_options['spin restriction'] + '\n')
 
         file.write('end\n')
 
-    def _add_dplot_to_file(self,file,crystal_structure,limits=None,orbital=None,grid=(100,100,100)):
+    def _add_dplot_to_file(self, file, crystal_structure, limits=None, orbital=None, grid=(100, 100, 100)):
 
         if limits is None:
             edge = 0.5
-            limits = np.zeros((3,3))
-            coords = crystal_structure.calc_absolute_coordinates()[:,:3]
+            limits = np.zeros((3, 3))
+            coords = crystal_structure.calc_absolute_coordinates()[:, :3]
             for i in range(3):
-                coord = coords[:,i]
-                tr_range = coord.max()-coord.min()
+                coord = coords[:, i]
+                tr_range = coord.max() - coord.min()
                 if tr_range < 0.5:
                     tr_range = 5
-                limits[i,:] = [coord.min()-tr_range*edge,coord.max()+tr_range*edge,grid[i]]
-
-
-
-
+                limits[i, :] = [coord.min() - tr_range * edge, coord.max() + tr_range * edge, grid[i]]
 
         file.write('dplot\n')
-        file.write('    TITLE '+self.general_options['title']+'\n')
+        file.write('    TITLE ' + self.general_options['title'] + '\n')
         file.write('    vectors scf.movecs\n')
         file.write('    LimitXYZ\n')
         for limit in limits:
-            limit[:2] = limit[:2]*bohr
+            limit[:2] = limit[:2] * bohr
             file.write('    {0:1.9f} {1:1.9f} {2:1.0f}\n'.format(*limit))
-
 
         file.write("""    spin total
     gaussian
     output chargedensity.cube\n""")
         if orbital is not None:
-            file.write('    orbitals density; 1; '+str(orbital)+'\n')
+            file.write('    orbitals density; 1; ' + str(orbital) + '\n')
 
         file.write('end\n')
+
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, -1.2, 7], [0, 0, 1.2, 7]])
@@ -629,7 +628,7 @@ if __name__ == '__main__':
     #     time.sleep(0.1)
     # dens = handler.read_ks_state()
 
-        # handler.scf_options['ecutwfc'] = 20.0
+    # handler.scf_options['ecutwfc'] = 20.0
     # band_structure_points = ((np.array([0,0,0]),'gamma'),(np.array([0.5,0.5,0.5]),'W'))
     # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points)
     #

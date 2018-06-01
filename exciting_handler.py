@@ -17,7 +17,6 @@ p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 
 hartree = 27.211
 
-
 if os.name == 'nt':
     shell_bool = True
     search_command = 'where'
@@ -38,6 +37,7 @@ def convert_greek(input):
 
 class Handler:
     """Main class for interacting with the electronic structure calculation engine EXCITING."""
+
     def __init__(self):
         self.engine_name = 'exciting'
         self.default_extension = '.xml'
@@ -60,10 +60,13 @@ exciting is an open-source, GPL-licensed code, written in a clean and fully docu
 It is equipped with a detailed documentation of current developments, including an interactive Input Reference webpage and over 30 Tutorials illustrating basic and advanced features. 
 The interface with pre- and post-processing tools integrates the capabilities of exciting for specific tasks, such as calculating elastic constants [GOL-2013] and optical coefficients [VOR-2016], as well as performing a cluster expansion for, e.g., thermoelectric materials with large parent cells [TRO-2017]."""
 
-        self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml', 'g0w0 bands': '/BAND-QP.OUT',
-                           'relax':'/geometry_opt.xml','g0w0':'/EIGVAL_GW.OUT','ks density':'/WF3D.xml','optical spectrum': None}
+        self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml',
+                                 'g0w0 bands': '/BAND-QP.OUT',
+                                 'relax': '/geometry_opt.xml', 'g0w0': '/EIGVAL_GW.OUT', 'ks density': '/WF3D.xml',
+                                 'optical spectrum': None}
 
-        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax','bandstructure'])
+        self.supported_methods = sst.ComputationalMethods(
+            ['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax', 'bandstructure'])
 
         self._timestamp_tasks = {}
 
@@ -76,8 +79,10 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = convert_to_ordered({'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5','frozencore':'false','xctype':'GGA_PBE'})
-        self.scf_options_tooltip = {'do':"""Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
+        self.scf_options = convert_to_ordered(
+            {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5',
+             'frozencore': 'false', 'xctype': 'GGA_PBE'})
+        self.scf_options_tooltip = {'do': """Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
 Type: 	choose from:
 fromscratch
 fromfile
@@ -90,7 +95,8 @@ skip"""}
         This may especially be the case for materials containing carbon, where rgkmax may be 4.5-5, or hydrogen, where even values between 3 and 4 may be sufficient. 
         In any case, a convergence check is indispensible for a proper choice of this parameter for your system!"""
 
-        self.scf_options_tooltip['gmaxvr'] = r'Maximum length of G for expanding the interstitial density and potential.'
+        self.scf_options_tooltip[
+            'gmaxvr'] = r'Maximum length of G for expanding the interstitial density and potential.'
         self.scf_options_tooltip['xctype'] = """Type of exchange-correlation functional to be used
 
     No exchange-correlation funtional ( Exc=0 )
@@ -143,48 +149,52 @@ Default: 	GGA_PBE"""
 
         self.general_options = {'title': 'title'}
         self.bs_options = convert_to_ordered({'steps': '300'})
-        self.relax_options = convert_to_ordered({'method':'bfgs'})
+        self.relax_options = convert_to_ordered({'method': 'bfgs'})
         self.relax_options_tooltip = {}
 
-        self.gw_options = convert_to_ordered({'nempty':'0','ngridq':"2 2 2",'ibgw':'1','nbgw':'0'})
+        self.gw_options = convert_to_ordered({'nempty': '0', 'ngridq': "2 2 2", 'ibgw': '1', 'nbgw': '0'})
 
-        self.gw_options_tooltip = {'nempty':'Number of empty states (cutoff parameter) used in GW.\n'
-                                            'If not specified, the same number as for the groundstate calculations is used.'}
+        self.gw_options_tooltip = {'nempty': 'Number of empty states (cutoff parameter) used in GW.\n'
+                                             'If not specified, the same number as for the groundstate calculations is used.'}
         self.gw_options_tooltip['ngridq'] = 'k/q-point grid size to be used in GW calculations'
         self.gw_options_tooltip['ibgw'] = 'Lower band index for GW output.'
         self.gw_options_tooltip['nbgw'] = 'Upper band index for GW output.'
 
-        self.phonons_options = convert_to_ordered({'do':'fromscratch','ngridq':'2 2 2'})
+        self.phonons_options = convert_to_ordered({'do': 'fromscratch', 'ngridq': '2 2 2'})
         self.phonons_options_tooltip = {}
 
-        self.optical_spectrum_options = convert_to_ordered({'xstype':'BSE','intv':'0.0 0.5','points':'1000','bsetype':"singlet",'nstlbse':"1 4 1 4",'screentype':'full'
-                                         ,'nempty_screening':'0','use gw':'false','nempty':'5','ngridq':"4 4 4",'ngridk':"4 4 4",'broad':'0.0005',
-                                         'gqmax':"3.0",'vkloff':"0.231 0.151 0.432"})
-        self.optical_spectrum_options_tooltip = {'nstlbse':'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
-                                                 'nempty_screening':'Number of empty states.',
-                                                 'vkloff':'k-point offset for screening Type: floats\n Do not use negative numbers',
-                                                 'intv':'energy interval lower and upper limits (in hartree)',
-                                                 'gqmax':'|G+q| cutoff for Kohn-Sham response function, screening and for expansion of Coulomb potential',
-                                                 'ngridq':'q-point grid sizes','ngridk':'k-point grid size',
-                                                 'broad':'Lorentzian broadening for all spectra (in hartree)',
-                                                 'screentype':"""Defines which type of screening is to be used.
+        self.optical_spectrum_options = convert_to_ordered(
+            {'xstype': 'BSE', 'intv': '0.0 0.5', 'points': '1000', 'bsetype': "singlet", 'nstlbse': "1 4 1 4",
+             'screentype': 'full'
+                , 'nempty_screening': '0', 'use gw': 'false', 'nempty': '5', 'ngridq': "4 4 4", 'ngridk': "4 4 4",
+             'broad': '0.0005',
+             'gqmax': "3.0", 'vkloff': "0.231 0.151 0.432"})
+        self.optical_spectrum_options_tooltip = {
+            'nstlbse': 'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
+            'nempty_screening': 'Number of empty states.',
+            'vkloff': 'k-point offset for screening Type: floats\n Do not use negative numbers',
+            'intv': 'energy interval lower and upper limits (in hartree)',
+            'gqmax': '|G+q| cutoff for Kohn-Sham response function, screening and for expansion of Coulomb potential',
+            'ngridq': 'q-point grid sizes', 'ngridk': 'k-point grid size',
+            'broad': 'Lorentzian broadening for all spectra (in hartree)',
+            'screentype': """Defines which type of screening is to be used.
 Type:   choose from:
 full
 diag
 noinvdiag
 longrange
 """,
-                                                 'nempty':"""Number of empty states. This parameter determines the energy cutoff for the excitation spectra. For determining the number of states related to an energy cutoff, perform one iteration of a SCF calculation, setting nempty to a higher value and check the EIGVAL.OUT.
+            'nempty': """Number of empty states. This parameter determines the energy cutoff for the excitation spectra. For determining the number of states related to an energy cutoff, perform one iteration of a SCF calculation, setting nempty to a higher value and check the EIGVAL.OUT.
 Type: 	integer
-"""  ,
-                                                 'xstype':"""Attribute: xstype
+""",
+            'xstype': """Attribute: xstype
 
 Should TDDFT be used or BSE.
 Type: 	choose from:
 TDDFT
 BSE""",
-                                                 'use gw':'use gw band structure as basis (true or false)',
-                                                 'bsetype':"""Defines which parts of the BSE Hamiltonian are to be considered.
+            'use gw': 'use gw band structure as basis (true or false)',
+            'bsetype': """Defines which parts of the BSE Hamiltonian are to be considered.
 Type: 	choose from:
 IP (Independent particles)
 RPA (random phase approximation)
@@ -194,7 +204,8 @@ triplet"""}
         self.relax_file_timestamp = None
 
     def find_engine_folder(self):
-        p = subprocess.Popen([search_command, 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=shell_bool)
+        p = subprocess.Popen([search_command, 'excitingser'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             shell=shell_bool)
         res, err = p.communicate()
         res = res.decode()
         res = res.split('bin')[0]
@@ -240,10 +251,10 @@ triplet"""}
                 atomic_cord_list.append(pos_vec)
 
         atom_array = np.array(atomic_cord_list)
-        crystal_structure = sst.CrystalStructure(crystal_base, atom_array,scale=scale)
+        crystal_structure = sst.CrystalStructure(crystal_base, atom_array, scale=scale)
         return crystal_structure
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None,blocking=False):
+    def start_ground_state(self, crystal_structure, band_structure_points=None, blocking=False):
         """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
 
 Args:
@@ -268,7 +279,6 @@ Returns:
         self._read_timestamps()
         self.current_output_file = 'INFO.OUT'
 
-
         tree = self._make_tree()
         self._add_scf_to_tree(tree, crystal_structure)
         if band_structure_points is not None:
@@ -277,7 +287,7 @@ Returns:
         time.sleep(0.05)
         self._start_engine(blocking=blocking)
 
-    def start_optical_spectrum(self,crystal_structure):
+    def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
 
 Args:
@@ -287,18 +297,19 @@ Returns:
     - None
         """
 
-        self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT'
+        self._filenames_tasks['optical spectrum'] = '/EPSILON_BSE' + self.optical_spectrum_options[
+            'bsetype'] + '_SCRfull_OC11.OUT'
         self._read_timestamps()
         self.current_output_file = 'INFOXS.OUT'
 
         tree = self._make_tree()
-        self._add_scf_to_tree(tree, crystal_structure,skip=True)
+        self._add_scf_to_tree(tree, crystal_structure, skip=True)
         self._add_optical_spectrum_to_tree(tree)
         self._write_input_file(tree)
         time.sleep(0.05)
         self._start_engine()
 
-    def start_gw(self,crystal_structure,band_structure_points=None,blocking=False):
+    def start_gw(self, crystal_structure, band_structure_points=None, blocking=False):
         """This method starts a g0w0 calculation in a subprocess. The configuration is stored in gw_options.
 
 Args:
@@ -319,7 +330,7 @@ Returns:
         self._read_timestamps()
         self.current_output_file = 'GW_INFO.OUT'
         tree = self._make_tree()
-        self._add_scf_to_tree(tree, crystal_structure,skip=True)
+        self._add_scf_to_tree(tree, crystal_structure, skip=True)
         self._add_gw_to_tree(tree, taskname='g0w0')
         self._write_input_file(tree)
 
@@ -332,7 +343,7 @@ Returns:
                 self.engine_process.wait()
             if band_structure_points is not None:
                 tree = self._make_tree()
-                self._add_scf_to_tree(tree, crystal_structure,skip=True)
+                self._add_scf_to_tree(tree, crystal_structure, skip=True)
                 self._add_gw_to_tree(tree, taskname='band')
                 self._add_bs_to_tree(tree, band_structure_points)
                 self._write_input_file(tree)
@@ -363,7 +374,7 @@ Returns:
         time.sleep(0.05)
         self._start_engine()
 
-    def start_relax(self,crystal_structure):
+    def start_relax(self, crystal_structure):
         """This method starts a structure relaxation calculation in a subprocess. The configuration is stored in relax_options.
 
 Args:
@@ -386,7 +397,7 @@ Returns:
 Returns:
     - CrystalStructure or MolecularStructure object depending on the material under study.
         """
-        file = self.project_directory+self.working_dirctory + 'geometry_opt.xml'
+        file = self.project_directory + self.working_dirctory + 'geometry_opt.xml'
         if not os.path.isfile(file):
             return None
         if self.relax_file_timestamp is not None and os.path.getmtime(file) == self.relax_file_timestamp:
@@ -424,7 +435,7 @@ Returns:
             return None
         return res
 
-    def read_bandstructure(self,crystal_structure=None,special_k_points=None):
+    def read_bandstructure(self, crystal_structure=None, special_k_points=None):
         """This method reads the result of a electronic band structure calculation.
 
 Keyword args:
@@ -438,7 +449,8 @@ Returns:
     - band_structure:       A BandStructure object with the latest band structure result found.
         """
         try:
-            e = xml.etree.ElementTree.parse(self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
+            e = xml.etree.ElementTree.parse(
+                self.project_directory + self.working_dirctory + 'bandstructure.xml').getroot()
         except IOError as e:
             return None
 
@@ -475,10 +487,9 @@ Returns:
 
         special_k_points_together = list(zip(special_k_points, special_k_points_label))
 
-
         return sst.BandStructure(bands, special_k_points=special_k_points_together)
 
-    def read_gw_bandstructure(self,filename='BAND-QP.OUT',special_k_points=None,structure=None):
+    def read_gw_bandstructure(self, filename='BAND-QP.OUT', special_k_points=None, structure=None):
         """This method reads the result of a gw electronic band structure calculation.
 
 Keyword args:
@@ -492,13 +503,11 @@ Returns:
             band_structure = self.read_bandstructure()
             special_k_points = band_structure.special_k_points
         else:
-            special_k_points = sst.calculate_path_length(structure,special_k_points)
-
-
+            special_k_points = sst.calculate_path_length(structure, special_k_points)
 
         band_qp = np.loadtxt(self.project_directory + self.working_dirctory + filename)
         k_qp = band_qp[:, 0]
-        E_qp = band_qp[:, 1]*hartree
+        E_qp = band_qp[:, 1] * hartree
 
         band_sep = np.where(k_qp == 0)[0]
         N_k = band_sep[1]
@@ -507,21 +516,21 @@ Returns:
         E_qp = np.resize(E_qp, [N_bands, N_k]).T
         bands_qp = []
         for i in range(N_bands):
-            bands_qp.append(np.array([k_qp[:,i],E_qp[:,i]]).T )
+            bands_qp.append(np.array([k_qp[:, i], E_qp[:, i]]).T)
 
         if filename == 'PHDISP.OUT':
             bs_type = 'phonon'
         else:
             bs_type = 'electronic'
-        return sst.BandStructure(bands_qp,special_k_points=special_k_points,bs_type=bs_type)
+        return sst.BandStructure(bands_qp, special_k_points=special_k_points, bs_type=bs_type)
 
-    def read_phonon_bandstructure(self,special_k_points=None,structure=None):
+    def read_phonon_bandstructure(self, special_k_points=None, structure=None):
         """This method reads the result of a phonon band structure calculation.
 
 Returns:
     - band_structure:       A BandStructure object with the latest phonon band structure result found.
         """
-        return self.read_gw_bandstructure(filename='PHDISP.OUT',special_k_points=special_k_points,structure=structure)
+        return self.read_gw_bandstructure(filename='PHDISP.OUT', special_k_points=special_k_points, structure=structure)
 
     def read_optical_spectrum(self):
         """This method reads the result of a optical spectrum calculation.
@@ -529,15 +538,20 @@ Returns:
 Returns:
     - optical_spectrum:       A OpticalSpectrum object with the latest optical spectrum result found.
         """
-        eps_11 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC11.OUT')
-        eps_22 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC22.OUT')
-        eps_33 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options['bsetype'] + '_SCRfull_OC33.OUT')
+        eps_11 = np.loadtxt(
+            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                'bsetype'] + '_SCRfull_OC11.OUT')
+        eps_22 = np.loadtxt(
+            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                'bsetype'] + '_SCRfull_OC22.OUT')
+        eps_33 = np.loadtxt(
+            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                'bsetype'] + '_SCRfull_OC33.OUT')
 
+        list_of_eps2 = [eps_11[:, 2], eps_22[:, 2], eps_33[:, 2]]
+        list_of_eps1 = [eps_11[:, 1], eps_22[:, 1], eps_33[:, 1]]
 
-        list_of_eps2 = [eps_11[:,2],eps_22[:,2],eps_33[:,2]]
-        list_of_eps1 = [eps_11[:,1],eps_22[:,1],eps_33[:,1]]
-
-        return sst.OpticalSpectrum(eps_11[:,0]*hartree,list_of_eps2,epsilon1=list_of_eps1)
+        return sst.OpticalSpectrum(eps_11[:, 0] * hartree, list_of_eps2, epsilon1=list_of_eps1)
 
     def read_ks_state(self):
         """This method reads the result of a electronic state calculation and returns the modulo squared of the wavefunction.
@@ -546,19 +560,20 @@ Returns:
     - ks_density:       A KohnShamDensity or MolecularDensity object with the latest result found.
         """
         self._convert_3d_plot()
-        l_data = np.genfromtxt(self.project_directory + self.working_dirctory + 'WF3D.xsf', skip_header=9, skip_footer=2, dtype=np.float)
+        l_data = np.genfromtxt(self.project_directory + self.working_dirctory + 'WF3D.xsf', skip_header=9,
+                               skip_footer=2, dtype=np.float)
         n_grid = l_data.shape[1]
         # data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
-        data = np.zeros((n_grid,n_grid,n_grid))
+        data = np.zeros((n_grid, n_grid, n_grid))
         for i in range(n_grid):
             for j in range(n_grid):
                 for k in range(n_grid):
-                    data[i,k,j] = l_data[n_grid*j+k,i]
-            # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
-        data = data/data.max()
+                    data[i, k, j] = l_data[n_grid * j + k, i]
+                    # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
+        data = data / data.max()
         return sst.KohnShamDensity(data)
 
-    def calculate_ks_density(self,crystal_structure,bs_point,grid='40 40 40'):
+    def calculate_ks_density(self, crystal_structure, bs_point, grid='40 40 40'):
         """This method starts a calculation of a specific electronic state in a subprocess.
 
 Args:
@@ -604,7 +619,7 @@ Returns:
         except Exception as e:
             print(e)
 
-    def is_engine_running(self,tasks=None):
+    def is_engine_running(self, tasks=None):
         """Determines whether the engine is currently running.
 
 Keyword args:
@@ -647,8 +662,9 @@ Returns:
 
     def _add_scf_to_tree(self, tree, crystal_structure, skip=False):
         root = tree.getroot()
-        structure = ET.SubElement(root, "structure", speciespath=self.dft_installation_folder + 'species', tshift='false', autormt='true')
-        crystal = ET.SubElement(structure, "crystal",scale='1.0')
+        structure = ET.SubElement(root, "structure", speciespath=self.dft_installation_folder + 'species',
+                                  tshift='false', autormt='true')
+        crystal = ET.SubElement(structure, "crystal", scale='1.0')
         for i in range(3):
             lattice_vector = crystal_structure.lattice_vectors[i, :]
             ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
@@ -666,14 +682,13 @@ Returns:
             for i in range(n_atoms_specie):
                 ET.SubElement(specie_xml_el, "atom", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*sub_coords[i, :]))
 
-
         if skip:
             new_scf_options = {}
             new_scf_options.update(self.scf_options)
             new_scf_options['do'] = 'skip'
-            groundstate = ET.SubElement(root, "groundstate",**new_scf_options)
+            groundstate = ET.SubElement(root, "groundstate", **new_scf_options)
         else:
-            groundstate = ET.SubElement(root, "groundstate",**self.scf_options)
+            groundstate = ET.SubElement(root, "groundstate", **self.scf_options)
 
     def _add_bs_to_tree(self, tree, points):
         root = tree.getroot()
@@ -688,11 +703,11 @@ Returns:
 
     def _add_relax_to_tree(self, tree):
         root = tree.getroot()
-        relax = ET.SubElement(root, "relax",**self.relax_options)
+        relax = ET.SubElement(root, "relax", **self.relax_options)
 
     def _add_gw_to_tree(self, tree, taskname='g0w0'):
         root = tree.getroot()
-        gw = ET.SubElement(root, "gw",taskname=taskname,**self.gw_options)
+        gw = ET.SubElement(root, "gw", taskname=taskname, **self.gw_options)
 
     def _add_optical_spectrum_to_tree(self, tree):
         root = tree.getroot()
@@ -703,32 +718,37 @@ Returns:
         else:
             raise Exception('Bad option for use gw')
 
-        xs = ET.SubElement(root, "xs", xstype = self.optical_spectrum_options['xstype'],nempty = self.optical_spectrum_options['nempty'],
-                           ngridk=self.optical_spectrum_options['ngridk'],ngridq = self.optical_spectrum_options['ngridq']
-                           ,broad=self.optical_spectrum_options['broad'],gqmax=self.optical_spectrum_options['gqmax'],
+        xs = ET.SubElement(root, "xs", xstype=self.optical_spectrum_options['xstype'],
+                           nempty=self.optical_spectrum_options['nempty'],
+                           ngridk=self.optical_spectrum_options['ngridk'],
+                           ngridq=self.optical_spectrum_options['ngridq']
+                           , broad=self.optical_spectrum_options['broad'], gqmax=self.optical_spectrum_options['gqmax'],
                            vkloff=self.optical_spectrum_options['vkloff'])
-        ewindow = ET.SubElement(xs, "energywindow",intv = self.optical_spectrum_options['intv'],points = self.optical_spectrum_options['points'])
-        screening = ET.SubElement(xs, "screening",screentype = self.optical_spectrum_options['screentype'],
+        ewindow = ET.SubElement(xs, "energywindow", intv=self.optical_spectrum_options['intv'],
+                                points=self.optical_spectrum_options['points'])
+        screening = ET.SubElement(xs, "screening", screentype=self.optical_spectrum_options['screentype'],
                                   nempty=self.optical_spectrum_options['nempty_screening'])
-        BSE = ET.SubElement(xs, "BSE", bsetype = self.optical_spectrum_options['bsetype'],nstlbse = self.optical_spectrum_options['nstlbse'])
-        qpointset = ET.SubElement(xs,'qpointset')
-        qpoint = ET.SubElement(qpointset,'qpoint').text = '0.0 0.0 0.0'
+        BSE = ET.SubElement(xs, "BSE", bsetype=self.optical_spectrum_options['bsetype'],
+                            nstlbse=self.optical_spectrum_options['nstlbse'])
+        qpointset = ET.SubElement(xs, 'qpointset')
+        qpoint = ET.SubElement(qpointset, 'qpoint').text = '0.0 0.0 0.0'
 
     def _add_phonon_to_tree(self, tree, points):
         root = tree.getroot()
-        phonon = ET.SubElement(root, "phonons",**self.phonons_options)
+        phonon = ET.SubElement(root, "phonons", **self.phonons_options)
         disp = ET.SubElement(phonon, "phonondispplot")
         plot1d = ET.SubElement(disp, "plot1d")
-        path = ET.SubElement(plot1d,'path', steps=self.bs_options['steps'])
+        path = ET.SubElement(plot1d, 'path', steps=self.bs_options['steps'])
         for point in points:
             cords = point[0]
             label = point[1]
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
 
     def _read_timestamps(self):
-        for task,filename in self._filenames_tasks.items():
-            if filename and os.path.isfile(self.project_directory+self.working_dirctory+filename):
-                self._timestamp_tasks[task]=os.path.getmtime(self.project_directory + self.working_dirctory + filename)
+        for task, filename in self._filenames_tasks.items():
+            if filename and os.path.isfile(self.project_directory + self.working_dirctory + filename):
+                self._timestamp_tasks[task] = os.path.getmtime(
+                    self.project_directory + self.working_dirctory + filename)
 
     def _check_if_scf_is_finished(self):
         try:
@@ -753,10 +773,10 @@ Returns:
 
             # tree.write(self.project_directory+self.working_dirctory+self.input_filename)
 
-    def _start_engine(self,blocking=False):
+    def _start_engine(self, blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
-            command = ['bash',self.custom_command]
+            command = ['bash', self.custom_command]
             # if tasks is not None:
             #     filenames = [self.filenames_tasks[task] for task in tasks if task != 'scf']
             #     for filename in filenames:
@@ -769,6 +789,7 @@ Returns:
         if blocking:
             while self.is_engine_running():
                 time.sleep(0.1)
+
     #
     # def read_engine_status(self):
     #     if not self.is_engine_running():
@@ -777,7 +798,7 @@ Returns:
     #     else:
     #         return None
 
-    def _is_engine_running_custom_command(self,tasks):
+    def _is_engine_running_custom_command(self, tasks):
         bool_list = []
 
         for task in tasks:
@@ -797,7 +818,6 @@ Returns:
             file_exist_and_new = file_exists and not file_is_old_bool
             bool_list.append(file_exist_and_new)
 
-
         if 'scf' in tasks:
             bool_list.append(self._check_if_scf_is_finished())
 
@@ -815,7 +835,7 @@ Returns:
     def _convert_3d_plot(self):
         os.chdir(self.project_directory + self.working_dirctory)
         command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
-        self.helper_process = subprocess.call(command,shell=True)
+        self.helper_process = subprocess.call(command, shell=True)
 
     def _add_ks_density_to_tree(self, tree, bs_point, grid):
         root = tree.getroot()
@@ -825,18 +845,17 @@ Returns:
         pointstatepair = ET.SubElement(kstlist, "pointstatepair").text = '{0} {1}'.format(*bs_point)
 
         plot3d = ET.SubElement(wfplot, "plot3d")
-        box = ET.SubElement(plot3d, "box",grid=grid)
+        box = ET.SubElement(plot3d, "box", grid=grid)
 
-        p0 = np.array([0.0,0.0,0.0])
-        p1 = np.array([1.0,0.0,0.0])
-        p2 = np.array([0.0,1.0,0.0])
-        p3 = np.array([0.0,0.0,1.0])
+        p0 = np.array([0.0, 0.0, 0.0])
+        p1 = np.array([1.0, 0.0, 0.0])
+        p2 = np.array([0.0, 1.0, 0.0])
+        p3 = np.array([0.0, 0.0, 1.0])
 
-
-        origin = ET.SubElement(box, "origin",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p0))
-        p1 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p1))
-        p2 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
-        p3 = ET.SubElement(box, "point",coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
+        origin = ET.SubElement(box, "origin", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p0))
+        p1 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p1))
+        p2 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
+        p3 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
 
 
 if __name__ == '__main__':
@@ -853,9 +872,9 @@ if __name__ == '__main__':
     unit_cell = 6.6 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-    handler.calculate_ks_density(crystal_structure,[1,1])
+    handler.calculate_ks_density(crystal_structure, [1, 1])
 
-    handler.read_gw_bandstructure(special_k_points=path,structure=crystal_structure)
+    handler.read_gw_bandstructure(special_k_points=path, structure=crystal_structure)
 
 
     # handler.custom_command_active = True
@@ -903,5 +922,3 @@ if __name__ == '__main__':
     # mlab.view(azimuth=155, elevation=70, distance='auto')
     #
     # mlab.show()
-
-

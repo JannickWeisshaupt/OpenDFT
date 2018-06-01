@@ -64,12 +64,13 @@ gnuplot
 gnuplot2
 gray
 hot
-hsv'
+hsv
 inferno
 jet
 magma
 nipy_spectral
-oceanpink
+ocean
+pink
 plasma
 prism
 rainbow
@@ -80,4 +81,3 @@ summer
 terrain
 viridis
 winter
-

@@ -4,7 +4,7 @@ import re
 import periodictable as pt
 from bisect import bisect
 import time
-from scipy.spatial import ConvexHull,Voronoi
+from scipy.spatial import ConvexHull, Voronoi
 import os
 import copy
 from little_helpers import find_data_file
@@ -13,10 +13,9 @@ from collections import OrderedDict
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 import pymatgen as mg
 
-
 bohr = 0.52917721067
 
-cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat'))/bohr
+cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat')) / bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
@@ -34,129 +33,140 @@ def remove_duplicates_old(data, treshold=0.01):
             new_data.append(data[iii, :])
     return np.array(new_data)
 
+
 class MolecularStructure(object):
-    def __init__(self, atoms,scale=1.0):
-        self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
-        self.atoms[:,:3] = self.atoms[:,:3]*scale
+    def __init__(self, atoms, scale=1.0):
+        self.atoms = np.array(atoms, dtype=np.float)  # np array with [x,y,z,type] type is number in periodic system
+        self.atoms[:, :3] = self.atoms[:, :3] * scale
         self.n_atoms = atoms.shape[0]
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
-    def calc_absolute_coordinates(self,repeat=[1,1,1]):
+    def calc_absolute_coordinates(self, repeat=[1, 1, 1]):
         return self.atoms
 
-    def find_bonds(self,abs_coords):
+    def find_bonds(self, abs_coords):
         n_atoms = abs_coords.shape[0]
-        abs_coords_pure = abs_coords[:,:3]
+        abs_coords_pure = abs_coords[:, :3]
 
-        dist_mat = np.zeros((n_atoms,n_atoms))
+        dist_mat = np.zeros((n_atoms, n_atoms))
         bonds = []
         for j1 in range(n_atoms):
-            for j2 in range(j1+1,n_atoms):
+            for j2 in range(j1 + 1, n_atoms):
 
-                dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
-                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.3:
+                dist = np.linalg.norm(abs_coords_pure[j1, :] - abs_coords_pure[j2, :])
+                if dist < (cov_radii[int(abs_coords[j1, 3])] + cov_radii[int(abs_coords[j2, 3])]) * 1.3:
                     dist_mat[j1, j2] = dist
-                    bonds.append([j1,j2]);
+                    bonds.append([j1, j2]);
         return bonds
 
+
 class CrystalStructure(object):
-    def __init__(self,lattice_vectors,atoms,relative_coords=True,scale=1.0):
-        self._lattice_vectors = np.array(lattice_vectors, dtype=np.float) # tuple of np.arrays
+    def __init__(self, lattice_vectors, atoms, relative_coords=True, scale=1.0):
+        self._lattice_vectors = np.array(lattice_vectors, dtype=np.float)  # tuple of np.arrays
 
         self.calculate_inv_lattice()
 
-        self.atoms = np.array(atoms,dtype=np.float) # np array with [x,y,z,type] type is number in periodic system
+        self.atoms = np.array(atoms, dtype=np.float)  # np array with [x,y,z,type] type is number in periodic system
         self.n_atoms = atoms.shape[0]
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
         if relative_coords:
-            self.atoms[:,:3] = np.mod(self.atoms[:,:3],1)
+            self.atoms[:, :3] = np.mod(self.atoms[:, :3], 1)
         else:
             inv_lattice_vecs = np.linalg.inv(self.lattice_vectors.T)
             for i in range(self.n_atoms):
-                self.atoms[i,:3] = np.dot(inv_lattice_vecs,self.atoms[i,:3].T)
+                self.atoms[i, :3] = np.dot(inv_lattice_vecs, self.atoms[i, :3].T)
 
     @property
     def lattice_vectors(self):
         return self._lattice_vectors
 
     @lattice_vectors.setter
-    def lattice_vectors(self,value):
+    def lattice_vectors(self, value):
         self._lattice_vectors = value
         self.calculate_inv_lattice()
 
-    def calc_absolute_coordinates(self,repeat=[1,1,1]):
-        n_repeat = repeat[0]*repeat[1]*repeat[2]
+    def calc_absolute_coordinates(self, repeat=[1, 1, 1]):
+        n_repeat = repeat[0] * repeat[1] * repeat[2]
 
-        abs_coord = np.zeros((self.n_atoms,repeat[0],repeat[1],repeat[2],4))
+        abs_coord = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 4))
 
         for j1 in range(repeat[0]):
             for j2 in range(repeat[1]):
                 for j3 in range(repeat[2]):
                     for i in range(self.n_atoms):
-                        abs_coord[i,j1,j2,j3,:3] = np.dot(self.lattice_vectors.T,self.atoms[i,:3].T) + j3*self.lattice_vectors[2,:]+j2*self.lattice_vectors[1,:]+j1*self.lattice_vectors[0,:]
-                        abs_coord[i,j1,j2,j3,3] = self.atoms[i,3]
-                abs_coord_out = abs_coord.reshape((n_repeat*self.n_atoms,4))
+                        abs_coord[i, j1, j2, j3, :3] = np.dot(self.lattice_vectors.T,
+                                                              self.atoms[i, :3].T) + j3 * self.lattice_vectors[2,
+                                                                                          :] + j2 * self.lattice_vectors[
+                                                                                                    1,
+                                                                                                    :] + j1 * self.lattice_vectors[
+                                                                                                              0, :]
+                        abs_coord[i, j1, j2, j3, 3] = self.atoms[i, 3]
+                abs_coord_out = abs_coord.reshape((n_repeat * self.n_atoms, 4))
         return abs_coord_out
 
-    def find_bonds_old(self,abs_coords):
+    def find_bonds_old(self, abs_coords):
         import time
         st = time.time()
         n_atoms = abs_coords.shape[0]
-        abs_coords_pure = abs_coords[:,:3]
+        abs_coords_pure = abs_coords[:, :3]
 
-        dist_mat = np.zeros((n_atoms,n_atoms))
+        dist_mat = np.zeros((n_atoms, n_atoms))
         bonds = []
         for j1 in range(n_atoms):
-            for j2 in range(j1+1,n_atoms):
+            for j2 in range(j1 + 1, n_atoms):
 
-                dist = np.linalg.norm(abs_coords_pure[j1,:]-abs_coords_pure[j2,:] )
-                if dist < (cov_radii[int(abs_coords[j1,3])]+cov_radii[int(abs_coords[j2,3])])*1.3:
+                dist = np.linalg.norm(abs_coords_pure[j1, :] - abs_coords_pure[j2, :])
+                if dist < (cov_radii[int(abs_coords[j1, 3])] + cov_radii[int(abs_coords[j2, 3])]) * 1.3:
                     dist_mat[j1, j2] = dist
-                    bonds.append([j1,j2])
-        print(time.time()-st)
+                    bonds.append([j1, j2])
+        print(time.time() - st)
         return bonds
 
-    def find_bonds(self,abs_coords):
+    def find_bonds(self, abs_coords):
         n_atoms = abs_coords.shape[0]
-        abs_coords_pure = abs_coords[:,:3]
+        abs_coords_pure = abs_coords[:, :3]
 
         bonds = set()
-        cov_radii_array = np.array([cov_radii[int(x)] for x in abs_coords[:,3]])
+        cov_radii_array = np.array([cov_radii[int(x)] for x in abs_coords[:, 3]])
         for j1 in range(n_atoms):
-            dist = np.linalg.norm(abs_coords_pure[j1+1:,:]-abs_coords_pure[j1,:], axis=1)
-            mask_array = dist < (cov_radii_array[j1+1:]+cov_radii[int(abs_coords[j1,3])])*1.3
+            dist = np.linalg.norm(abs_coords_pure[j1 + 1:, :] - abs_coords_pure[j1, :], axis=1)
+            mask_array = dist < (cov_radii_array[j1 + 1:] + cov_radii[int(abs_coords[j1, 3])]) * 1.3
             indexes = np.where(mask_array)[0]
             for index in indexes:
-                if j1 != index+j1+1:
-                    bonds.add((j1,index+j1+1))
+                if j1 != index + j1 + 1:
+                    bonds.add((j1, index + j1 + 1))
 
         return list(bonds)
 
-    def convert_to_tpiba(self,band_structure_points):
-        if type(band_structure_points) in [list,tuple]:
+    def convert_to_tpiba(self, band_structure_points):
+        if type(band_structure_points) in [list, tuple]:
             band_structure_points = np.array(band_structure_points)
         N = band_structure_points.shape[0]
-        conv_points = np.zeros((N,3))
+        conv_points = np.zeros((N, 3))
         a = np.linalg.norm(self.lattice_vectors[0, :])
         for i in range(N):
-            conv_points[i,:] = np.dot(self.inv_lattice_vectors.T,band_structure_points[i,:])/(2*np.pi/a)
+            conv_points[i, :] = np.dot(self.inv_lattice_vectors.T, band_structure_points[i, :]) / (2 * np.pi / a)
         return conv_points
 
     def calculate_inv_lattice(self):
-        volume = np.dot(np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:]),self.lattice_vectors[2,:])
-        self.inv_lattice_vectors = np.zeros((3,3))
-        self.inv_lattice_vectors[0,:] = np.cross(self.lattice_vectors[1,:],self.lattice_vectors[2,:])*2*np.pi/volume
-        self.inv_lattice_vectors[1,:] = np.cross(self.lattice_vectors[2,:],self.lattice_vectors[0,:])*2*np.pi/volume
-        self.inv_lattice_vectors[2,:] = np.cross(self.lattice_vectors[0,:],self.lattice_vectors[1,:])*2*np.pi/volume
+        volume = np.dot(np.cross(self.lattice_vectors[0, :], self.lattice_vectors[1, :]), self.lattice_vectors[2, :])
+        self.inv_lattice_vectors = np.zeros((3, 3))
+        self.inv_lattice_vectors[0, :] = np.cross(self.lattice_vectors[1, :],
+                                                  self.lattice_vectors[2, :]) * 2 * np.pi / volume
+        self.inv_lattice_vectors[1, :] = np.cross(self.lattice_vectors[2, :],
+                                                  self.lattice_vectors[0, :]) * 2 * np.pi / volume
+        self.inv_lattice_vectors[2, :] = np.cross(self.lattice_vectors[0, :],
+                                                  self.lattice_vectors[1, :]) * 2 * np.pi / volume
+
 
 class BandStructure(object):
-    def __init__(self,bands,special_k_points=None,bs_type='electronic'):
+    def __init__(self, bands, special_k_points=None, bs_type='electronic'):
         self.bands = bands
         try:
-            self.bandgap,self.k_bandgap = self._find_bandgap(bands)
+            self.bandgap, self.k_bandgap = self._find_bandgap(bands)
         except Exception:
-            self.bandgap,self.k_bandgap = (0,None)
+            self.bandgap, self.k_bandgap = (0, None)
         self.special_k_points = special_k_points
         self.bs_type = bs_type
         self.engine_information = None
@@ -180,31 +190,32 @@ class BandStructure(object):
             k_bandgap = None
         return bandgap, k_bandgap
 
+
 class EnergyDiagram(object):
-    def __init__(self,energies,labels,occupations=None):
+    def __init__(self, energies, labels, occupations=None):
         self.energies = energies
         self.labels = labels
         self.occupations = occupations
-        self.homo_lumo_gap,self.E_fermi = self._find_homo_lumo_gap(energies)
+        self.homo_lumo_gap, self.E_fermi = self._find_homo_lumo_gap(energies)
         self.engine_information = None
 
-    def _find_homo_lumo_gap(self,energies):
+    def _find_homo_lumo_gap(self, energies):
         if self.occupations is None:
-            index = bisect(energies,0)
-            gap = energies[index] - energies[index-1]
-            E_fermi = energies[index-1] + gap/2
+            index = bisect(energies, 0)
+            gap = energies[index] - energies[index - 1]
+            E_fermi = energies[index - 1] + gap / 2
         else:
             unoccupied_energies = []
             occupied_energies = []
-            for energy,occupation in zip(self.energies,self.occupations):
-                if occupation==0:
+            for energy, occupation in zip(self.energies, self.occupations):
+                if occupation == 0:
                     unoccupied_energies.append(energy)
                 else:
                     occupied_energies.append(energy)
             gap = min(unoccupied_energies) - max(occupied_energies)
-            E_fermi = max(occupied_energies) + gap/2
+            E_fermi = max(occupied_energies) + gap / 2
 
-        return gap,E_fermi
+        return gap, E_fermi
 
 
 class OpticalSpectrum:
@@ -218,15 +229,15 @@ class OpticalSpectrum:
         self.epsilon1_22 = None
         self.epsilon1_33 = None
 
-        if type(epsilon2) == list or type(epsilon2)== tuple:
+        if type(epsilon2) == list or type(epsilon2) == tuple:
             self.epsilon2_11 = epsilon2[0]
             self.epsilon2_22 = epsilon2[1]
             self.epsilon2_33 = epsilon2[2]
-            self.epsilon2 = (self.epsilon2_11+self.epsilon2_22+self.epsilon2_33)/3
+            self.epsilon2 = (self.epsilon2_11 + self.epsilon2_22 + self.epsilon2_33) / 3
         else:
             self.epsilon2 = epsilon2
 
-        if epsilon1 is not None and (type(epsilon1) == list or type(epsilon1)== tuple):
+        if epsilon1 is not None and (type(epsilon1) == list or type(epsilon1) == tuple):
             self.epsilon1_11 = epsilon1[0]
             self.epsilon1_22 = epsilon1[1]
             self.epsilon1_33 = epsilon1[2]
@@ -234,53 +245,51 @@ class OpticalSpectrum:
         else:
             self.epsilon1 = epsilon1
 
-        self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2]
-
+        self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2_11,
+                             self.epsilon1_22, self.epsilon1_33, self.epsilon2]
 
 
 class StructureParser:
     def __init__(self):
         pass
 
-    def parse_cif_file(self,filename):
+    def parse_cif_file(self, filename):
         with open(filename, 'r') as f:
             cif_text = f.read()
-        cif_text = cif_text.replace('\r','')
+        cif_text = cif_text.replace('\r', '')
         alpha = float(re.findall(r"_cell_angle_alpha[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         beta = float(re.findall(r"_cell_angle_beta[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         gamma = float(re.findall(r"_cell_angle_gamma[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
-        a = float(re.findall(r"_cell_length_a[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
-        b = float(re.findall(r"_cell_length_b[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
-        c = float(re.findall(r"_cell_length_c[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])/bohr
-        params = [a,b,c,alpha,beta,gamma]
+        a = float(re.findall(r"_cell_length_a[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
+        b = float(re.findall(r"_cell_length_b[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
+        c = float(re.findall(r"_cell_length_c[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
+        params = [a, b, c, alpha, beta, gamma]
 
         unit_vectors = np.array(calculate_lattice_vectors_from_parameters(params))
 
-
-        atom_lines,start_of_frac = self.find_atom_lines(cif_text)
+        atom_lines, start_of_frac = self.find_atom_lines(cif_text)
 
         n_atoms = len(atom_lines)
-        atom_array = np.zeros((n_atoms,4))
+        atom_array = np.zeros((n_atoms, 4))
 
-        for i,atom_line in enumerate(atom_lines):
+        for i, atom_line in enumerate(atom_lines):
             atom_l = atom_line.split()
             species = atom_l[0]
             species = self.remove_numbers_from_string(species)
             species = species.title()
 
             x = atom_l[start_of_frac].split('(')[0]
-            y = atom_l[start_of_frac+1].split('(')[0]
-            z = atom_l[start_of_frac+2].split('(')[0]
-            atom_array[i,:] = np.array([x,y,z,p_table_rev[species]])
+            y = atom_l[start_of_frac + 1].split('(')[0]
+            z = atom_l[start_of_frac + 2].split('(')[0]
+            atom_array[i, :] = np.array([x, y, z, p_table_rev[species]])
 
-
-        atom_array = atom_array[atom_array[:,3]!=0,:]
-        sym_lines = find_lines_between(cif_text,'_symmetry_equiv_pos_as_xyz','loop_',strip=True)
+        atom_array = atom_array[atom_array[:, 3] != 0, :]
+        sym_lines = find_lines_between(cif_text, '_symmetry_equiv_pos_as_xyz', 'loop_', strip=True)
         sym_lines = self.remove_cif_attributes(sym_lines)
         n_sym = len(sym_lines)
-        sym_atom_array = np.zeros((n_atoms*n_sym,4))
+        sym_atom_array = np.zeros((n_atoms * n_sym, 4))
 
-        if len(sym_lines)>0:
+        if len(sym_lines) > 0:
             counter = 0
             if sym_lines[0][0].isdigit():
                 sym_enumeration = True
@@ -290,76 +299,75 @@ class StructureParser:
             for sym_line in sym_lines:
                 if sym_enumeration:
                     sym_line = self.remove_counter(sym_line)
-                sym = sym_line.replace("'",'').split(',')
+                sym = sym_line.replace("'", '').split(',')
                 for i in range(n_atoms):
-                    pos = atom_array[i,:3]
-                    atom_spec = atom_array[i,3]
-                    new_pos = self.perform_sym(pos,sym)
-                    sym_atom_array[counter,:3] = new_pos
-                    sym_atom_array[counter,3] = atom_spec
-                    counter +=1
+                    pos = atom_array[i, :3]
+                    atom_spec = atom_array[i, 3]
+                    new_pos = self.perform_sym(pos, sym)
+                    sym_atom_array[counter, :3] = new_pos
+                    sym_atom_array[counter, 3] = atom_spec
+                    counter += 1
 
             atom_array_finally = remove_duplicates_old(sym_atom_array)
         else:
             atom_array_finally = atom_array
 
-        atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:,3]),:]
+        atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:, 3]), :]
 
-        return CrystalStructure(unit_vectors,atom_array_finally_sorted,scale=a)
+        return CrystalStructure(unit_vectors, atom_array_finally_sorted, scale=a)
 
-
-    def perform_sym(self,pos,sym):
+    def perform_sym(self, pos, sym):
         x = pos[0]
         y = pos[1]
         z = pos[2]
-        namespace = {'x':x,'y':y,'z':z}
-        exec('xn = ' + sym[0],namespace)
-        exec('yn = ' + sym[1],namespace)
-        exec('zn = ' + sym[2],namespace)
+        namespace = {'x': x, 'y': y, 'z': z}
+        exec('xn = ' + sym[0], namespace)
+        exec('yn = ' + sym[1], namespace)
+        exec('zn = ' + sym[2], namespace)
         xn = namespace["xn"] % 1
         yn = namespace["yn"] % 1
         zn = namespace["zn"] % 1
-        return np.array([xn,yn,zn])
+        return np.array([xn, yn, zn])
 
-    def remove_numbers_from_string(self,x):
+    def remove_numbers_from_string(self, x):
         new_string = ''
-        for i,el in enumerate(x):
+        for i, el in enumerate(x):
             if not el.isalpha():
                 break
             else:
                 new_string += el
         return new_string
 
-    def remove_counter(self,x):
-        for i,el in enumerate(x):
+    def remove_counter(self, x):
+        for i, el in enumerate(x):
             if not el.isdigit():
                 break
         return x[i:]
 
-    def find_atom_lines(self,text):
+    def find_atom_lines(self, text):
         text_lines = text.split('\n')
         text_lines = [x.strip() for x in text_lines]
-        for i,line in enumerate(text_lines):
+        for i, line in enumerate(text_lines):
             if line == '_atom_site_fract_x':
                 line_of_x = i
                 break
-        for i in range(1,line_of_x):
-            back_line = text_lines[line_of_x-i]
+        for i in range(1, line_of_x):
+            back_line = text_lines[line_of_x - i]
             if back_line[0] != '_':
-                start_of_block = line_of_x-i+1
+                start_of_block = line_of_x - i + 1
                 break
         number_of_other_lines = line_of_x - start_of_block
         atom_lines = []
         for line in text_lines[line_of_x:]:
-            if len(line)==0 or line == 'loop_':
+            if len(line) == 0 or line == 'loop_':
                 break
             if line[0] == '_':
                 continue
             else:
                 atom_lines.append(line)
-        return atom_lines,number_of_other_lines
+        return atom_lines, number_of_other_lines
 
-    def remove_cif_attributes(self,text):
+    def remove_cif_attributes(self, text):
         res = []
         for line in text:
             if line[0] == '_':
@@ -368,21 +376,27 @@ class StructureParser:
                 res.append(line)
         return res
 
+
 class ComputationalMethods(object):
-    def __init__(self,methods):
-        all_methods = ['periodic','non-periodic','scf','g0w0','optical spectrum','phonons','relax','bandstructure']
-        self.descriptions = {'periodic': 'Periodic structures (crystals)','non-periodic':'Non periodic structures (molecules)',
-                             'scf':'Ground state properties','g0w0':'The gw method for many body-corrections','optical spectrum':'Calculation of optical spectra',
-                             'phonons':'Phonon properties','relax':'Structure relaxation','bandstructure':'Calculation of the band structure'}
+    def __init__(self, methods):
+        all_methods = ['periodic', 'non-periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax',
+                       'bandstructure']
+        self.descriptions = {'periodic': 'Periodic structures (crystals)',
+                             'non-periodic': 'Non periodic structures (molecules)',
+                             'scf': 'Ground state properties', 'g0w0': 'The gw method for many body-corrections',
+                             'optical spectrum': 'Calculation of optical spectra',
+                             'phonons': 'Phonon properties', 'relax': 'Structure relaxation',
+                             'bandstructure': 'Calculation of the band structure'}
 
         if methods is None:
             methods = all_methods
         for method in methods:
             if method not in all_methods:
-                raise ValueError('methods: ' +str(method)+' is not known. Available methods are '+', '.join(all_methods))
+                raise ValueError(
+                    'methods: ' + str(method) + ' is not known. Available methods are ' + ', '.join(all_methods))
         self.methods = methods
 
-    def get_description(self,item):
+    def get_description(self, item):
         return self.descriptions[item]
 
     def __getitem__(self, item):
@@ -393,6 +407,7 @@ class ComputationalMethods(object):
 
     def __iter__(self):
         return iter(self.methods)
+
 
 class GeneralHandler():
     def __init__(self):
@@ -405,12 +420,11 @@ class GeneralHandler():
         from abinit_handler import Handler
         self.abinit_handler = Handler
 
-        d = {'exciting':self.exciting_handler,'quantum espresso': self.quantum_espresso_handler,'nwchem': self.nwchem_handler,'abinit':self.abinit_handler}
+        d = {'exciting': self.exciting_handler, 'quantum espresso': self.quantum_espresso_handler,
+             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler}
         self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
-
-
-    def is_handler_available(self,engine_name):
+    def is_handler_available(self, engine_name):
         handler = self.handlers[engine_name]()
 
         if len(handler.dft_installation_folder) > 0:
@@ -418,23 +432,24 @@ class GeneralHandler():
         else:
             return False
 
-
-    def parse_input_file(self,engine_name,filename):
+    def parse_input_file(self, engine_name, filename):
         handler = self.handlers[engine_name]()
         return handler.parse_input_file(filename)
 
 
 class KohnShamDensity(object):
-    def __init__(self,density):
+    def __init__(self, density):
         self.density = density
         self.engine_information = None
 
+
 class MolecularDensity(object):
-    def __init__(self,density,lattice_vecs,origin):
+    def __init__(self, density, lattice_vecs, origin):
         self.density = density
         self.grid_vectors = lattice_vecs
         self.origin = origin
         self.engine_information = None
+
 
 def calculate_lattice_vectors_from_parameters(parameters):
     a, b, c, alpha, beta, gamma = parameters
@@ -450,7 +465,8 @@ def calculate_lattice_vectors_from_parameters(parameters):
     a3 = c * np.array([x, y, z])
     return a1, a2, a3
 
-def find_lines_between(text,a,b,strip=False):
+
+def find_lines_between(text, a, b, strip=False):
     reading = False
     atom_lines = []
     for line in text.split('\n'):
@@ -461,27 +477,28 @@ def find_lines_between(text,a,b,strip=False):
             continue
         elif reading and line == b:
             break
-        if reading and len(line)>0:
+        if reading and len(line) > 0:
             atom_lines.append(line)
     return atom_lines
 
+
 def construct_brillouin_vertices(crystal_structure):
     inv_lattice = crystal_structure.inv_lattice_vectors
-    l1 = inv_lattice[:,0]
-    l2 = inv_lattice[:,1]
-    l3 = inv_lattice[:,2]
+    l1 = inv_lattice[:, 0]
+    l2 = inv_lattice[:, 1]
+    l3 = inv_lattice[:, 2]
 
     origin = 0 * l1
-    point_array = np.zeros((27,3))
+    point_array = np.zeros((27, 3))
 
-    counter= 0
+    counter = 0
     for i in range(-1, 2):
         for j in range(-1, 2):
             for k in range(-1, 2):
-                point_array[counter,:] = l1 * i + l2 * j + k * l3
+                point_array[counter, :] = l1 * i + l2 * j + k * l3
                 counter += 1
 
-    all_points = np.append(np.array([origin]),point_array,axis=0)
+    all_points = np.append(np.array([origin]), point_array, axis=0)
     voronoi = Voronoi(all_points)
     wigner_points = voronoi.vertices
 
@@ -522,15 +539,16 @@ def construct_brillouin_vertices(crystal_structure):
     wigner_points_cleaned = []
 
     for w_point in wigner_points:
-        dist = np.linalg.norm(point_array-w_point,axis=1)
+        dist = np.linalg.norm(point_array - w_point, axis=1)
         if np.all(np.linalg.norm(w_point - origin) <= dist * 1.01):
             wigner_points_cleaned.append(w_point)
 
-    vertices_array = np.zeros((len(wigner_points_cleaned),3))
-    for i,w_point in enumerate(wigner_points_cleaned):
-        vertices_array[i,:] = w_point
+    vertices_array = np.zeros((len(wigner_points_cleaned), 3))
+    for i, w_point in enumerate(wigner_points_cleaned):
+        vertices_array[i, :] = w_point
 
     return remove_duplicates_old(vertices_array)
+
 
 def construct_convex_hull(w_points):
     hull = ConvexHull(w_points)
@@ -562,8 +580,8 @@ def construct_convex_hull(w_points):
 
     # return shortest_connections
 
-def calculate_standard_path(structure):
 
+def calculate_standard_path(structure):
     if mg is None:
         trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
                                        , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
@@ -575,7 +593,7 @@ def calculate_standard_path(structure):
     lattice = mg.Lattice(structure.lattice_vectors)
     atoms = structure.atoms
     structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
-    hs_path = HighSymmKpath(structure_mg,symprec=0.1)
+    hs_path = HighSymmKpath(structure_mg, symprec=0.1)
 
     kpoints = hs_path.kpath['kpoints']
     path = hs_path.kpath['path']
@@ -595,26 +613,26 @@ def calculate_standard_path(structure):
     conv_path = convert_path(path, kpoints)
     return conv_path
 
-def calculate_path_length(structure,k_path):
+
+def calculate_path_length(structure, k_path):
     points = []
     pos = 0
     p_length = 0
     last_point = None
-    for point,label in k_path:
+    for point, label in k_path:
         if last_point is None:
-            points.append([pos,label])
-            last_point = np.dot(structure.inv_lattice_vectors,point)
+            points.append([pos, label])
+            last_point = np.dot(structure.inv_lattice_vectors, point)
         else:
-            abs_point = np.dot(structure.inv_lattice_vectors,point)
-            p_length = np.linalg.norm(abs_point- last_point)
-            points.append([pos+p_length,label])
+            abs_point = np.dot(structure.inv_lattice_vectors, point)
+            p_length = np.linalg.norm(abs_point - last_point)
+            points.append([pos + p_length, label])
             last_point = abs_point
         pos += p_length
     return points
 
 
 def bonds_to_path(bonds_in):
-
     bonds = copy.deepcopy(bonds_in)
     paths = []
     path = []
@@ -635,14 +653,12 @@ def bonds_to_path(bonds_in):
                     path.append(bond[0])
                     del bonds[i]
                     break
-                elif i == len(bonds)-1:
+                elif i == len(bonds) - 1:
                     paths.append(path)
                     path = []
     if len(path) > 0:
         paths.append(path)
     return paths
-
-
 
 
 if __name__ == "__main__":
@@ -656,7 +672,7 @@ if __name__ == "__main__":
 
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
-    coords = crystal_structure.calc_absolute_coordinates(repeat=[2,2,2])
+    coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 2, 2])
     bonds = crystal_structure.find_bonds(coords)
     print(crystal_structure.find_bonds(coords))
 
@@ -680,7 +696,7 @@ if __name__ == "__main__":
     # mlab.show()
 
 
-        # parser = StructureParser()
+    # parser = StructureParser()
     # out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
     # general_handler = GeneralHandler()
     # print(general_handler.available_handlers)

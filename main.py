@@ -18,10 +18,11 @@ else:
 os.environ['ETS_TOOLKIT'] = 'qt4'
 
 import imp
+
 try:
-    imp.find_module('PySide') # test if PySide if available
+    imp.find_module('PySide')  # test if PySide if available
 except ImportError:
-    os.environ['QT_API'] = 'pyqt' # signal to pyface that PyQt4 should be used
+    os.environ['QT_API'] = 'pyqt'  # signal to pyface that PyQt4 should be used
 
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
@@ -271,7 +272,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
         app_icon = QtGui.QIcon()
-        app_icon.addFile(find_data_file('icon.ico'), QtCore.QSize(238,238))
+        app_icon.addFile(find_data_file('icon.ico'), QtCore.QSize(238, 238))
         self.setWindowIcon(app_icon)
         self.error_widget = QtGui.QErrorMessage(parent=self)
 
@@ -877,7 +878,7 @@ class DftEngineWindow(QtGui.QWidget):
         self.button_layout = QtGui.QHBoxLayout(self.button_widget)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        button_size = (150,50)
+        button_size = (150, 50)
 
         self.start_ground_state_calculation_button = QtGui.QPushButton('Start Ground\nState Calculation',
                                                                        self.button_widget)
@@ -1178,7 +1179,7 @@ class PlotWithTreeview(QtGui.QWidget):
         filename = QtGui.QFileDialog.getSaveFileName(self, 'Select filename')
 
         if filename:
-            if type(filename) in [list,tuple]:
+            if type(filename) in [list, tuple]:
                 filename = filename[0]
             self.plot_widget.export(filename, self.data_dictionary[bs_name], code=code)
 
@@ -1385,7 +1386,6 @@ class VolumeSlicerWidget(QtGui.QDialog):
         self.ui.setParent(self)
 
 
-
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None, running_text='Engine is running', not_running_text='Engine inactive'):
         QtGui.QWidget.__init__(self)
@@ -1545,7 +1545,7 @@ class OptionWithTreeview(PlotWithTreeview):
 
         plot_options = self.plot_widget.get_options()
 
-        main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density,main.crystal_structure)
+        main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density, main.crystal_structure)
         main.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
         main.volume_slicer_window.show()
 
@@ -1564,7 +1564,7 @@ class OptionWithTreeview(PlotWithTreeview):
             main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]), **plot_options)
             main.information_window.show_information(self.data_dictionary[bs_name].engine_information, bs_name)
             if main.volume_slicer_window.isVisible():
-                self.open_slice_widget() # this forces a replot and does not do any other harm
+                self.open_slice_widget()  # this forces a replot and does not do any other harm
 
     def update_tree(self):
         self.treeview.clear()
@@ -1861,7 +1861,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setWindowTitle('Edit Structure')
-        self.resize(1200,800)
+        self.resize(1200, 800)
         self.setFixedHeight(800)
         self.parent = parent
         self.anything_changed = False
@@ -1878,7 +1878,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.main_layout.addWidget(self.sub_main_widget)
         self.sub_main_layout = QtGui.QHBoxLayout(self.sub_main_widget)
 
-        self.structure_visualization = MayaviQWidget(self.crystal_structure,parent=self)
+        self.structure_visualization = MayaviQWidget(self.crystal_structure, parent=self)
         self.sub_main_layout.addWidget(self.structure_visualization)
 
         self.structure_widget = QtGui.QWidget(self)
@@ -1991,7 +1991,6 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
 
-
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(
@@ -2037,7 +2036,6 @@ class EditStructureWindow(QtGui.QMainWindow):
                 return
         else:
             self.close()
-
 
     def reject(self):
         if self.anything_changed:
@@ -2168,12 +2166,13 @@ class EditStructureWindow(QtGui.QMainWindow):
                 self.atom_table.setItem(i, j, item)
 
     def read_tables(self):
-        unit_cell,scale = self.read_unit_cell_table()
+        unit_cell, scale = self.read_unit_cell_table()
         atoms = self.read_atom_table()
 
         try:
             if self.periodic_checkbox.checkState():
-                out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale,relative_coords=not bool(self.unit_combobox.currentIndex()))
+                out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale,
+                                                 relative_coords=not bool(self.unit_combobox.currentIndex()))
             else:
                 out_struc = sst.MolecularStructure(atoms)
         except Exception:
@@ -2189,7 +2188,7 @@ class EditStructureWindow(QtGui.QMainWindow):
                 self.unit_combobox.currentIndexChanged.disconnect()
                 self.unit_combobox.setCurrentIndex(1)
                 self.unit_combobox.currentIndexChanged.connect(self.switch_units)
-                self.switch_units(convert_periodic=True,periodic=True)
+                self.switch_units(convert_periodic=True, periodic=True)
 
         self.switch_enabled_fields()
         self.update_plot()
@@ -2204,19 +2203,19 @@ class EditStructureWindow(QtGui.QMainWindow):
                 main.mayavi_widget.update_crystal_structure(crystal_structure)
                 main.mayavi_widget.update_plot()
 
-    def switch_units(self,event=None,periodic=None,unit=None,convert_periodic=False):
+    def switch_units(self, event=None, periodic=None, unit=None, convert_periodic=False):
         if periodic is None:
             periodic = self.periodic_checkbox.checkState()
         if unit is None:
-            unit = self.unit_combobox.currentIndex() # 0 for crystal 1 for cartesian
+            unit = self.unit_combobox.currentIndex()  # 0 for crystal 1 for cartesian
 
-        unit_cell,scale = self.read_unit_cell_table(periodic=periodic)
+        unit_cell, scale = self.read_unit_cell_table(periodic=periodic)
         try:
             atoms = self.read_atom_table()
         except Exception:
             atoms = None
 
-        if atoms is None or len(atoms)==0:
+        if atoms is None or len(atoms) == 0:
             return
 
         if unit_cell is None:
@@ -2248,7 +2247,7 @@ class EditStructureWindow(QtGui.QMainWindow):
             self.crystal_structure = conv_struc
             self.update_fields()
         else:
-            out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale,relative_coords=unit)
+            out_struc = sst.CrystalStructure(unit_cell, atoms, scale=scale, relative_coords=unit)
             self.crystal_structure = out_struc
             self.update_fields()
 
@@ -2284,7 +2283,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         atoms_clean = atoms[atoms[:, 3] != 0, :]
         return atoms_clean
 
-    def read_unit_cell_table(self,periodic=None):
+    def read_unit_cell_table(self, periodic=None):
         if periodic is None:
             periodic = self.periodic_checkbox.checkState()
 
@@ -2306,18 +2305,17 @@ class EditStructureWindow(QtGui.QMainWindow):
 
                 unit_cell = unit_cell * scale
             except Exception:
-                return None,scale
+                return None, scale
         else:
             unit_cell = None
-        return unit_cell,scale
+        return unit_cell, scale
 
     def switch_enabled_fields(self):
-        bool_list = [True,True,True]
+        bool_list = [True, True, True]
         if self.periodic_checkbox.checkState():
             bool_list_out = bool_list
         else:
-            bool_list_out = [not(x) for x in bool_list]
-
+            bool_list_out = [not (x) for x in bool_list]
 
         self.scale_entry.setEnabled(bool_list_out[0])
         self.unit_cell_table.setEnabled(bool_list_out[1])
@@ -2410,7 +2408,7 @@ class CentralWindow(QtGui.QWidget):
         self.window = MainWindow(self)
         self.window.setWindowTitle("OpenDFT")
         self.window.setWindowIcon(QtGui.QIcon('icon.ico'))
-        self.window.setMinimumSize(700,700)
+        self.window.setMinimumSize(700, 700)
         self.window.resize(1300, 1100)
         self.window.setCentralWidget(self)
         self.make_menu_bar()
@@ -2505,7 +2503,7 @@ class CentralWindow(QtGui.QWidget):
             except Exception as e:
                 self.reset_results_and_plots()
                 stack_trace = get_stacktrace_as_string()
-                err_msg = 'Project seems to be corrupt and could not be loaded. Loading failed with error message:<br>'+stack_trace
+                err_msg = 'Project seems to be corrupt and could not be loaded. Loading failed with error message:<br>' + stack_trace
                 self.error_dialog.showMessage(err_msg)
             else:
                 self.dft_engine_window.update_all()
@@ -3072,8 +3070,9 @@ if __name__ == "__main__":
     logging.info('Program started')
 
     import vtk
+
     vtk_output = vtk.vtkFileOutputWindow()  # redirects vtk errors to log file
-    vtk_output.SetFileName(temp_folder+"/logfiles/vtk_log.txt")
+    vtk_output.SetFileName(temp_folder + "/logfiles/vtk_log.txt")
     vtk.vtkOutputWindow().SetInstance(vtk_output)
 
     set_procname(b'OpenDFT')
