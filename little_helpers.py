@@ -97,6 +97,27 @@ class PasteIntoTable(QtGui.QAction):
         self.parent.connect_tables()
         self.parent.handle_change()
 
+def find_possible_sums(repeat):
+    possible_sums = set()
+
+    for i in range(repeat[0]+1):
+        for j in range(repeat[1]+1):
+            for l in range(repeat[2]+1):
+                pos_sum = (i, j, l)
+                possible_sums.add(pos_sum)
+    return possible_sums
+
+
+def find_grid_connections(possible_sums):
+    connections = set()
+    for i,pos_sum in enumerate(possible_sums):
+        for j,pos_sum_1 in enumerate(possible_sums):
+            diff_sum = (abs(x-y) for x,y in zip(pos_sum,pos_sum_1))
+            if sum(diff_sum) == 1:
+                connections.add(tuple(sorted([i,j])))
+    return connections
+
+
 def convert_to_ordered(d):
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 

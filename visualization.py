@@ -24,7 +24,7 @@ import matplotlib as mpl
 mpl.use('Qt4Agg')
 
 # mpl.rcParams['backend.qt4']='PySide'
-from little_helpers import find_data_file
+from little_helpers import find_data_file,find_possible_sums,find_grid_connections
 from bisect import bisect
 # mpl.rc('font',**{'size': 22, 'family':'serif','serif':['Palatino']})
 # mpl.rc('text', usetex=True)
@@ -79,39 +79,6 @@ def convert_to_greek(input):
         else:
             result.append(el)
     return result
-
-
-def KnuthMorrisPratt(text, pattern):
-
-    '''Yields all starting positions of copies of the pattern in the text.
-Calling conventions are similar to string.find, but its arguments can be
-lists or iterators, not just strings, it returns all matches, not just
-the first one, and it does not need the whole text in memory at once.
-Whenever it yields, it will have read the text exactly up to and including
-the match that caused the yield.'''
-
-    # allow indexing into pattern and protect against change during yield
-    pattern = list(pattern)
-
-    # build table of shift amounts
-    shifts = [1] * (len(pattern) + 1)
-    shift = 1
-    for pos in range(len(pattern)):
-        while shift <= pos and pattern[pos] != pattern[pos-shift]:
-            shift += shifts[pos-shift]
-        shifts[pos+1] = shift
-
-    # do the actual search
-    startPos = 0
-    matchLen = 0
-    for c in text:
-        while matchLen == len(pattern) or \
-              matchLen >= 0 and pattern[matchLen] != c:
-            startPos += shifts[matchLen]
-            matchLen -= shifts[matchLen]
-        matchLen += 1
-        if matchLen == len(pattern):
-            yield startPos
 
 
 class BrillouinVisualization(HasTraits):
@@ -266,7 +233,7 @@ class StructureVisualization(HasTraits):
         self.cp = None
         self.mayavi_atom = None
         self.mayavi_bonds = None
-        self.mayavi_unitcell = []
+        self.mayavi_unitcell = None
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -324,9 +291,9 @@ class StructureVisualization(HasTraits):
             repeat = [self.n_x, self.n_y, self.n_z]
             self.plot_unit_cell(repeat)
         else:
-            for cell_vector in self.mayavi_unitcell:
-                cell_vector.remove()
-            self.mayavi_unitcell = []
+            if self.mayavi_unitcell:
+                self.mayavi_unitcell.remove()
+                self.mayavi_unitcell = None
 
 
 
@@ -340,36 +307,32 @@ class StructureVisualization(HasTraits):
                 return True
         return False
 
-    def plot_unit_cell(self, repeat=[1, 1, 1]):
+    def plot_unit_cell(self,repeat=(1,1,1)):
         if type(self.crystal_structure) is sst.MolecularStructure:
             return
-        cell = self.crystal_structure.lattice_vectors
-        existing_lines = []
 
-        for j1 in range(repeat[0]):
-            for j2 in range(repeat[1]):
-                for j3 in range(repeat[2]):
-                    offset = j1 * cell[0, :] + j2 * cell[1, :] + j3 * cell[2, :]
-                    self.plot_single_unit_cell(offset)
-
-    def plot_single_unit_cell(self,offset):
         cell = self.crystal_structure.lattice_vectors
         a1 = cell[0,:]
         a2 = cell[1,:]
         a3 = cell[2,:]
 
-        p1 = offset
-        p2 = offset+a1
-        p3 = offset+a2
-        p4 = offset+a3
-        p5 = offset+a1+a2
-        p6 = offset+a1+a3
-        p7 = offset+a2+a3
-        p8 = offset+a1+a2+a3
+        possible_sums = find_possible_sums(repeat)
+        connections = find_grid_connections(possible_sums)
 
-        coords = np.array([p1,p2,p5,p3,p1,p4,p6,p8,p7,p4,p6,p2,p5,p8,p7,p3])
-        mayavi_cellvector = self.scene.mlab.plot3d(coords[:,0],coords[:,1],coords[:,2], tube_radius=0.05,figure=self.scene.mayavi_scene)
-        self.mayavi_unitcell.append(mayavi_cellvector)
+        n_grid = len(possible_sums)
+        grid_points = np.zeros((n_grid,3))
+
+        for i,vec_sum in enumerate(possible_sums):
+            grid_points[i,:] = vec_sum[0]*a1 + vec_sum[1]*a2 + vec_sum[2]*a3
+
+        mayavi_grid = self.scene.mlab.points3d(grid_points[:,0],grid_points[:,1],grid_points[:,2], figure=self.scene.mayavi_scene, scale_factor=0.0,resolution=5)
+        mayavi_grid.mlab_source.dataset.lines = np.array(list(connections))
+
+        tube = mlab.pipeline.tube(mayavi_grid, tube_radius=0.05)
+        tube.filter.radius_factor = 1.
+        # tube.filter.vary_radius = 'vary_radius_by_scalar'
+        self.mayavi_unitcell = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
+        mayavi_grid.mlab_source.update()
 
     def plot_atoms(self, repeat=[1, 1, 1]):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
@@ -460,6 +423,9 @@ class StructureVisualization(HasTraits):
         self.density_plotted = ks_density
 
     def plot_bonds(self,repeat=[1,1,1]):
+        if self.mayavi_atom is None:
+            self.plot_atoms(repeat)
+
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
 
@@ -470,6 +436,10 @@ class StructureVisualization(HasTraits):
         # tube.filter.vary_radius = 'vary_radius_by_scalar'
         self.mayavi_bonds = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
         self.mayavi_atom.mlab_source.update()
+
+        if not self.show_atoms:
+            self.mayavi_atom.remove()
+            self.mayavi_atom = None
 
         # paths = sst.bonds_to_path(bonds)
         #
@@ -484,6 +454,7 @@ class StructureVisualization(HasTraits):
     def remove_bonds(self):
         if self.mayavi_bonds:
             self.mayavi_bonds.remove()
+
 
 class VolumeSlicer(HasTraits):
     data = Array()
@@ -657,235 +628,6 @@ class VolumeSlicer(HasTraits):
                 resizable=True,
                 title='Volume Slicer',
                 )
-
-
-class VolumeSlicerOld(HasTraits):
-    # The data to plot
-    data = Array()
-    crystal_structure = None
-
-    # The 4 views displayed
-    scene3d = Instance(MlabSceneModel, ())
-    scene_x = Instance(MlabSceneModel, ())
-    scene_y = Instance(MlabSceneModel, ())
-    scene_z = Instance(MlabSceneModel, ())
-
-    # The data source
-    data_src3d = Instance(Source)
-
-
-    # The image plane widgets of the 3D scene
-    ipw_3d_x = Instance(PipelineBase)
-    ipw_3d_y = Instance(PipelineBase)
-    ipw_3d_z = Instance(PipelineBase)
-
-    _axis_names = dict(x=0, y=1, z=2)
-
-
-    #---------------------------------------------------------------------------
-    def __init__(self, **traits):
-        super(VolumeSlicer, self).__init__(**traits)
-        # Force the creation of the image_plane_widgets:
-        self.ipw_3d_x
-        self.ipw_3d_y
-        self.ipw_3d_z
-
-
-
-    #---------------------------------------------------------------------------
-    # Default values
-    #---------------------------------------------------------------------------
-    def _data_src3d_default(self):
-        return mlab.pipeline.scalar_field(self.data,
-                            figure=self.scene3d.mayavi_scene)
-
-    def make_ipw_3d(self, axis_name):
-        ipw = mlab.pipeline.scalar_cut_plane(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,
-                        plane_orientation='%s_axes' % axis_name)
-        polydata = ipw.actor.actors[0].mapper.input
-        self.rescale_polydata_points(polydata)
-
-        return ipw
-
-    def _ipw_3d_x_default(self):
-        return self.make_ipw_3d('x')
-
-    def _ipw_3d_y_default(self):
-        return self.make_ipw_3d('y')
-
-    def _ipw_3d_z_default(self):
-        return self.make_ipw_3d('z')
-
-    def rescale_polydata_points(self,polydata):
-        pts = np.array(polydata.points) - 1
-
-        unit_cell = self.crystal_structure.lattice_vectors
-        # Transform the points to the unit cell:
-        larger_cell= np.zeros((3,3))
-        larger_cell[0,:]=unit_cell[0,:]
-        larger_cell[1,:]=unit_cell[1,:]
-        larger_cell[2,:]=unit_cell[2,:]
-
-        polydata.points = np.dot(pts, larger_cell / np.array(self.data.shape)[:, np.newaxis])
-
-    #---------------------------------------------------------------------------
-    # Scene activation callbaks
-    #---------------------------------------------------------------------------
-    @on_trait_change('scene3d.activated')
-    def display_scene3d(self):
-        outline = mlab.pipeline.outline(self.data_src3d,
-                        figure=self.scene3d.mayavi_scene,
-                        )
-
-        polydata = outline.actor.actors[0].mapper.input
-        self.rescale_polydata_points(polydata)
-
-        self.plot_atoms()
-        self.plot_bonds()
-
-        self.scene3d.mlab.view(40, 50)
-        # Interaction properties can only be changed after the scene
-        # has been created, and thus the interactor exists
-        # for ipw in (self.ipw_3d_x, self.ipw_3d_y, self.ipw_3d_z):
-        #     # Turn the interaction off
-        #     ipw.ipw.interaction = 0
-        self.scene3d.scene.background = (0, 0, 0)
-        # Keep the view always pointing up
-        self.scene3d.scene.interactor.interactor_style = \
-                                 tvtk.InteractorStyleTerrain()
-
-
-    def make_side_view(self, axis_name):
-        scene = getattr(self, 'scene_%s' % axis_name)
-
-        # To avoid copying the data, we take a reference to the
-        # raw VTK dataset, and pass it on to mlab. Mlab will create
-        # a Mayavi source from the VTK without copying it.
-        # We have to specify the figure so that the data gets
-        # added on the figure we are interested in.
-        outline = mlab.pipeline.outline(
-                            self.data_src3d.mlab_source.dataset,
-                            figure=scene.mayavi_scene,
-                            )
-        ipw = mlab.pipeline.image_plane_widget(
-                            outline,
-                            plane_orientation='%s_axes' % axis_name)
-        setattr(self, 'ipw_%s' % axis_name, ipw)
-
-        # Synchronize positions between the corresponding image plane
-        # widgets on different views.
-        ipw.ipw.sync_trait('slice_position',
-                            getattr(self, 'ipw_3d_%s'% axis_name).ipw)
-
-        # Make left-clicking create a crosshair
-        ipw.ipw.left_button_action = 0
-        # Add a callback on the image plane widget interaction to
-        # move the others
-
-        def move_view(obj, evt):
-            position = obj.GetCurrentCursorPosition()
-            for other_axis, axis_number in self._axis_names.items():
-                if other_axis == axis_name:
-                    continue
-                ipw3d = getattr(self, 'ipw_3d_%s' % other_axis)
-                ipw3d.ipw.slice_position = position[axis_number]
-
-        ipw.ipw.add_observer('InteractionEvent', move_view)
-        ipw.ipw.add_observer('StartInteractionEvent', move_view)
-
-        # Center the image plane widget
-        ipw.ipw.slice_position = 0.5*self.data.shape[
-                    self._axis_names[axis_name]]
-
-        # Position the view for the scene
-        views = dict(x=( 0, 90),
-                     y=(90, 90),
-                     z=( 0,  0),
-                     )
-        scene.mlab.view(*views[axis_name])
-        # 2D interaction: only pan and zoom
-        scene.scene.interactor.interactor_style = \
-                                 tvtk.InteractorStyleImage()
-        scene.scene.background = (0, 0, 0)
-
-    def plot_atoms(self, repeat=[1, 1, 1]):
-        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
-        n_atoms = abs_coord_atoms.shape[0]
-
-        species = set(abs_coord_atoms[:,3].astype(np.int))
-        n_species = len(species)
-
-        for specie in species:
-            species_mask = abs_coord_atoms[:,3].astype(np.int) == specie
-            sub_coords = abs_coord_atoms[species_mask,:]
-
-            cov_radius = cov_radii[specie]
-            atom_size = 0.4*np.log(specie)+0.6
-            try:
-                atomic_color = colors[specie]
-            except KeyError:
-                atomic_color = (0.8,0.8,0.8)
-            self.scene3d.mlab.points3d(sub_coords[:,0],sub_coords[:,1],sub_coords[:,2],
-                                     scale_factor=atom_size,resolution=150,
-                                     color=atomic_color,figure=self.scene3d.mayavi_scene)
-
-    def plot_bonds(self,repeat=[1,1,1]):
-        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
-        bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
-        n_atoms = abs_coord_atoms.shape[0]
-
-        paths = sst.bonds_to_path(bonds)
-
-        for path in paths:
-            x = abs_coord_atoms[path,0]
-            y = abs_coord_atoms[path,1]
-            z = abs_coord_atoms[path,2]
-
-            self.scene3d.mlab.plot3d(x,y,z, tube_radius=0.125,tube_sides=18,figure=self.scene3d.mayavi_scene)
-
-
-    # @on_trait_change('scene_x.activated')
-    # def display_scene_x(self):
-    #     return self.make_side_view('x')
-    #
-    # @on_trait_change('scene_y.activated')
-    # def display_scene_y(self):
-    #     return self.make_side_view('y')
-    #
-    # @on_trait_change('scene_z.activated')
-    # def display_scene_z(self):
-    #     return self.make_side_view('z')
-
-
-    #---------------------------------------------------------------------------
-    # The layout of the dialog created
-    #---------------------------------------------------------------------------
-    view = View(HGroup(
-                  Group(
-                       Item('scene_y',
-                            editor=SceneEditor(scene_class=Scene),
-                            height=250, width=300),
-                       Item('scene_z',
-                            editor=SceneEditor(scene_class=Scene),
-                            height=250, width=300),
-                       show_labels=False,
-                  ),
-                  Group(
-                       Item('scene_x',
-                            editor=SceneEditor(scene_class=Scene),
-                            height=250, width=300),
-                       Item('scene3d',
-                            editor=SceneEditor(scene_class=MayaviScene),
-                            height=250, width=300),
-                       show_labels=False,
-                  ),
-                ),
-                resizable=True,
-                title='Volume Slicer',
-                )
-
-
 
 
 class OpticalSpectrumVisualization(QtGui.QWidget):
@@ -1494,15 +1236,21 @@ def set_dark_mode_matplotlib(f,ax,color):
 
 
 if __name__ == "__main__":
-    # vis = StructureVisualization(None)
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
-    data = np.sin(3 * x) / x + 0.05 * z ** 2 + np.cos(3 * y)
-
-    atoms = np.array([[0, 0, 0, 6], [0.25, .25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0.0]])
     from solid_state_tools import CrystalStructure
     crystal_structure = CrystalStructure(unit_cell, atoms)
+    vis = StructureVisualization(crystal_structure)
+    vis.configure_traits()
 
-    m = VolumeSlicer(data=data,crystal_structure=crystal_structure)
-    m.configure_traits()
+    # x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
+    # data = np.sin(3 * x) / x + 0.05 * z ** 2 + np.cos(3 * y)
+    #
+    # atoms = np.array([[0, 0, 0, 6], [0.25, .25, 0.25, 6]])
+    # unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0.0]])
+    # from solid_state_tools import CrystalStructure
+    # crystal_structure = CrystalStructure(unit_cell, atoms)
+    #
+    # m = VolumeSlicer(data=data,crystal_structure=crystal_structure)
+    # m.configure_traits()

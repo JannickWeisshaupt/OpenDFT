@@ -261,26 +261,31 @@ class StructureParser:
         n_sym = len(sym_lines)
         sym_atom_array = np.zeros((n_atoms*n_sym,4))
 
-        counter = 0
-        if sym_lines[0][0].isdigit():
-            sym_enumeration = True
+        if len(sym_lines)>0:
+            counter = 0
+            if sym_lines[0][0].isdigit():
+                sym_enumeration = True
+            else:
+                sym_enumeration = False
+
+            for sym_line in sym_lines:
+                if sym_enumeration:
+                    sym_line = self.remove_counter(sym_line)
+                sym = sym_line.replace("'",'').split(',')
+                for i in range(n_atoms):
+                    pos = atom_array[i,:3]
+                    atom_spec = atom_array[i,3]
+                    new_pos = self.perform_sym(pos,sym)
+                    sym_atom_array[counter,:3] = new_pos
+                    sym_atom_array[counter,3] = atom_spec
+                    counter +=1
+
+            atom_array_finally = remove_duplicates_old(sym_atom_array)
         else:
-            sym_enumeration = False
+            atom_array_finally = atom_array
 
-        for sym_line in sym_lines:
-            if sym_enumeration:
-                sym_line = self.remove_counter(sym_line)
-            sym = sym_line.replace("'",'').split(',')
-            for i in range(n_atoms):
-                pos = atom_array[i,:3]
-                atom_spec = atom_array[i,3]
-                new_pos = self.perform_sym(pos,sym)
-                sym_atom_array[counter,:3] = new_pos
-                sym_atom_array[counter,3] = atom_spec
-                counter +=1
-
-        atom_array_finally = remove_duplicates_old(sym_atom_array)
         atom_array_finally_sorted = atom_array_finally[np.argsort(atom_array_finally[:,3]),:]
+
         return CrystalStructure(unit_vectors,atom_array_finally_sorted,scale=a)
 
 
