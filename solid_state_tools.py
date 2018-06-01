@@ -128,7 +128,7 @@ class CrystalStructure(object):
             mask_array = dist < (cov_radii_array[j1+1:]+cov_radii[int(abs_coords[j1,3])])*1.3
             indexes = np.where(mask_array)[0]
             for index in indexes:
-                if j1 != index:
+                if j1 != index+j1+1:
                     bonds.add((j1,index+j1+1))
 
         return list(bonds)
