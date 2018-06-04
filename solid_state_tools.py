@@ -417,7 +417,7 @@ class ComputationalMethods(object):
         return iter(self.methods)
 
 
-class GeneralHandler():
+class GeneralHandler:
     def __init__(self):
         from exciting_handler import Handler
         self.exciting_handler = Handler
@@ -432,7 +432,7 @@ class GeneralHandler():
         self.ocean_abi_handler = OceanAbinit
 
         d = {'exciting': self.exciting_handler, 'quantum espresso': self.quantum_espresso_handler,
-             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit+ocean":self.ocean_abi_handler,'quantum espresso + ocean':self.ocean_qe_handler}
+             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit + ocean":self.ocean_abi_handler,'quantum espresso + ocean':self.ocean_qe_handler}
         self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
     def is_handler_available(self, engine_name):

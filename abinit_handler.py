@@ -578,7 +578,14 @@ Returns:
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _add_scf_to_file(self, file, crystal_structure, band_points=None):
+    def _add_scf_to_file(self, file, crystal_structure, band_points=None,brakets=False):
+
+        if brakets:
+            bra_str = '{'
+            ket_str = '}'
+        else:
+            bra_str = ''
+            ket_str = ''
 
         if band_points is not None:
             file.write('ndtset 2\n')
@@ -588,7 +595,7 @@ Returns:
 
         file.write('# Definition of the unit cell\n')
         file.write('acell 1.0 1.0 1.0\n')
-        file.write('rprim {0:1.10f} {1:1.10f} {2:1.10f}   {3:1.10f} {4:1.10f} {5:1.10f}   {6:1.10f} {7:1.10f} {8:1.10f}\n\n'.format(*np.reshape(crystal_structure.lattice_vectors,9)))
+        file.write('rprim'+bra_str+'\n{0:1.10f} {1:1.10f} {2:1.10f}\n{3:1.10f} {4:1.10f} {5:1.10f}\n{6:1.10f} {7:1.10f} {8:1.10f}\n'.format(*np.reshape(crystal_structure.lattice_vectors,9))+ket_str+'\n')
 
         atom_species = set(crystal_structure.atoms[:,3])
         n_atom = crystal_structure.atoms.shape[0]
@@ -596,7 +603,7 @@ Returns:
         file.write('# Definition of atoms\n')
         file.write('ntypat {0:d}\n'.format(len(atom_species)))
         file.write('znucl')
-        for atom_specie in atom_species:
+        for atom_specie in sorted(atom_species):
             file.write(' {0:d}'.format(int(atom_specie)))
         file.write('\n')
 
@@ -605,17 +612,18 @@ Returns:
         for i in range(n_atom):
             file.write('{0:d} '.format(list(atom_species).index(crystal_structure.atoms[i,3])+1))
         file.write('\n')
-        file.write('xred\n')
+        file.write('xred'+bra_str+'\n')
         for i in range(n_atom):
             file.write('{0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*crystal_structure.atoms[i,:3]))
+        file.write(ket_str+'\n')
 
         file.write('\n# Definition of the k grid\n')
         file.write('kptopt1 1\n')
         file.write('nshiftk1 4\n')
-        file.write("""shiftk1 0.5 0.5 0.5
+        file.write('shiftk1'+bra_str +"""0.5 0.5 0.5
        0.5 0.0 0.0
        0.0 0.5 0.0
-       0.0 0.0 0.5\n""")
+       0.0 0.0 0.5\n"""+ket_str)
         file.write('\n# All other options\n')
         for key,value in self.scf_options.items():
             if key not in ['nband','ndivk']:
