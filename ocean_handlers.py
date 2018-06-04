@@ -17,7 +17,7 @@ class OceanHandler(object):
         self.working_dirctory = '/abinit_ocean_files/'
 
         self.optical_spectrum_options = convert_to_ordered({'diemac':'5.0','CNBSE.xmesh':'6 6 6','screen.shells':'4.0','screen.shells':'3.5','cnbse.rad':'3.5',
-        'cnbse.broaden':'0.1','edges':'0 1 0','opts.core_states':'1 0 0 0','opts.relativity':'scalar rel','opts.functional':'lda','opts.valence':'2.0 3.5 0.0 0.0',
+        'cnbse.broaden':'0.1','edges':'0 1 0','screen.nbands':'80','screen.nkpt':'2 2 2','opts.core_states':'1 0 0 0','opts.relativity':'scalar rel','opts.functional':'lda','opts.valence':'2.0 3.5 0.0 0.0',
         'fill.pow':'2','fill.energy':'0.30 2.00 0.0001','fill.cutoff':'3.5','fill.fourier':'0.05 20',
         'operator':'dipole','polarization':'0 0 1','k vector':'0 1 0','energy range':'600'})
 
@@ -81,6 +81,8 @@ Returns:
 
         self._add_scf_to_file(file,crystal_structure,brakets=True)
 
+        file.write('nbands '+self.scf_options['nband']+'\n')
+
         atom_species = set(crystal_structure.atoms[:,3])
         file.write('pp_list{\n')
         for specie in sorted(atom_species):
@@ -88,7 +90,8 @@ Returns:
         file.write('}\n')
 
         file.write('\n# BSE options \n')
-        ocean_opts = dict((k, self.optical_spectrum_options[k]) for k in ('diemac','CNBSE.xmesh','screen.shells','cnbse.rad','cnbse.broaden','edges',) if k in self.optical_spectrum_options)
+        ocean_opts = dict((k, self.optical_spectrum_options[k]) for k in
+                          ('diemac','CNBSE.xmesh','screen.shells','cnbse.rad','cnbse.broaden','edges','screen.nbands','screen.nkpt') if k in self.optical_spectrum_options)
         for key, item in ocean_opts.items():
             file.write(key+'{ '+item+' }\n')
 
@@ -178,10 +181,10 @@ if __name__ == '__main__':
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
 
-    ocean_abi_handler.start_optical_spectrum(crystal_structure)
+    # ocean_abi_handler.start_optical_spectrum(crystal_structure)
 
-    # spec = ocean_abi_handler.read_optical_spectrum()
-    #
-    # import matplotlib.pyplot as plt
-    #
-    # plt.plot(spec.energy,spec.epsilon2)
+    spec = ocean_abi_handler.read_optical_spectrum()
+
+    import matplotlib.pyplot as plt
+
+    plt.plot(spec.energy,spec.epsilon2)
