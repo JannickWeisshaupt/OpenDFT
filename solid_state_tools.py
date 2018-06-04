@@ -495,12 +495,12 @@ def find_lines_between(text, a, b, strip=False):
 
 def construct_brillouin_vertices(crystal_structure):
     inv_lattice = crystal_structure.inv_lattice_vectors
-    l1 = inv_lattice[:, 0]
-    l2 = inv_lattice[:, 1]
-    l3 = inv_lattice[:, 2]
+    l1 = inv_lattice[0,:]
+    l2 = inv_lattice[1,:]
+    l3 = inv_lattice[2,:]
 
     origin = 0 * l1
-    point_array = np.zeros((27, 3))
+    point_array = np.zeros((3**3, 3))
 
     counter = 0
     for i in range(-1, 2):
@@ -513,45 +513,12 @@ def construct_brillouin_vertices(crystal_structure):
     voronoi = Voronoi(all_points)
     wigner_points = voronoi.vertices
 
-    ### Own voronoi implementation (might still be usefull one day...(okay i am just keeping it because it was hard to do))
-    # N_points = point_array.shape[0]
-    # wigner_points = []
-    # x1, y1, z1 = origin
-    #
-    # for i in range(N_points):
-    #     for j in range(i+1,N_points):
-    #         for k in range(j+1,N_points):
-    #
-    #             if i == j or i == k or j == k:
-    #                 continue
-    #
-    #             x2, y2, z2 = point_array[i,:]
-    #             x3, y3, z3 = point_array[j,:]
-    #             x4, y4, z4 = point_array[k,:]
-    #
-    #             A = np.array([[2 * x1 - x2 - x3 - x4, 2 * y1 - y2 - y3 - y4, 2 * z1 - z2 - z3 - z4],
-    #                           [2 * x2 - x1 - x3 - x4, 2 * y2 - y1 - y3 - y4, 2 * z2 - z1 - z3 - z4],
-    #                           [2 * x3 - x1 - x2 - x4, 2 * y3 - y1 - y2 - y4, 2 * z3 - z1 - z2 - z4]
-    #                           ])
-    #             r = np.linalg.matrix_rank(A)
-    #             if r < 3:
-    #                 continue
-    #             B = np.array([[x1 ** 2 - 0.5 * (x2 ** 2 + x3 ** 2 + x4 ** 2) + y1 ** 2 - 0.5 * (
-    #             y2 ** 2 + y3 ** 2 + y4 ** 2) + z1 ** 2 - 0.5 * (z2 ** 2 + z3 ** 2 + z4 ** 2)],
-    #                           [x2 ** 2 - 0.5 * (x1 ** 2 + x3 ** 2 + x4 ** 2) + y2 ** 2 - 0.5 * (
-    #                           y1 ** 2 + y3 ** 2 + y4 ** 2) + z2 ** 2 - 0.5 * (z1 ** 2 + z3 ** 2 + z4 ** 2)],
-    #                           [x3 ** 2 - 0.5 * (x1 ** 2 + x2 ** 2 + x4 ** 2) + y3 ** 2 - 0.5 * (
-    #                           y1 ** 2 + y2 ** 2 + y4 ** 2) + z3 ** 2 - 0.5 * (z1 ** 2 + z2 ** 2 + z4 ** 2)]])
-    #
-    #             xout = np.dot(np.linalg.inv(A), B).T
-    #             xout = np.array([xout[0, 0], xout[0, 1], xout[0, 2]])
-    #             wigner_points.append(xout)
 
     wigner_points_cleaned = []
 
     for w_point in wigner_points:
         dist = np.linalg.norm(point_array - w_point, axis=1)
-        if np.all(np.linalg.norm(w_point - origin) <= dist * 1.01):
+        if np.all(np.linalg.norm(w_point - origin) <= dist * 1.00001):
             wigner_points_cleaned.append(w_point)
 
     vertices_array = np.zeros((len(wigner_points_cleaned), 3))
@@ -673,8 +640,8 @@ def bonds_to_path(bonds_in):
 
 
 if __name__ == "__main__":
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 6]])
+    unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
     # unit_cell = 6.719 * np.eye(3,3);    unit_cell[2,1] = 0.5
 
@@ -687,6 +654,14 @@ if __name__ == "__main__":
     bonds = crystal_structure.find_bonds(coords)
     print(crystal_structure.find_bonds(coords))
 
+    path = calculate_standard_path(crystal_structure)
+
+    from visualization import BrillouinVisualization
+
+    vis = BrillouinVisualization(None)
+    vis.set_crystal_structure(crystal_structure)
+    vis.set_path(path )
+    vis.configure_traits()
 
     # import mayavi.mlab as mlab
     #

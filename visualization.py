@@ -221,9 +221,9 @@ class BrillouinVisualization(HasTraits):
 
 
 class StructureVisualization(HasTraits):
-    n_x = Range(1, 10, 1, mode='spinner')  # )
-    n_y = Range(1, 10, 1, mode='spinner')  # mode='spinner')
-    n_z = Range(1, 10, 1, mode='spinner')  # mode='spinner')
+    n_x = Range(1, 20, 1, mode='spinner')  # )
+    n_y = Range(1, 20, 1, mode='spinner')  # mode='spinner')
+    n_z = Range(1, 20, 1, mode='spinner')  # mode='spinner')
     prop_but = Button(label='Properties')
 
     show_unitcell = Bool(True)

@@ -361,8 +361,8 @@ Returns:
         bands = []
         k_array = np.zeros(n_k_points)
         for i in range(1, n_k_points):
-            k1 = np.dot(inv_lattice_vectors,np.array(k_points[i - 1]))
-            k2 = np.dot(inv_lattice_vectors,np.array(k_points[i]))
+            k1 = np.dot(inv_lattice_vectors.T,np.array(k_points[i - 1]))
+            k2 = np.dot(inv_lattice_vectors.T,np.array(k_points[i]))
             k_array[i] = np.linalg.norm(k2-k1) + k_array[i - 1]
 
         for i in range(n_bands):
@@ -597,13 +597,13 @@ Returns:
         file.write('acell 1.0 1.0 1.0\n')
         file.write('rprim'+bra_str+'\n{0:1.10f} {1:1.10f} {2:1.10f}\n{3:1.10f} {4:1.10f} {5:1.10f}\n{6:1.10f} {7:1.10f} {8:1.10f}\n'.format(*np.reshape(crystal_structure.lattice_vectors,9))+ket_str+'\n')
 
-        atom_species = set(crystal_structure.atoms[:,3])
+        atom_species = sorted(set(crystal_structure.atoms[:,3]))
         n_atom = crystal_structure.atoms.shape[0]
 
         file.write('# Definition of atoms\n')
         file.write('ntypat {0:d}\n'.format(len(atom_species)))
         file.write('znucl')
-        for atom_specie in sorted(atom_species):
+        for atom_specie in atom_species:
             file.write(' {0:d}'.format(int(atom_specie)))
         file.write('\n')
 
@@ -620,7 +620,7 @@ Returns:
         file.write('\n# Definition of the k grid\n')
         file.write('kptopt1 1\n')
         file.write('nshiftk1 4\n')
-        file.write('shiftk1'+bra_str +"""0.5 0.5 0.5
+        file.write('shiftk1'+bra_str +""" 0.5 0.5 0.5
        0.5 0.0 0.0
        0.0 0.5 0.0
        0.0 0.0 0.5\n"""+ket_str)
@@ -675,7 +675,7 @@ getden2  -1
 
 
     def _copy_default_pseudos(self, crystal_structure):
-        atoms = set(crystal_structure.atoms[:,3])
+        atoms = sorted(set(crystal_structure.atoms[:,3]))
         atoms_names = [p_table[atom] for atom in atoms]
         installation_folder = find_data_file('')
 

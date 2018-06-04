@@ -34,6 +34,8 @@ Returns:
         if os.path.isdir(self.project_directory + self.working_dirctory+'/CNBSE'):
             shutil.rmtree(self.project_directory + self.working_dirctory+'/CNBSE')
 
+        self.current_input_file = 'ocean.in'
+        self.current_output_file = 'ocean.out'
 
         f = self._make_ocean_input_file()
         self._add_ocean_to_file(f,crystal_structure)
@@ -43,7 +45,7 @@ Returns:
         self._make_fill_file()
         self._make_photon_file()
 
-        # self._start_ocean_engine()
+        self._start_ocean_engine()
 
     def read_optical_spectrum(self):
         """This method reads the result of a optical spectrum calculation.
@@ -107,8 +109,8 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
             command = self._engine_command
 
 
-        self.engine_process = subprocess.Popen(['ocean.pl','ocean.in'], stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE)
+        self.engine_process = subprocess.Popen('exec ocean.pl ocean.in >ocean.out', stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE,shell=True)
         os.chdir(self.project_directory)
         if blocking:
             while self.is_engine_running():
@@ -181,10 +183,10 @@ if __name__ == '__main__':
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
 
-    # ocean_abi_handler.start_optical_spectrum(crystal_structure)
+    ocean_abi_handler.start_optical_spectrum(crystal_structure)
 
-    spec = ocean_abi_handler.read_optical_spectrum()
+    # spec = ocean_abi_handler.read_optical_spectrum()
 
-    import matplotlib.pyplot as plt
-
-    plt.plot(spec.energy,spec.epsilon2)
+    # import matplotlib.pyplot as plt
+    #
+    # plt.plot(spec.energy,spec.epsilon2)
