@@ -7,7 +7,7 @@ from little_helpers import convert_to_ordered
 import solid_state_tools as sst
 import numpy as np
 import shutil
-
+from sortedcontainers import SortedSet
 
 
 class OceanHandler(object):
@@ -17,9 +17,10 @@ class OceanHandler(object):
         self.working_dirctory = '/abinit_ocean_files/'
 
         self.optical_spectrum_options = convert_to_ordered({'diemac':'5.0','CNBSE.xmesh':'6 6 6','screen.shells':'4.0','screen.shells':'3.5','cnbse.rad':'3.5',
-        'cnbse.broaden':'0.1','edges':'0 1 0','screen.nbands':'80','screen.nkpt':'2 2 2','opts.core_states':'1 0 0 0','opts.relativity':'scalar rel','opts.functional':'lda','opts.valence':'2.0 3.5 0.0 0.0',
+        'cnbse.broaden':'0.1','edges':'0 1 0','screen.nbands':'80','screen.nkpt':'2 2 2','opts.core_states':'1 0 0 0',
+                                                            'opts.relativity':'scalar rel','opts.functional':'lda','opts.valence':'2.0 3.5 0.0 0.0',
         'fill.pow':'2','fill.energy':'0.30 2.00 0.0001','fill.cutoff':'3.5','fill.fourier':'0.05 20',
-        'operator':'dipole','polarization':'0 0 1','k vector':'0 1 0','energy range':'600'})
+        'operator':'dipole','polarization':'all','k vector':'0 1 0','energy range':'600'})
 
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
@@ -54,22 +55,34 @@ Returns:
     - optical_spectrum:       A OpticalSpectrum object with the latest optical spectrum result found.
         """
 
-        files = []
-        for file in os.listdir(self.project_directory+self.working_dirctory+'/CNBSE'):
-            if file.startswith("absspct_") and file.endswith('_01'):
-                files.append(file)
+        def load_eps(i):
+            files = []
+            for file in os.listdir(self.project_directory+self.working_dirctory+'/CNBSE'):
+                if file.startswith("absspct_") and file.endswith('_0{}'.format(i+1)):
+                    files.append(file)
+
+            if not files:
+                return None,None,None
 
 
-        data = np.loadtxt(self.project_directory+self.working_dirctory+'/CNBSE/'+files[0], skiprows=2)
+            data = np.loadtxt(self.project_directory+self.working_dirctory+'/CNBSE/'+files[0], skiprows=2)
 
-        for file in files[1:]:
-            data += np.loadtxt(self.project_directory+self.working_dirctory+'/CNBSE/'+file, skiprows=2)
+            for file in files[1:]:
+                data += np.loadtxt(self.project_directory+self.working_dirctory+'/CNBSE/'+file, skiprows=2)
 
-        energy = data[:, 0]
-        eps2 = data[:, 1]
-        eps1 = data[:, 3]
+            energy = data[:, 0]
+            eps2 = data[:, 1]
+            eps1 = data[:, 3]
+            return energy,eps1,eps2
 
-        return sst.OpticalSpectrum(energy, eps2, epsilon1=eps1)
+        eps1_list = []
+        eps2_list = []
+        for i in range(3):
+            energy,eps1,eps2 = load_eps(i)
+            eps1_list.append(eps1)
+            eps2_list.append(eps2)
+
+        return sst.OpticalSpectrum(energy, eps2_list, epsilon1=eps1_list)
 
     def _make_ocean_input_file(self, filename='ocean.in'):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
@@ -85,9 +98,9 @@ Returns:
 
         file.write('nbands '+self.scf_options['nband']+'\n')
 
-        atom_species = set(crystal_structure.atoms[:,3])
+        atom_species = SortedSet(crystal_structure.atoms[:,3])
         file.write('pp_list{\n')
-        for specie in sorted(atom_species):
+        for specie in atom_species:
             file.write(p_table[specie]+'.fhi\n' )
         file.write('}\n')
 
@@ -141,17 +154,24 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
 
         f.close()
 
-    def _make_photon_file(self,filename='photon1'):
+    def _make_photon_file(self):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
-        f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
 
-        f.write(self.optical_spectrum_options['operator']+'\n')
-        f.write('cartesian '+self.optical_spectrum_options['polarization']+'\n')
-        f.write('end\n')
-        f.write('cartesian '+self.optical_spectrum_options['k vector']+'\n')
-        f.write('end\n')
-        f.write(self.optical_spectrum_options['energy range'])
+        if self.optical_spectrum_options['polarization'].strip().lower() == 'all':
+            polarizations = ['1 0 0','0 1 0','0 0 1']
+        else:
+            polarizations = [self.optical_spectrum_options['polarization']]
+
+        for i,polarization in enumerate(polarizations):
+            f = open(self.project_directory + self.working_dirctory + '/' + 'photon{0}'.format(i+1), 'w')
+
+            f.write(self.optical_spectrum_options['operator']+'\n')
+            f.write('cartesian '+polarization+'\n')
+            f.write('end\n')
+            f.write('cartesian '+self.optical_spectrum_options['k vector']+'\n')
+            f.write('end\n')
+            f.write(self.optical_spectrum_options['energy range'])
 
         f.close()
 

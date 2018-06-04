@@ -11,6 +11,7 @@ import time
 import re
 import threading
 from little_helpers import convert_to_ordered
+from sortedcontainers import SortedSet
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
@@ -168,7 +169,7 @@ Default: 	GGA_PBE"""
              'screentype': 'full'
                 , 'nempty_screening': '0', 'use gw': 'false', 'nempty': '5', 'ngridq': "4 4 4", 'ngridk': "4 4 4",
              'broad': '0.0005',
-             'gqmax': "3.0", 'vkloff': "0.231 0.151 0.432"})
+             'gqmax': "3.0", 'vkloff': "0.231 0.151 0.432", 'xas': 'false', 'xasspecies': '1','xasatom': '1', 'nstlxas': '1 6','xasedge':'K'})
         self.optical_spectrum_options_tooltip = {
             'nstlbse': 'Range of bands included for the BSE calculation.\nThe first pair of numbers corresponds to the band index for local orbitals and valence states (counted from the lowest eigenenergy),\nthe second pair corresponds to the band index of the conduction states (counted from the Fermi level).',
             'nempty_screening': 'Number of empty states.',
@@ -199,7 +200,25 @@ Type: 	choose from:
 IP (Independent particles)
 RPA (random phase approximation)
 singlet
-triplet"""}
+triplet""",
+            'xas':'Set to "true" to perform BSE X-rasy absorption spectroscopy (XAS) calculation',
+            'xasatom':'Atom number (as defined in the structure in OpenDFT) for which the XAS is calculated.',
+            'xasspecies':'Species number (enumerate the atoms in your structure from low Z to high Z) for which the XAS is calculated. Example LiBH_4: H:1 Li:2 B:3',
+            'xasedge':"""Defines the initial states of the XAS calculation.
+Type: 	choose from:
+K
+L1
+L2
+L3
+L23
+M1
+M2
+M3
+M23
+M4
+M5
+M45""",
+            'nstlxas':'Range of bands included for the BSE calculation. The pair corresponds to the band index of the conduction states (counted from the Fermi level).'}
 
         self.relax_file_timestamp = None
 
@@ -670,7 +689,7 @@ Returns:
             ET.SubElement(crystal, "basevect").text = "{0:1.6f} {1:1.6f} {2:1.6f}".format(*lattice_vector)
 
         abs_coord_atoms = crystal_structure.atoms
-        species = set(abs_coord_atoms[:, 3].astype(np.int))
+        species = SortedSet(abs_coord_atoms[:, 3].astype(np.int))
         n_species = len(species)
         n_atoms = abs_coord_atoms.shape[0]
 
@@ -729,7 +748,9 @@ Returns:
         screening = ET.SubElement(xs, "screening", screentype=self.optical_spectrum_options['screentype'],
                                   nempty=self.optical_spectrum_options['nempty_screening'])
         BSE = ET.SubElement(xs, "BSE", bsetype=self.optical_spectrum_options['bsetype'],
-                            nstlbse=self.optical_spectrum_options['nstlbse'])
+                            nstlbse=self.optical_spectrum_options['nstlbse'],xas=self.optical_spectrum_options['xas'],
+                            xasspecies=self.optical_spectrum_options['xasspecies'],xasatom=self.optical_spectrum_options['xasatom'],
+                            xasedge=self.optical_spectrum_options['xasedge'],nstlxas=self.optical_spectrum_options['nstlxas'])
         qpointset = ET.SubElement(xs, 'qpointset')
         qpoint = ET.SubElement(qpointset, 'qpoint').text = '0.0 0.0 0.0'
 
