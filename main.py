@@ -586,7 +586,7 @@ plt.show()
             reply = QtGui.QMessageBox.question(self, 'Unsaved progress',
                                                msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
 
-            if reply == QtGui.QMessageBox.Cancel:
+            if reply == QtGui.QMessageBox.No:
                 return False
             elif reply == QtGui.QMessageBox.Yes:
                 self.save_code()
@@ -2450,6 +2450,20 @@ class CentralWindow(QtGui.QWidget):
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
+
+        if folder_name != self.project_directory:
+            try:
+                self.check_and_set_lock(folder_name)
+            except Exception:
+                return
+
+        if os.path.isfile(folder_name+'/save.pkl'):
+            msg = "This folder contains an existing OpenDFT project. If you proceed this project will be overwritten. Proceed?"
+            reply = QtGui.QMessageBox.question(self, 'Overwrite project?',msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.No:
+                return
+
         if len(folder_name) > 1:
             if self.project_loaded:
                 self.save_results()
@@ -2471,6 +2485,7 @@ class CentralWindow(QtGui.QWidget):
         self.project_loaded = True
 
     def reset_results_and_plots(self):
+        self.release_lock()
         self.crystal_structure = None
         esc_handler.reset_to_defaults()
         self.project_properties.clear()
@@ -2488,13 +2503,21 @@ class CentralWindow(QtGui.QWidget):
         self.window.setWindowTitle("OpenDFT")
 
     def load_project(self, *args, **kwargs):
+        if self.project_loaded:
+            self.save_results()
+            self.reset_results_and_plots()
+
         folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
 
+        try:
+            self.check_and_set_lock(folder_name)
+        except Exception:
+            return
+
         save_filename = folder_name + '/save.pkl'
         if folder_name and os.path.isfile(save_filename):
-            self.reset_results_and_plots()
             self.project_directory = folder_name
             os.chdir(self.project_directory)
             esc_handler.project_directory = self.project_directory
@@ -2787,7 +2810,9 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG or reply == QtGui.QMessageBox.Yes:
             self.save_defaults()
-            self.save_results()
+            if self.project_loaded:
+                self.save_results()
+                self.release_lock()
             self.parent.quit()
             logging.info('Program stopped normally')
             sys.exit()
@@ -3049,6 +3074,23 @@ class CentralWindow(QtGui.QWidget):
     def update_program(self):
         self.check_integrety()
         self.handle_queue()
+
+    def check_and_set_lock(self,folder_name):
+        lock_path = folder_name+'/.lock'
+        if os.path.isfile(lock_path):
+            msg = "This project seems to be opened by another instance of OpenDFT. Opening one project by two instances is not safe. Proceed?"
+            reply = QtGui.QMessageBox.question(self, 'Project locked',
+                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+            if reply == QtGui.QMessageBox.No:
+                raise Exception('Project is locked')
+
+        open(lock_path, 'a').close()
+
+    def release_lock(self):
+        lock_path = self.project_directory +'/.lock'
+        if os.path.isfile(lock_path):
+            os.remove(lock_path)
 
 
 if __name__ == "__main__":

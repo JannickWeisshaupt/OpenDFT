@@ -102,7 +102,7 @@ Returns:
 
     def _add_ocean_to_file(self,file,crystal_structure):
         file.write('dft{ abi }\n')
-        file.write(r"ppdir {'../'}"+'\n')
+        file.write(r"ppdir {'../../pseudos'}"+'\n')
 
         self._add_scf_to_file(file,crystal_structure,brakets=True)
 
@@ -197,9 +197,9 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
         for atom in atoms_names:
             file = atom+'.fhi'
             pseudo_files.append(file)
-            filepath = self.project_directory+self.working_dirctory+file
+            filepath = self.project_directory+self.pseudo_directory+file
             if not os.path.isfile(filepath):
-                copyfile(installation_folder+'/data/pseudos/ocean/'+file,filepath)
+                shutil.copyfile(installation_folder+'/data/pseudos/ocean/'+file,filepath)
 
         return pseudo_files
 
