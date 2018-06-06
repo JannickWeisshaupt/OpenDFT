@@ -620,7 +620,7 @@ def bonds_to_path(bonds_in):
     while len(bonds) > 0:
 
         if len(path) == 0:
-            path = bonds[0]
+            path = list(bonds[0])
             del bonds[0]
         else:
             last_el = path[-1]

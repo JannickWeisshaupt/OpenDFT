@@ -321,6 +321,9 @@ Returns:
         text = f.read()
         f.close()
 
+        text = text.replace('-',' -')
+        text = text.replace('E -','E-').replace('e -','e-')
+
         if crystal_structure is None:
             inv_lattice_vectors = np.eye(3,3)
         else:

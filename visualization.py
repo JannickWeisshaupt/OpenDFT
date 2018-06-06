@@ -497,6 +497,7 @@ class VolumeSlicer(HasTraits):
         self.cut_plane = None
         self.mayavi_atoms = []
         self.mayavi_unitcell = None
+        self.mayavi_bonds = []
 
     # def _ipw_3d_default(self):
     #     return self.make_ipw_3d()
@@ -563,7 +564,7 @@ class VolumeSlicer(HasTraits):
             self.plot_bonds()
         else:
             for mayavi_bond in self.mayavi_bonds:
-                self.remove_bonds()
+                mayavi_bond.remove()
             self.mayavi_bonds = []
 
     @on_trait_change('show_unitcell')
@@ -632,6 +633,7 @@ class VolumeSlicer(HasTraits):
             mayavi_bond = self.scene3d.mlab.plot3d(x, y, z, tube_radius=0.125, tube_sides=18,
                                                    figure=self.scene3d.mayavi_scene)
             self.mayavi_bonds.append(mayavi_bond)
+
 
     view = View(
         Group(
