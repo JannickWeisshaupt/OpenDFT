@@ -151,6 +151,8 @@ class CrystalStructure(object):
 
     def calculate_inv_lattice(self):
         volume = np.dot(np.cross(self.lattice_vectors[0, :], self.lattice_vectors[1, :]), self.lattice_vectors[2, :])
+        if volume == 0:
+            raise ValueError('invalid structre. Two vectors are parallel')
         self.inv_lattice_vectors = np.zeros((3, 3))
         self.inv_lattice_vectors[0, :] = np.cross(self.lattice_vectors[1, :],
                                                   self.lattice_vectors[2, :]) * 2 * np.pi / volume

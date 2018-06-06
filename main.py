@@ -29,8 +29,8 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
     OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
-from little_helpers import no_error_dictionary, CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
-    find_data_file, get_stacktrace_as_string
+from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
+    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -135,7 +135,7 @@ class BrillouinWindow(QtGui.QDialog):
             for j in range(4):
                 item = QtGui.QTableWidgetItem()
                 if j < 3:
-                    text = "{0:1.6f}".format(self.k_path[i][0][j])
+                    text = find_fraction(self.k_path[i][0][j])
                 else:
                     text = self.k_path[i][1]
                 item.setText(text)
@@ -162,7 +162,7 @@ class BrillouinWindow(QtGui.QDialog):
         k_points = []
         for i in range(n_k):
             try:
-                coords = np.array([float(self.table.item(i, j).text()) for j in range(3)])
+                coords = np.array([float(eval_expr(self.table.item(i, j).text())) for j in range(3)])
                 k_point = [coords, str(self.table.item(i, 3).text())]
                 k_points.append(k_point)
             except Exception:
@@ -2126,7 +2126,7 @@ class EditStructureWindow(QtGui.QMainWindow):
                     unit_cell = self.crystal_structure.lattice_vectors
                     for i in range(3):
                         for j in range(3):
-                            self.unit_cell_table.item(i, j).setText("{0:1.6f}".format(unit_cell[i, j] / scale))
+                            self.unit_cell_table.item(i, j).setText(find_fraction(unit_cell[i, j] / scale))
                     if not self.periodic_checkbox.checkState():
                         self.periodic_checkbox.stateChanged.disconnect()
                         self.periodic_checkbox.toggle()
@@ -2149,7 +2149,7 @@ class EditStructureWindow(QtGui.QMainWindow):
                     coords = atom[0:3]
                     for j, coord in enumerate(coords):
                         item = self.atom_table.item(i, j + 1)
-                        item.setText('{0:1.6f}'.format(coord))
+                        item.setText(find_fraction(coord))
                     item = self.atom_table.item(i, 0)
                     item.setText(p_table[atom[3]])
         except Exception as e:
@@ -2269,7 +2269,7 @@ class EditStructureWindow(QtGui.QMainWindow):
             skip_bool = False
             for j in range(1, 4):
                 try:
-                    coord[0, j - 1] = float(self.atom_table.item(i, j).text())
+                    coord[0, j - 1] = float(eval_expr(self.atom_table.item(i, j).text()))
                 except:
                     skip_bool = True
                     break
@@ -2301,7 +2301,7 @@ class EditStructureWindow(QtGui.QMainWindow):
                 for i in range(3):
                     for j in range(3):
                         item = self.unit_cell_table.item(i, j)
-                        unit_cell[i, j] = float(item.text())
+                        unit_cell[i, j] = float(eval_expr(item.text()))
 
                 unit_cell = unit_cell * scale
             except Exception:

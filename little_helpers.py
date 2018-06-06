@@ -4,25 +4,11 @@ import sys
 import os
 import traceback
 from collections import OrderedDict
+import ast
+import operator as op
+from fractions import Fraction
 
 
-class no_error_dictionary:
-    def __init__(self, dic_in):
-        self.dic = dic_in
-
-    def __getitem__(self, key):
-        try:
-            return self.dic[key]
-        except KeyError:
-            return None
-
-
-def flatten_dictionary(dictionary):
-    new_dic = {}
-    for key, value in dictionary.items():
-        for key2, value in value.items():
-            new_dic[key + '_' + key2] = value
-    return new_dic
 
 
 class CopySelectedCellsAction(QtGui.QAction):
@@ -166,3 +152,44 @@ def get_stacktrace_as_string():
     joined_error = '<br>'.join(error)
     joined_error = joined_error.replace(' ', '&#160;')
     return joined_error
+
+# supported operators
+operators = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
+             ast.Div: op.truediv, ast.Pow: op.pow, ast.BitXor: op.xor,
+             ast.USub: op.neg,'sin':np.sin,'cos':np.cos,'tan':np.tan,'sqrt':np.sqrt,'pi':np.pi,
+             'sind': lambda x: np.sin(x*np.pi/180), 'cosd':lambda x: np.cos(x*np.pi/180), 'tand': lambda x: np.tan(x*np.pi/180)}
+
+
+def eval_expr(expr):
+    return eval_(ast.parse(expr, mode='eval').body)
+
+
+def eval_(node):
+    if isinstance(node, ast.Num): # <number>
+        return node.n
+    elif isinstance(node, ast.BinOp): # <left> <operator> <right>
+        return operators[type(node.op)](eval_(node.left), eval_(node.right))
+    elif isinstance(node, ast.UnaryOp): # <operator> <operand> e.g., -1
+        return operators[type(node.op)](eval_(node.operand))
+    elif isinstance(node, ast.Call): # <func>(<arg>)
+        return operators[node.func.id](eval_(node.args[0]))
+    elif isinstance(node, ast.Name):
+        return operators[node.id]
+    else:
+        raise TypeError(node)
+
+
+def find_fraction(num):
+    frac = Fraction(num).limit_denominator(16)
+    if frac.numerator == 0:
+        return '0'
+    elif frac.denominator == 1:
+        return '{}'.format(frac.numerator)
+    elif abs(frac-num) > 1e-14:
+        return '{0:1.11f}'.format(num)
+    else:
+        return '{0}/{1}'.format(frac.numerator, frac.denominator)
+
+if __name__ == "__main__":
+    # print(eval_expr('sind(45)'))
+    print(find_fraction(6/32))

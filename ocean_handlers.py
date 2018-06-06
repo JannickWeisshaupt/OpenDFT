@@ -3,7 +3,7 @@ import subprocess
 from abinit_handler import Handler as AbinitHandler
 from abinit_handler import p_table,p_table_rev
 from quantum_espresso_handler import Handler as QeHandler
-from little_helpers import convert_to_ordered
+from little_helpers import convert_to_ordered,find_data_file
 import solid_state_tools as sst
 import numpy as np
 import shutil
@@ -15,6 +15,14 @@ class OceanHandler(object):
     def __init__(self):
         self.supported_methods.add('optical spectrum')
         self.working_dirctory = '/abinit_ocean_files/'
+
+        self.info_text = self.info_text + """
+        
+ocean is  an ab initio Density  Functional  Theory  (DFT)  +  Bethe-Salpeter  Equation  (BSE)
+code for calculations of core-level spectra.  Currently the code allows for the calculations of x-
+ray absorption spectra (XAS), x-ray emission (XES), non-resonant x-ray inelastic x-ray spectra
+(NRIXS), and (direct) resonant inelastic x-ray scattering (RIXS) of periodic systems.  The code
+is written in Fortran 90 with associated shell and Perl scripting."""
 
         self.optical_spectrum_options = convert_to_ordered({'diemac':'5.0','CNBSE.xmesh':'6 6 6','screen.shells':'4.0','screen.shells':'3.5','cnbse.rad':'3.5',
         'cnbse.broaden':'0.1','edges':'0 1 0','screen.nbands':'80','screen.nkpt':'2 2 2','opts.core_states':'1 0 0 0',
@@ -34,6 +42,8 @@ Returns:
 
         if os.path.isdir(self.project_directory + self.working_dirctory+'/CNBSE'):
             shutil.rmtree(self.project_directory + self.working_dirctory+'/CNBSE')
+
+        self._copy_default_ocean_pseudos(crystal_structure)
 
         self.current_input_file = 'ocean.in'
         self.current_output_file = 'ocean.out'
@@ -174,6 +184,24 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
             f.write(self.optical_spectrum_options['energy range'])
 
         f.close()
+
+    def _copy_default_ocean_pseudos(self, crystal_structure):
+        atoms = sorted(set(crystal_structure.atoms[:,3]))
+        atoms_names = [p_table[atom] for atom in atoms]
+        installation_folder = find_data_file('')
+
+        if not os.path.isdir(self.project_directory+self.pseudo_directory):
+            os.mkdir(self.project_directory+self.pseudo_directory)
+
+        pseudo_files = []
+        for atom in atoms_names:
+            file = atom+'.fhi'
+            pseudo_files.append(file)
+            filepath = self.project_directory+self.working_dirctory+file
+            if not os.path.isfile(filepath):
+                copyfile(installation_folder+'/data/pseudos/ocean/'+file,filepath)
+
+        return pseudo_files
 
 class OceanAbinit(OceanHandler,AbinitHandler):
 
