@@ -28,7 +28,7 @@ is written in Fortran 90 with associated shell and Perl scripting."""
         'cnbse.broaden':'0.1','edges':'0 1 0','screen.nbands':'80','screen.nkpt':'2 2 2','opts.core_states':'1 0 0 0',
                                                             'opts.relativity':'scalar rel','opts.functional':'lda','opts.valence':'2.0 3.5 0.0 0.0',
         'fill.pow':'2','fill.energy':'0.30 2.00 0.0001','fill.cutoff':'3.5','fill.fourier':'0.05 20',
-        'operator':'dipole','polarization':'all','k vector':'0 1 0','energy range':'600'})
+        'operator':'dipole','polarization':'all','k vector':'0 1 0','photon energy':'600'})
 
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
@@ -40,11 +40,6 @@ Returns:
     - None
         """
 
-        if os.path.isdir(self.project_directory + self.working_dirctory+'/CNBSE'):
-            shutil.rmtree(self.project_directory + self.working_dirctory+'/CNBSE')
-
-        self._copy_default_ocean_pseudos(crystal_structure)
-
         self.current_input_file = 'ocean.in'
         self.current_output_file = 'ocean.out'
 
@@ -52,9 +47,14 @@ Returns:
         self._add_ocean_to_file(f,crystal_structure)
         f.close()
 
-        self._make_opts_file()
+        self._make_opts_file(crystal_structure)
         self._make_fill_file()
         self._make_photon_file()
+
+        self._copy_default_ocean_pseudos(crystal_structure)
+
+        if os.path.isdir(self.project_directory + self.working_dirctory+'/CNBSE'):
+            shutil.rmtree(self.project_directory + self.working_dirctory+'/CNBSE')
 
         self._start_ocean_engine()
 
@@ -102,7 +102,7 @@ Returns:
 
     def _add_ocean_to_file(self,file,crystal_structure):
         file.write('dft{ abi }\n')
-        file.write(r"ppdir {'../../pseudos'}"+'\n')
+        file.write(r"ppdir {'../'}"+'\n')
 
         self._add_scf_to_file(file,crystal_structure,brakets=True)
 
@@ -120,9 +120,15 @@ Returns:
         for key, item in ocean_opts.items():
             file.write(key+'{ '+item+' }\n')
 
+        edge_0 = int(self.optical_spectrum_options['edges'].split()[0])
+        if edge_0 < 0:
+            Z = abs(edge_0)
+        else:
+            Z = SortedSet(crystal_structure.atoms[:,3].astype('int'))[edge_0-1]
+
         file.write("""
 opf.opts{{ {0} ocean.opts }}
-opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['edges'].split()[0]) )))
+opf.fill{{ {0} ocean.fill }}""".format(Z))
 
     def _start_ocean_engine(self,blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
@@ -139,11 +145,17 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
             while self.is_engine_running():
                 time.sleep(0.1)
 
-    def _make_opts_file(self,filename='ocean.opts'):
+    def _make_opts_file(self,crystal_structure,filename='ocean.opts'):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
-        Z = abs(int(self.optical_spectrum_options['edges'].split()[0]))
+
+        edge_0 = int(self.optical_spectrum_options['edges'].split()[0])
+        if edge_0 < 0:
+            Z = abs(edge_0)
+        else:
+            Z = SortedSet(crystal_structure.atoms[:,3].astype('int'))[edge_0-1]
+
         f.write('{0:03d}\n'.format(Z))
         f.write(self.optical_spectrum_options['opts.core_states'] +'\n')
         f.write(self.optical_spectrum_options['opts.relativity'] + '\n')
@@ -181,7 +193,7 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
             f.write('end\n')
             f.write('cartesian '+self.optical_spectrum_options['k vector']+'\n')
             f.write('end\n')
-            f.write(self.optical_spectrum_options['energy range'])
+            f.write(self.optical_spectrum_options['photon energy'])
 
         f.close()
 
@@ -197,7 +209,7 @@ opf.fill{{ {0} ocean.fill }}""".format(abs(int(self.optical_spectrum_options['ed
         for atom in atoms_names:
             file = atom+'.fhi'
             pseudo_files.append(file)
-            filepath = self.project_directory+self.pseudo_directory+file
+            filepath = self.project_directory+self.working_dirctory+file
             if not os.path.isfile(filepath):
                 shutil.copyfile(installation_folder+'/data/pseudos/ocean/'+file,filepath)
 
