@@ -331,7 +331,7 @@ Returns:
 
         width = float(self.optical_spectrum_options['edge width'])
         A0 = float(self.optical_spectrum_options['edge amplitude'])
-        edge_f = lambda E: A0*(scipy.special.erf((E - Ek) / width) + 1)/2 / (E / Ek) ** 3
+        edge_f = lambda E: (scipy.special.erf((E - Ek) / width) + 1)/2 / (E / Ek) ** 4
 
         region = E.max()-E.min()
 
@@ -341,7 +341,7 @@ Returns:
         edge = edge_f(E_plot)
         exaf_interp = np.interp(E_plot, E, data[:, 1], left=0)
 
-        res_abs = exaf_interp + edge
+        res_abs = A0*(exaf_interp + edge)
         # c = 299792458
         # omega = E_plot*e/hbar
         # eps2 = res_abs*1e6*c/omega

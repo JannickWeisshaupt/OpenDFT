@@ -1160,16 +1160,17 @@ class PlotWithTreeview(QtGui.QWidget):
         self.show()
 
     def delete_selected_item(self):
-        index = self.treeview.selectedIndexes()[0]
-        item = self.treeview.itemFromIndex(index)
-        bs_name = item.text(0)
+        indexes = self.treeview.selectedIndexes()
+        items = [self.treeview.itemFromIndex(index) for index in indexes]
+        bs_names = [item.text(0) for item in items]
 
-        del_msg = "Are you sure you want to delete " + bs_name + ' permanently?'
+        del_msg = "Are you sure you want to delete " + ', '.join(bs_names) + ' permanently?'
         reply = QtGui.QMessageBox.question(self, 'Sure to delete?', del_msg, QtGui.QMessageBox.Yes,
                                            QtGui.QMessageBox.No)
 
         if reply == QtGui.QMessageBox.Yes:
-            del self.data_dictionary[bs_name]
+            for bs_name in bs_names:
+                del self.data_dictionary[bs_name]
             self.update_tree()
 
     def export_selected_item(self, code=False):
