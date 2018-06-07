@@ -86,7 +86,7 @@ class CrystalStructure(object):
         self._lattice_vectors = value
         self.calculate_inv_lattice()
 
-    def calc_absolute_coordinates(self, repeat=[1, 1, 1]):
+    def calc_absolute_coordinates(self, repeat=(1, 1, 1), offset=(0,0,0)):
         n_repeat = repeat[0] * repeat[1] * repeat[2]
 
         abs_coord = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 4))
@@ -96,11 +96,7 @@ class CrystalStructure(object):
                 for j3 in range(repeat[2]):
                     for i in range(self.n_atoms):
                         abs_coord[i, j1, j2, j3, :3] = np.dot(self.lattice_vectors.T,
-                                                              self.atoms[i, :3].T) + j3 * self.lattice_vectors[2,
-                                                                                          :] + j2 * self.lattice_vectors[
-                                                                                                    1,
-                                                                                                    :] + j1 * self.lattice_vectors[
-                                                                                                              0, :]
+                        self.atoms[i, :3].T) + (j3-offset[2]) * self.lattice_vectors[2,:] + (j2-offset[1]) * self.lattice_vectors[1,:] + (j1-offset[0]) * self.lattice_vectors[0, :]
                         abs_coord[i, j1, j2, j3, 3] = self.atoms[i, 3]
                 abs_coord_out = abs_coord.reshape((n_repeat * self.n_atoms, 4))
         return abs_coord_out
@@ -429,12 +425,13 @@ class GeneralHandler:
         self.nwchem_handler = Handler
         from abinit_handler import Handler
         self.abinit_handler = Handler
-        from ocean_handlers import OceanQe,OceanAbinit
+        from ocean_handlers import OceanQe,OceanAbinit,FeffAbinit
         self.ocean_qe_handler = OceanQe
         self.ocean_abi_handler = OceanAbinit
+        self.feff_abi_handler = FeffAbinit
 
         d = {'exciting': self.exciting_handler, 'quantum espresso': self.quantum_espresso_handler,
-             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit + ocean":self.ocean_abi_handler}
+             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit + ocean":self.ocean_abi_handler,'abinit + feff':self.feff_abi_handler}
         self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
     def is_handler_available(self, engine_name):

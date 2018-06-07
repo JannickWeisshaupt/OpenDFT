@@ -8,6 +8,8 @@ import solid_state_tools as sst
 import numpy as np
 import shutil
 from sortedcontainers import SortedSet
+import scipy.special
+
 
 
 class OceanHandler(object):
@@ -215,6 +217,138 @@ opf.fill{{ {0} ocean.fill }}""".format(Z))
 
         return pseudo_files
 
+
+class FeffHandler(object):
+    def __init__(self):
+        self.supported_methods.add('optical spectrum')
+        self.working_dirctory = '/abinit_feff_files/'
+
+        self.info_text = self.info_text + """ """
+
+        self.optical_spectrum_options = convert_to_ordered(
+            {'sphere radius':'6.0','atom':'0','temperature':'300','debye temperature':'500','edge energy':'9000','edge amplitude':'1.0','edge width':'10'})
+
+    def start_optical_spectrum(self, crystal_structure):
+        """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
+
+Args:
+    - crystal_structure:        A CrystalStructure or MolecularStructure object that represents the geometric structure of the material under study.
+
+Returns:
+    - None
+        """
+
+        self.current_input_file = 'feff.inp'
+        self.current_output_file = 'feff.out'
+
+        f = self._make_feff_input_file()
+        self._add_feff_to_file(f,crystal_structure)
+        f.close()
+
+        self._start_feff_engine()
+
+    def _make_feff_input_file(self, filename='feff.inp'):
+        if not os.path.isdir(self.project_directory + self.working_dirctory):
+            os.mkdir(self.project_directory + self.working_dirctory)
+        f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
+        return f
+
+    def _add_feff_to_file(self,file,crystal_structure):
+        file.write('DEBYE {0} {1}  \n\n'.format(self.optical_spectrum_options['temperature'],self.optical_spectrum_options['debye temperature']))
+
+        scattering_atom = int(self.optical_spectrum_options['atom'])
+        sphere_radius = float(self.optical_spectrum_options['sphere radius'])
+
+        single_cell_coord = crystal_structure.calc_absolute_coordinates()
+        Z_scattering = int( single_cell_coord[scattering_atom,3] )
+
+        atoms = self._find_atoms_within_sphere(crystal_structure,sphere_radius,scattering_atom)
+
+        species = SortedSet(atoms[:,3].astype('int'))
+
+        file.write('POTENTIALS\n')
+        file.write('  0 {}\n'.format(Z_scattering))
+        for i,specie in enumerate(species):
+            file.write('  {0} {1}\n'.format(i+1,specie))
+
+        file.write('\nATOMS\n')
+        for atom in atoms:
+            coords = atom[:3]
+            Z = int(atom[3])
+            if np.linalg.norm(coords-single_cell_coord[scattering_atom,:3]) <1e-6:
+                potential_number = 0
+            else:
+                potential_number = species.index(Z)+1
+
+            in_list = [coords[0]*sst.bohr,coords[1]*sst.bohr,coords[2]*sst.bohr,potential_number]
+            file.write('  {0:1.10f} {1:1.10f} {2:1.10f} {3}\n'.format(*in_list))
+
+    def _start_feff_engine(self,blocking=False):
+        os.chdir(self.project_directory + self.working_dirctory)
+        if self.custom_command_active:
+            command = ['bash', self.custom_command]
+        else:
+            command = self._engine_command
+
+
+        self.engine_process = subprocess.Popen('exec feff.x >feff.out', stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE,shell=True)
+        os.chdir(self.project_directory)
+        if blocking:
+            while self.is_engine_running():
+                time.sleep(0.1)
+
+    def _find_atoms_within_sphere(self,crystal_structure,sphere_radius,atom):
+        atomic_coord_single = crystal_structure.calc_absolute_coordinates()
+        atomic_coord_rep = crystal_structure.calc_absolute_coordinates(repeat=(5,5,5),offset=(2,2,2))
+        dist = np.linalg.norm(atomic_coord_rep[:,:3] - atomic_coord_single[atom,:3],axis=1)
+        sphere_mask = dist < sphere_radius
+        sphere_atoms = atomic_coord_rep[sphere_mask,:]
+        return sphere_atoms
+
+    def read_optical_spectrum(self):
+
+        try:
+            f = open(self.project_directory + self.working_dirctory + u'/chi.dat', 'r')
+        except IOError:
+            return None
+        text = f.read()
+        f.close()
+
+        lines = text.split('\n')
+        for i,line in enumerate(lines):
+            if line.strip().startswith('0.00'):
+                break
+
+        data = np.loadtxt(self.project_directory + self.working_dirctory + u'/chi.dat',skiprows=i)
+
+        Ek = float(self.optical_spectrum_options['edge energy'])
+        hbar = 1.0545718e-34
+        me = 9.10938356e-31
+        a0 = 5.2917721092e-11
+        e = 1.60217662e-19
+        E = (data[:, 0] / 1e-10) ** 2 * hbar ** 2 / (2 * me) / e + Ek
+
+        width = float(self.optical_spectrum_options['edge width'])
+        A0 = float(self.optical_spectrum_options['edge amplitude'])
+        edge_f = lambda E: A0*(scipy.special.erf((E - Ek) / width) + 1)/2 / (E / Ek) ** 3
+
+        region = E.max()-E.min()
+
+        E_plot = np.linspace(E.min()-region*0.1,E.max(),2000)
+
+
+        edge = edge_f(E_plot)
+        exaf_interp = np.interp(E_plot, E, data[:, 1], left=0)
+
+        res_abs = exaf_interp + edge
+        # c = 299792458
+        # omega = E_plot*e/hbar
+        # eps2 = res_abs*1e6*c/omega
+
+        return sst.OpticalSpectrum(E_plot,res_abs)
+
+
 class OceanAbinit(OceanHandler,AbinitHandler):
 
     def __init__(self):
@@ -229,24 +363,42 @@ class OceanQe(OceanHandler,QeHandler):
         OceanHandler.__init__(self)
 
 
+class FeffAbinit(FeffHandler,AbinitHandler):
+
+    def __init__(self):
+        AbinitHandler.__init__(self)
+        FeffHandler.__init__(self)
+
+
 if __name__ == '__main__':
-    ocean_abi_handler = OceanAbinit()
-    ocean_qe_handler = OceanQe()
-
-    ocean_abi_handler.project_directory = '/home/jannick/OpenDFT_projects/ocean_test'
-
-    ocean_abi_handler.optical_spectrum_options['edges'] = '-6 1 0'
-    ocean_abi_handler.optical_spectrum_options['opts.valence'] = '0.8 2.0 0.2 0.0'
+    # ocean_abi_handler = OceanAbinit()
+    # ocean_qe_handler = OceanQe()
+    #
+    # ocean_abi_handler.project_directory = '/home/jannick/OpenDFT_projects/ocean_test'
+    #
+    # ocean_abi_handler.optical_spectrum_options['edges'] = '-6 1 0'
+    # ocean_abi_handler.optical_spectrum_options['opts.valence'] = '0.8 2.0 0.2 0.0'
 
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.0,0.5,0.5], [0.5, 0, 0.5], [0.5, 0.5, 0.0]])
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
 
-    ocean_abi_handler.start_optical_spectrum(crystal_structure)
+    # ocean_abi_handler.start_optical_spectrum(crystal_structure)
 
     # spec = ocean_abi_handler.read_optical_spectrum()
 
     # import matplotlib.pyplot as plt
     #
     # plt.plot(spec.energy,spec.epsilon2)
+    handler = FeffAbinit()
+    handler.project_directory = '/home/jannick/OpenDFT_projects/feff_testing'
+    handler.optical_spectrum_options['sphere radius'] = '9.0'
+    handler.start_optical_spectrum(crystal_structure)
+    import time
+    time.sleep(1.0)
+    spec = handler.read_optical_spectrum()
+
+    import matplotlib.pyplot as plt
+
+    plt.plot(spec.energy,spec.epsilon2)

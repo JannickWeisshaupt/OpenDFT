@@ -2850,7 +2850,9 @@ class CentralWindow(QtGui.QWidget):
             message, err = esc_handler.engine_process.communicate()
             if type(message) == bytes:
                 message, err = message.decode(), err.decode()
-            if ('error' in message.lower() or len(err) > 0):
+
+            actual_error_bool = len(err)>0 and not err.strip() == 'Note: The following floating-point exceptions are signalling: IEEE_UNDERFLOW_FLAG IEEE_DENORMAL'
+            if ('error' in message.lower() or actual_error_bool):
                 error_message = 'DFT calculation finished with an error:<br><br>' + message.replace('\n',
                                                                                                     "<br>") + '<br>Error:<br>' + err.replace(
                     '\n', '<br>') \
