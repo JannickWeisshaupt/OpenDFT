@@ -2422,6 +2422,10 @@ class CentralWindow(QtGui.QWidget):
         self.queue_timer.timeout.connect(self.update_program)
         self.queue_timer.start(200)
 
+        self.save_timer = QtCore.QTimer()
+        self.save_timer.timeout.connect(self.save_results)
+        self.save_timer.start(300000)
+
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
                 project_directory = r"/home/jannick/OpenDFT_projects/graphene/"
@@ -2543,6 +2547,9 @@ class CentralWindow(QtGui.QWidget):
 
     def save_results(self):
         # Todo move engine folder and custom command into engine specific dic
+        if not self.project_loaded:
+            return
+
         try:
             self.dft_engine_window.read_all_option_widgets()
 

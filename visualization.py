@@ -229,10 +229,11 @@ class StructureVisualization(HasTraits):
     show_unitcell = Bool(True)
     show_bonds = Bool(True)
     show_atoms = Bool(True)
+    edge_atoms = Bool(False)
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_', 'n_x', 'n_y', 'n_z', 'show_unitcell', 'show_bonds', 'show_atoms', orientation='horizontal'),
+                Group('_', 'n_x', 'n_y', 'n_z', 'show_unitcell', 'show_bonds', 'show_atoms','edge_atoms', orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -250,7 +251,7 @@ class StructureVisualization(HasTraits):
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
-    @on_trait_change('scene.activated,n_x,n_y,n_z')
+    @on_trait_change('scene.activated,n_x,n_y,n_z,edge_atoms')
     def update_plot(self, *args, **kwargs):
         if 'keep_view' in kwargs.keys():
             keep_view = kwargs['keep_view']
@@ -268,7 +269,7 @@ class StructureVisualization(HasTraits):
             cur_roll = self.scene.mlab.roll(figure=self.scene.mayavi_scene)
 
         if self.show_atoms:
-            self.plot_atoms(repeat=repeat)
+            self.plot_atoms(repeat=repeat,edge_atoms=self.edge_atoms)
 
         if self.show_bonds:
             self.plot_bonds(repeat=repeat)
@@ -285,7 +286,7 @@ class StructureVisualization(HasTraits):
     def _show_atoms_event(self):
         if self.show_atoms:
             repeat = [self.n_x, self.n_y, self.n_z]
-            self.plot_atoms(repeat)
+            self.plot_atoms(repeat=repeat,edge_atoms=self.edge_atoms)
         else:
             self.mayavi_atom.remove()
             self.mayavi_atom = None
@@ -347,8 +348,8 @@ class StructureVisualization(HasTraits):
         self.mayavi_unitcell = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
         mayavi_grid.mlab_source.update()
 
-    def plot_atoms(self, repeat=[1, 1, 1]):
-        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+    def plot_atoms(self, repeat=[1, 1, 1],edge_atoms=False):
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat,edges=edge_atoms)
         # species = set(abs_coord_atoms[:,3].astype(np.int))
 
         atom_size = 0.4 * np.log(abs_coord_atoms[:, 3]) + 0.6
@@ -440,9 +441,9 @@ class StructureVisualization(HasTraits):
 
     def plot_bonds(self, repeat=[1, 1, 1]):
         if self.mayavi_atom is None:
-            self.plot_atoms(repeat)
+            self.plot_atoms(repeat=repeat,edge_atoms=self.edge_atoms)
 
-        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat,edges=self.edge_atoms)
         bonds = self.crystal_structure.find_bonds(abs_coord_atoms)
 
         self.mayavi_atom.mlab_source.dataset.lines = np.array(bonds)

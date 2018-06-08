@@ -9,6 +9,7 @@ import os
 import copy
 from little_helpers import find_data_file
 from collections import OrderedDict
+import itertools
 
 from pymatgen.symmetry.bandstructure import HighSymmKpath
 import pymatgen as mg
@@ -41,7 +42,7 @@ class MolecularStructure(object):
         self.n_atoms = atoms.shape[0]
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
-    def calc_absolute_coordinates(self, repeat=[1, 1, 1]):
+    def calc_absolute_coordinates(self, repeat=[1, 1, 1],edges=False):
         return self.atoms
 
     def find_bonds(self, abs_coords):
@@ -75,7 +76,7 @@ class CrystalStructure(object):
         else:
             inv_lattice_vecs = np.linalg.inv(self.lattice_vectors.T)
             for i in range(self.n_atoms):
-                self.atoms[i, :3] = np.dot(inv_lattice_vecs, self.atoms[i, :3].T)
+                self.atoms[i, :3] = np.mod(np.dot(inv_lattice_vecs, self.atoms[i, :3].T),1)
 
     @property
     def lattice_vectors(self):
@@ -86,7 +87,7 @@ class CrystalStructure(object):
         self._lattice_vectors = value
         self.calculate_inv_lattice()
 
-    def calc_absolute_coordinates(self, repeat=(1, 1, 1), offset=(0,0,0)):
+    def calc_absolute_coordinates(self, repeat=(1, 1, 1), offset=(0,0,0),edges=False):
         n_repeat = repeat[0] * repeat[1] * repeat[2]
 
         abs_coord = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 4))
@@ -99,6 +100,8 @@ class CrystalStructure(object):
                         self.atoms[i, :3].T) + (j3-offset[2]) * self.lattice_vectors[2,:] + (j2-offset[1]) * self.lattice_vectors[1,:] + (j1-offset[0]) * self.lattice_vectors[0, :]
                         abs_coord[i, j1, j2, j3, 3] = self.atoms[i, 3]
                 abs_coord_out = abs_coord.reshape((n_repeat * self.n_atoms, 4))
+        if edges:
+            abs_coord_out = self._add_edges(abs_coord_out,repeat)
         return abs_coord_out
 
     def find_bonds_old(self, abs_coords):
@@ -156,6 +159,47 @@ class CrystalStructure(object):
                                                   self.lattice_vectors[0, :]) * 2 * np.pi / volume
         self.inv_lattice_vectors[2, :] = np.cross(self.lattice_vectors[0, :],
                                                   self.lattice_vectors[1, :]) * 2 * np.pi / volume
+
+    def _add_edges(self,coords,repeat):
+
+        relative_coords = np.zeros(coords.shape)
+        for i,coord in enumerate(coords):
+            relative_coords[i,:3] = np.dot(np.linalg.inv(self.lattice_vectors.T),coord[:3])
+            relative_coords[i,3] = coord[3]
+
+        new_coords = []
+        for i,coord in enumerate(relative_coords):
+            sym_index = []
+            for j,el in enumerate(coord[:3]):
+                if abs(el)<1e-12 or abs(el-repeat[j]+1)<1e-12:
+                    sym_index.append(j)
+
+            if len(sym_index)>0: # add single vectors
+                for j in sym_index:
+                    rub = np.zeros((4))
+                    rub[:3] = np.dot(self.lattice_vectors.T,coord[:3]) + self.lattice_vectors[j,:]
+                    rub[3] = coord[3]
+                    new_coords.append(rub)
+            if len(sym_index) > 1: # add sum of two vectors
+                for pair in itertools.product(sym_index, repeat=2):
+                    if pair[0] == pair[1]:
+                        continue
+                    rub = np.zeros((4))
+                    rub[:3] = np.dot(self.lattice_vectors.T,coord[:3]) + self.lattice_vectors[pair[0],:]+self.lattice_vectors[pair[1],:]
+                    rub[3] = coord[3]
+                    new_coords.append(rub)
+            if len(sym_index) > 2: # add sum of three vectors
+                rub = np.zeros((4))
+                rub[:3] = np.dot(self.lattice_vectors.T, coord[:3]) + self.lattice_vectors[0,:] + self.lattice_vectors[1,:]+ self.lattice_vectors[2,:]
+                rub[3] = coord[3]
+                new_coords.append(rub)
+
+        new_coords_arr = np.array(new_coords)
+        if len(new_coords_arr)>0:
+            new_coords_out = np.concatenate((coords,new_coords_arr),axis=0)
+        else: new_coords_out = coords
+
+        return new_coords_out
 
 
 class BandStructure(object):
@@ -649,18 +693,19 @@ if __name__ == "__main__":
 
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
-    coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 2, 2])
-    bonds = crystal_structure.find_bonds(coords)
-    print(crystal_structure.find_bonds(coords))
+    coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
 
-    path = calculate_standard_path(crystal_structure)
-
-    from visualization import BrillouinVisualization
-
-    vis = BrillouinVisualization(None)
-    vis.set_crystal_structure(crystal_structure)
-    vis.set_path(path )
-    vis.configure_traits()
+    # bonds = crystal_structure.find_bonds(coords)
+    # print(crystal_structure.find_bonds(coords))
+    #
+    # path = calculate_standard_path(crystal_structure)
+    #
+    # from visualization import BrillouinVisualization
+    #
+    # vis = BrillouinVisualization(None)
+    # vis.set_crystal_structure(crystal_structure)
+    # vis.set_path(path )
+    # vis.configure_traits()
 
     # import mayavi.mlab as mlab
     #
