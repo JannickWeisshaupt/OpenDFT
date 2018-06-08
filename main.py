@@ -2508,9 +2508,6 @@ class CentralWindow(QtGui.QWidget):
         self.window.setWindowTitle("OpenDFT")
 
     def load_project(self, *args, **kwargs):
-        if self.project_loaded:
-            self.save_results()
-            self.reset_results_and_plots()
 
         folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
@@ -2523,6 +2520,11 @@ class CentralWindow(QtGui.QWidget):
 
         save_filename = folder_name + '/save.pkl'
         if folder_name and os.path.isfile(save_filename):
+
+            if self.project_loaded:
+                self.save_results()
+                self.reset_results_and_plots()
+
             self.project_directory = folder_name
             os.chdir(self.project_directory)
             esc_handler.project_directory = self.project_directory
