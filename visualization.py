@@ -892,14 +892,14 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
     def broaden_spectrum(self, energy, epsilon, width, mode='lorentzian'):
 
+        if width is None or mode == 'none':
+            return energy, epsilon
         if mode == 'lorentzian':
             def broaden_function(x, width):
                 return width ** 2 / (x ** 2 + width ** 2)
         elif mode == 'gaussian':
             def broaden_function(x, width):
                 return np.exp(-x ** 2 / (2 * width ** 2))
-        elif mode == 'none' or width is None:
-            return energy, epsilon
 
         E_range = energy.max() - energy.min()
         dx = E_range / len(energy)
