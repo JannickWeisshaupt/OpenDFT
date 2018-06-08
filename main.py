@@ -2,6 +2,7 @@
 from __future__ import division, absolute_import, print_function, unicode_literals
 import six
 import sys
+from pathlib import Path
 
 if not sys.getfilesystemencoding():
     sys.getfilesystemencoding = lambda: 'UTF-8'
@@ -2492,6 +2493,8 @@ class CentralWindow(QtGui.QWidget):
     def reset_results_and_plots(self):
         self.release_lock()
         self.crystal_structure = None
+        self.project_directory = None
+        self.project_loaded = False
         esc_handler.reset_to_defaults()
         self.project_properties.clear()
         self.dft_engine_window.band_structure_points = None
@@ -2511,7 +2514,12 @@ class CentralWindow(QtGui.QWidget):
 
         folder_name = kwargs.pop('folder_name', None)
         if folder_name is None:
-            folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
+            if self.project_directory:
+                p = str(Path(self.project_directory).parents[0])
+            else:
+                p = os.path.expanduser("~")
+
+            folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,directory=p)
 
         try:
             self.check_and_set_lock(folder_name)
