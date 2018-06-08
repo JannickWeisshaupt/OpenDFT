@@ -226,7 +226,7 @@ class FeffHandler(object):
         self.info_text = self.info_text + """ """
 
         self.optical_spectrum_options = convert_to_ordered(
-            {'sphere radius':'6.0','atom':'0','temperature':'300','debye temperature':'500','edge energy':'9000','edge amplitude':'1.0','edge width':'10'})
+            {'sphere radius':'6.0','atom':'1','temperature':'300','debye temperature':'500','edge energy':'9000','edge amplitude':'1.0','edge width':'10'})
 
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
@@ -256,7 +256,7 @@ Returns:
     def _add_feff_to_file(self,file,crystal_structure):
         file.write('DEBYE {0} {1}  \n\n'.format(self.optical_spectrum_options['temperature'],self.optical_spectrum_options['debye temperature']))
 
-        scattering_atom = int(self.optical_spectrum_options['atom'])
+        scattering_atom = int(self.optical_spectrum_options['atom'])-1
         sphere_radius = float(self.optical_spectrum_options['sphere radius'])
 
         single_cell_coord = crystal_structure.calc_absolute_coordinates()
