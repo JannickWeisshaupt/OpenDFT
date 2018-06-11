@@ -2455,7 +2455,7 @@ class CentralWindow(QtGui.QWidget):
         self.list_of_tabs[i].do_select_event()
 
     def make_new_project(self):
-        folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self)
+        folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,options=QtGui.QFileDialog.ShowDirsOnly)
 
         if folder_name != self.project_directory:
             try:
@@ -2519,7 +2519,29 @@ class CentralWindow(QtGui.QWidget):
             else:
                 p = os.path.expanduser("~")
 
-            folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,directory=p)
+            folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,directory=p,options=QtGui.QFileDialog.ShowDirsOnly)
+
+            # class DirectoryDialog(QtGui.QFileDialog):
+            #     def __init__(self,*args,**kwargs):
+            #         super(DirectoryDialog,self).__init__(*args,**kwargs)
+            #
+            #     # def directoryEntered(self, p_str):
+            #     #     print('easda')
+            #
+            # qf =QtGui.QFileDialog(self)
+            #
+            # def directory_entered_event(qf,event):
+            #
+            #     print(event)
+            #     if os.path.isfile(event+'/save.pkl'):
+            #         qf.accept()
+            #
+            # qf.directoryEntered.connect(lambda x: directory_entered_event(qf,x))
+            # qf.setFileMode(QtGui.QFileDialog.DirectoryOnly)
+            # # qf.setViewMode(QtGui.QFileDialog)
+            # qf.exec()
+
+
 
         try:
             self.check_and_set_lock(folder_name)

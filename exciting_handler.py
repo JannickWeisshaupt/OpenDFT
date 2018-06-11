@@ -673,6 +673,29 @@ Returns:
         self.relax_options.update(default_handler.relax_options)
         self.phonons_options.update(default_handler.phonons_options)
 
+    def read_exciton_density(self):
+        l_data = np.genfromtxt(self.project_directory + self.working_dirctory + 'excitonWavefunction-01-000001.xsf', skip_header=18,
+                               skip_footer=3, dtype=np.float)
+        n_grid = 40
+        # data = l_data.reshape((l_data.shape[1],l_data.shape[1],l_data.shape[1]),order='C')
+        data = np.zeros((n_grid, n_grid, n_grid))
+        for i in range(n_grid):
+            for j in range(n_grid):
+                for k in range(n_grid):
+                    data[i, k, j] = l_data[n_grid * j + k, i]
+                    # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
+        data = data / data.max()
+        return sst.KohnShamDensity(data)
+
+    def calculate_exciton_density(self,crystal_structure,coords_hole):
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure, skip=True)
+        self._add_optical_spectrum_to_tree(tree)
+        self._add_exciton_wf_to_tree(tree,coords_hole)
+        self._write_input_file(tree)
+        self._start_engine()
+
     def _make_tree(self):
         root = ET.Element("input")
         tree = ET.ElementTree(root)
@@ -753,6 +776,10 @@ Returns:
                             xasedge=self.optical_spectrum_options['xasedge'],nstlxas=self.optical_spectrum_options['nstlxas'])
         qpointset = ET.SubElement(xs, 'qpointset')
         qpoint = ET.SubElement(qpointset, 'qpoint').text = '0.0 0.0 0.0'
+
+        store_exciton = ET.SubElement(xs,'storeexcitons',MinNumberExcitons="1",MaxNumberExcitons="5")
+        write_exciton = ET.SubElement(xs,'writeexcitons',MinNumberExcitons="1",MaxNumberExcitons="5")
+
 
     def _add_phonon_to_tree(self, tree, points):
         root = tree.getroot()
@@ -878,10 +905,31 @@ Returns:
         p2 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
         p3 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
 
+    def _add_exciton_wf_to_tree(self,tree,coords_hole):
+        root = tree.getroot()
+        xs = root.find('xs')
+        plan = ET.SubElement(xs,'plan')
+        ET.SubElement(plan, 'doonly', task="writebevec")
+        ET.SubElement(plan, 'doonly', task="excitonWavefunction")
+
+        exc_plot = ET.SubElement(xs,'excitonPlot',epstol="1d-2")
+        exciton = ET.SubElement(exc_plot,'exciton',**{'lambda':"1", 'fix':"hole"})
+        hole = ET.SubElement(exc_plot,'hole')
+        h_plot = ET.SubElement(hole,'plot1d')
+        h_path = ET.SubElement(h_plot,'path',steps='1')
+        ET.SubElement(h_path,'point',coord=coords_hole)
+        electron = ET.SubElement(exc_plot,'electron')
+        plot3d = ET.SubElement(electron,'plot3d')
+        box = ET.SubElement(plot3d,'box',grid='40 40 40')
+        ET.SubElement(box,'origin',coord=" -1.0  -1.0  -1.0")
+        ET.SubElement(box, 'point', coord=" 2.0  -1.0  -1.0")
+        ET.SubElement(box, 'point', coord=" -1.0  2.0  -1.0")
+        ET.SubElement(box, 'point', coord=" -1.0  -1.0  2.0")
+
 
 if __name__ == '__main__':
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/exciton_visualization"
 
     trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
                                    , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
@@ -889,15 +937,25 @@ if __name__ == '__main__':
     trash_bs_labels = ['GAMMA', 'X', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
     path = list(zip(trash_bs_points, trash_bs_labels))
 
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.6 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    atoms = np.array([[0, 0, 0, 3], [0.5, 0.5, 0.5, 9]])
+    unit_cell = 7.608 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
     crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-    handler.calculate_ks_density(crystal_structure, [1, 1])
+    # handler.calculate_ks_density(crystal_structure, [1, 1])
 
-    handler.read_gw_bandstructure(special_k_points=path, structure=crystal_structure)
+    # handler.read_gw_bandstructure(special_k_points=path, structure=crystal_structure)
 
+    # handler.start_ground_state(crystal_structure)
 
+    # handler.start_optical_spectrum(crystal_structure)
+
+    # handler.calculate_exciton_density(crystal_structure,'0.52 0.52 0.52')
+    dens = handler.read_exciton_density()
+
+    import mayavi.mlab as mlab
+
+    mlab.contour3d(dens.density,contours=20)
+    mlab.show()
     # handler.custom_command_active = True
     # ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
     # ac_bo2 = handler._check_if_scf_is_finished()
