@@ -16,7 +16,7 @@ class OceanHandler(object):
 
     def __init__(self):
         self.supported_methods.add('optical spectrum')
-        self.working_dirctory = '/abinit_ocean_files/'
+        # self.working_dirctory = '/abinit_ocean_files/'
 
         self.info_text = self.info_text + """
         
@@ -103,7 +103,7 @@ Returns:
         return f
 
     def _add_ocean_to_file(self,file,crystal_structure):
-        file.write('dft{ abi }\n')
+        file.write('dft{{ {} }}\n'.format(self.dft_handler))
         file.write(r"ppdir {'../'}"+'\n')
 
         self._add_scf_to_file(file,crystal_structure,brakets=True)
@@ -354,6 +354,8 @@ class OceanAbinit(OceanHandler,AbinitHandler):
     def __init__(self):
         AbinitHandler.__init__(self)
         OceanHandler.__init__(self)
+        self.working_dirctory = '/abinit_ocean_files/'
+        self.dft_handler = 'abi'
 
 
 class OceanQe(OceanHandler,QeHandler):
@@ -361,7 +363,8 @@ class OceanQe(OceanHandler,QeHandler):
     def __init__(self):
         QeHandler.__init__(self)
         OceanHandler.__init__(self)
-
+        self.working_dirctory = '/qe_ocean_files/'
+        self.dft_handler = 'qe'
 
 class FeffAbinit(FeffHandler,AbinitHandler):
 

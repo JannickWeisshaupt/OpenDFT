@@ -475,7 +475,8 @@ class GeneralHandler:
         self.feff_abi_handler = FeffAbinit
 
         d = {'exciting': self.exciting_handler, 'quantum espresso': self.quantum_espresso_handler,
-             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,"abinit + ocean":self.ocean_abi_handler,'abinit + feff':self.feff_abi_handler}
+             'nwchem': self.nwchem_handler, 'abinit': self.abinit_handler,
+             "abinit + ocean":self.ocean_abi_handler,'abinit + feff':self.feff_abi_handler}
         self.handlers = OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
     def is_handler_available(self, engine_name):
