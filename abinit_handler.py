@@ -157,7 +157,6 @@ Returns:
         file.close()
         self._start_engine(blocking=blocking)
 
-
     def start_optical_spectrum(self, crystal_structure):
         """This method starts a optical spectrum calculation in a subprocess. The configuration is stored in optical_spectrum_options.
 
@@ -384,9 +383,18 @@ Returns:
             f.close()
 
             matches = re.findall(r"nelect[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
-            match = matches[0]
+            if not matches:
+                lines = info_text.splitlines()
+                for line in lines:
+                    if line.strip().startswith('occ  '):
+                        line_list = line.split()
+                        occs = [float(x) for x in line_list[1:]]
+                        n_electrons = sum(occs)
+                        break
 
-            n_electrons = int(float(match.split('=')[1]))
+            else:
+                match = matches[0]
+                n_electrons = int(float(match.split('=')[1]))
 
             valence_bands = [band for i,band in enumerate(bands) if i<n_electrons//2]
             cond_bands = [band for i, band in enumerate(bands) if i >= n_electrons // 2]
@@ -399,10 +407,8 @@ Returns:
                 for band in bands:
                     band[:, 1] = band[:, 1] - efermi
 
-        except IOError:
+        except Exception:
             pass
-
-
 
         return sst.BandStructure(bands, special_k_points=special_k_points_out)
 
@@ -482,16 +488,11 @@ Returns:
     - None
                 """
         with open(self.project_directory + self.working_dirctory + '/cut3d.in', 'w') as f:
-            f.write("""scf_xo_DS2_WFK
-1
-0
-{0:d}
-{1:d}
-0
-0
-5
-density
-0""".format(bs_point[0],bs_point[1]))
+            if self._engine_version[0] < 8:
+                cut3d_commands = ('scf_xo_DS2_WFK','1','0','{0:d}'.format(bs_point[0]),'{0:d}'.format(bs_point[1]),'0','0','5','density','0')
+            else:
+                cut3d_commands = ('scf_xo_DS2_WFK','{0:d}'.format(bs_point[0]),'{0:d}'.format(bs_point[1]),'0','0','5','density','0')
+            f.write('\n'.join(cut3d_commands)+'\n')
 
         command = 'exec cut3d<cut3d.in>cut3d.log'
         os.chdir(self.project_directory + self.working_dirctory)
@@ -501,7 +502,10 @@ density
         def rename_result():
             while self.is_engine_running():
                 time.sleep(0.001)
-            filename = '/density_k{0:d}_b{1:d}_s1'.format(*bs_point)
+            if self._engine_version[0] < 8:
+                filename = '/density_k{0:d}_b{1:d}_s1'.format(*bs_point)
+            else:
+                filename = '/density_k{0:d}_b{1:d}'.format(*bs_point)
             os.rename(self.project_directory+self.working_dirctory+filename,self.project_directory+self.working_dirctory+'/density.out')
 
         t = threading.Thread(target=rename_result)
@@ -523,11 +527,11 @@ Returns:
     - None
                 """
         with open(self.project_directory+self.working_dirctory+'/cut3d.in','w') as f:
-            f.write("""scf_xo_DS1_DEN
-1
-5
-density.out
-0""")
+            if self._engine_version[0] < 8:
+                cut3d_commands = ('scf_xo_DS1_DEN','1','5','density.out','0')
+            else:
+                cut3d_commands = ('scf_xo_DS1_DEN','5','density.out','0')
+            f.write('\n'.join(cut3d_commands)+'\n')
 
         command = 'exec cut3d<cut3d.in>cut3d.log'
         os.chdir(self.project_directory + self.working_dirctory)
@@ -724,20 +728,24 @@ if __name__ == '__main__':
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/test_abinit"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond3"
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
 
-    handler._copy_default_pseudos(crystal_structure)
+    # bs = handler.read_bandstructure()
 
-    # handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
+    handler.calculate_electron_density(crystal_structure)
+
+    # handler._copy_default_pseudos(crystal_structure)
+    #
+    # # handler.start_ground_state(crystal_structure, band_structure_points=band_structure_points)
+    # # while handler.is_engine_running():
+    # #     time.sleep(0.3)
+    # # res = handler.read_scf_status()
+    #
+    # band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
+    # # version = handler._get_engine_version()
+    # handler.calculate_ks_density(crystal_structure,[130,5])
     # while handler.is_engine_running():
-    #     time.sleep(0.3)
-    # res = handler.read_scf_status()
-
-    band_structure = handler.read_bandstructure(special_k_points=band_structure_points,crystal_structure=crystal_structure)
-    # version = handler._get_engine_version()
-    handler.calculate_ks_density(crystal_structure,[130,5])
-    while handler.is_engine_running():
-        time.sleep(0.01)
-    handler.read_ks_state()
+    #     time.sleep(0.01)
+    # handler.read_ks_state()
