@@ -1103,7 +1103,7 @@ class InfoWindow(QtGui.QWidget):
         self.text_widget.setFontFamily('monospace')
         layout.addWidget(self.text_widget)
         self.vertical_scrollbar = self.text_widget.verticalScrollBar()
-        self.last_text = ''
+        self.last_hash = 0
 
         self.combobox = QtGui.QComboBox(self)
         layout.addWidget(self.combobox)
@@ -1123,16 +1123,16 @@ class InfoWindow(QtGui.QWidget):
             self.update_text(esc_handler.project_directory + esc_handler.working_dirctory + file)
         except IOError:
             self.text_widget.setHtml('')
-            self.last_text = ''
+            self.last_hash = 0
 
     def update_text(self, filename):
         cur_pos = self.vertical_scrollbar.value()
         with open(filename, 'r') as f:
             text = f.read()
-        if text == self.last_text:
+        if hash(text) == self.last_hash:
             return
 
-        self.last_text = text
+        self.last_hash = hash(text)
 
         # text = text.replace('\n','<br>')
         self.text_widget.setPlainText(text)
@@ -2540,8 +2540,6 @@ class CentralWindow(QtGui.QWidget):
             # qf.setFileMode(QtGui.QFileDialog.DirectoryOnly)
             # # qf.setViewMode(QtGui.QFileDialog)
             # qf.exec()
-
-
 
         try:
             self.check_and_set_lock(folder_name)

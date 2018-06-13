@@ -384,14 +384,11 @@ Returns:
 
             matches = re.findall(r"nelect[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
             if not matches:
-                lines = info_text.splitlines()
-                for line in lines:
-                    if line.strip().startswith('occ  '):
-                        line_list = line.split()
-                        occs = [float(x) for x in line_list[1:]]
-                        n_electrons = sum(occs)
-                        break
-
+                rx = r"occ\s+(\d*\.*?\d+(?:(?:|\s*)\s*\d*\.*?\d+)*)"
+                re_res = re.findall(rx, info_text)
+                re_list = re_res[0].split()
+                occs = [float(x) for x in re_list]
+                n_electrons = sum(occs)
             else:
                 match = matches[0]
                 n_electrons = int(float(match.split('=')[1]))
@@ -732,9 +729,9 @@ if __name__ == '__main__':
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
 
-    # bs = handler.read_bandstructure()
+    bs = handler.read_bandstructure()
 
-    handler.calculate_electron_density(crystal_structure)
+    # handler.calculate_electron_density(crystal_structure)
 
     # handler._copy_default_pseudos(crystal_structure)
     #
