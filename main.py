@@ -2864,11 +2864,11 @@ class CentralWindow(QtGui.QWidget):
             return
         elif esc_handler.is_engine_running(tasks=tasks):
             selected_tab_index = self.tabWidget.currentIndex()
-            if selected_tab_index == 5:
+            if self.list_of_tabs[selected_tab_index] == self.scf_window:
                 self.scf_data = esc_handler.read_scf_status()
                 if self.scf_data is not None:
                     self.scf_window.scf_widget.plot(self.scf_data)
-            elif selected_tab_index == 6:
+            elif self.list_of_tabs[selected_tab_index] == self.info_window:
                 self.info_window.do_select_event()
             QtCore.QTimer.singleShot(500, lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True, tasks=tasks)
@@ -2984,6 +2984,7 @@ class CentralWindow(QtGui.QWidget):
                 'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}}
             dos.engine_information = engine_information
             self.dos[title] = dos
+            self.dos_window.update_tree()
 
         if 'relax' in tasks:
             self.check_relax()
