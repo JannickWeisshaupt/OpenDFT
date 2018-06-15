@@ -60,7 +60,7 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         except Exception:
             self._engine_version = None
 
-        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'bandstructure'])
+        self.supported_methods = sst.ComputationalMethods(['periodic', 'scf', 'bandstructure','dos'])
 
         self.project_directory = None
         self.input_filename = 'scf.in'
@@ -153,7 +153,7 @@ Returns:
         pseudos = self._copy_default_pseudos(crystal_structure)
         self._make_files_file(pseudos)
         file = self._make_input_file()
-        self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points)
+        self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points,dos=dos)
         file.close()
         self._start_engine(blocking=blocking)
 
@@ -468,6 +468,13 @@ Returns:
         r_data = r_data/r_data.max()
         return sst.KohnShamDensity(r_data)
 
+    def read_dos(self):
+        data = np.loadtxt(self.project_directory+self.working_dirctory+'/scf_xo_DS3_DOS')
+        data[:,0] = data[:,0]*hartree
+
+        dos_data = data[:,:2]
+        return sst.DensityOfStates(dos_data)
+
     def calculate_ks_density(self, crystal_structure, bs_point):
         """This method starts a calculation of a specific electronic state in a subprocess.
 
@@ -582,7 +589,7 @@ Returns:
         f = open(self.project_directory + self.working_dirctory + '/' + filename, 'w')
         return f
 
-    def _add_scf_to_file(self, file, crystal_structure, band_points=None,brakets=False):
+    def _add_scf_to_file(self, file, crystal_structure, band_points=None,brakets=False, dos=False):
 
         if brakets:
             bra_str = '{'
@@ -591,10 +598,13 @@ Returns:
             bra_str = ''
             ket_str = ''
 
-        if band_points is not None:
-            file.write('ndtset 2\n')
-        else:
-            file.write('ndtset 1\n')
+        if band_points is None and dos:
+            raise ValueError('For now dos can only be calculated together with the band structure')
+
+        nr_of_tasks = sum([band_points is not None, dos])+1
+
+
+        file.write('ndtset {}\n'.format(nr_of_tasks))
 
 
         file.write('# Definition of the unit cell\n')
@@ -647,6 +657,16 @@ getden2  -1
             for band_point in band_points:
                 file.write('    {0:1.10f} {1:1.10f} {2:1.10f}\n'.format(*band_point[0]))
             file.write("""tolwfr2  1.0d-12\nenunit2  1   """)
+
+        if dos:
+            file.write("""\n#Dataset : the dos structure
+iscf3    -3
+getden3  -1
+""")
+            file.write('prtdos3 1\n')
+            file.write('occopt3 3\n')
+            file.write('tsmear3 0.005\n')
+            file.write('tolwfr3 1d-12')
 
     def _start_engine(self, filename='input.files',blocking=False):
         os.chdir(self.project_directory + self.working_dirctory)
@@ -729,7 +749,11 @@ if __name__ == '__main__':
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
 
-    bs = handler.read_bandstructure()
+    # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points,dos=True)
+
+    dos = handler.read_dos()
+
+    # bs = handler.read_bandstructure()
 
     # handler.calculate_electron_density(crystal_structure)
 

@@ -818,7 +818,7 @@ class OptionFrame(QtGui.QGroupBox):
     def read_checkbuttons(self):
         res = {}
         for cb in self.checkbuttons:
-            res[cb.text()] = cb.checkState()
+            res[cb.text()] = bool(cb.checkState())
         return res
 
 
