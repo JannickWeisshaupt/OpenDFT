@@ -290,6 +290,10 @@ class OpticalSpectrum:
         self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2, self.epsilon2_11,
                              self.epsilon1_22, self.epsilon1_33]
 
+class DensityOfStates(object):
+    def __init__(self,data):
+        self.array = np.array(data).astype(np.float)
+        self.engine_information = None
 
 class StructureParser:
     def __init__(self):
@@ -422,13 +426,13 @@ class StructureParser:
 class ComputationalMethods(object):
     def __init__(self, methods):
         self.all_methods = ['periodic', 'non-periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax',
-                       'bandstructure']
+                       'bandstructure','dos']
         self.descriptions = {'periodic': 'Periodic structures (crystals)',
                              'non-periodic': 'Non periodic structures (molecules)',
                              'scf': 'Ground state properties', 'g0w0': 'The gw method for many body-corrections',
                              'optical spectrum': 'Calculation of optical spectra',
                              'phonons': 'Phonon properties', 'relax': 'Structure relaxation',
-                             'bandstructure': 'Calculation of the band structure'}
+                             'bandstructure': 'Calculation of the band structure','dos':'Calculation of the density of states'}
 
         if methods is None:
             methods = self.all_methods

@@ -67,7 +67,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
                                  'optical spectrum': None}
 
         self.supported_methods = sst.ComputationalMethods(
-            ['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax', 'bandstructure'])
+            ['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax', 'bandstructure','dos'])
 
         self._timestamp_tasks = {}
 
@@ -149,7 +149,7 @@ Default: 	GGA_PBE"""
         and thus nempty will determine the size of this basis set. Convergence with respect to this quantity should be checked."""
 
         self.general_options = {'title': 'title'}
-        self.bs_options = convert_to_ordered({'steps': '300'})
+        self.bs_options = convert_to_ordered({'steps': '300','nsmdos':'1','winddos':'-1.0 0.5'})
         self.relax_options = convert_to_ordered({'method': 'bfgs'})
         self.relax_options_tooltip = {}
 
@@ -273,7 +273,7 @@ M45""",
         crystal_structure = sst.CrystalStructure(crystal_base, atom_array, scale=scale)
         return crystal_structure
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None, blocking=False):
+    def start_ground_state(self, crystal_structure, band_structure_points=None,dos=False, blocking=False):
         """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
 
 Args:
@@ -302,6 +302,8 @@ Returns:
         self._add_scf_to_tree(tree, crystal_structure)
         if band_structure_points is not None:
             self._add_bs_to_tree(tree, band_structure_points)
+        if dos:
+            self._add_dos_to_tree(tree)
         self._write_input_file(tree)
         time.sleep(0.05)
         self._start_engine(blocking=blocking)
@@ -387,7 +389,7 @@ Returns:
         """
         self._read_timestamps()
         tree = self._make_tree()
-        self._add_scf_to_tree(tree, crystal_structure)
+        self._add_scf_to_tree(tree, crystal_structure,skip=True)
         self._add_phonon_to_tree(tree, band_structure_points)
         self._write_input_file(tree)
         time.sleep(0.05)
@@ -696,6 +698,11 @@ Returns:
         self._write_input_file(tree)
         self._start_engine()
 
+    def read_dos(self):
+        data = np.loadtxt(self.project_directory+self.working_dirctory+'/TDOS.OUT')
+        data[:,0] = data[:,0]*hartree
+        return sst.DensityOfStates(data)
+
     def _make_tree(self):
         root = ET.Element("input")
         tree = ET.ElementTree(root)
@@ -737,11 +744,23 @@ Returns:
         properties = ET.SubElement(root, "properties")
         bandstructure = ET.SubElement(properties, "bandstructure")
         plot1d = ET.SubElement(bandstructure, "plot1d")
-        path = ET.SubElement(plot1d, "path", **self.bs_options)
+
+        bs_options = {key:value for key,value in self.bs_options.items() if key in ['steps']}
+        path = ET.SubElement(plot1d, "path", bs_options)
         for point in points:
             cords = point[0]
             label = point[1]
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+
+    def _add_dos_to_tree(self,tree):
+        tree_search = tree.findall('properties')
+        if tree_search:
+            properties = tree_search[0]
+        else:
+            properties = ET.SubElement(root, "properties")
+
+        dos_options = {key:value for key,value in self.bs_options.items() if key in ['nsmdos','winddos']}
+        dos = ET.SubElement(properties,'dos',**dos_options)
 
     def _add_relax_to_tree(self, tree):
         root = tree.getroot()
@@ -779,7 +798,6 @@ Returns:
 
         store_exciton = ET.SubElement(xs,'storeexcitons',MinNumberExcitons="1",MaxNumberExcitons="5")
         write_exciton = ET.SubElement(xs,'writeexcitons',MinNumberExcitons="1",MaxNumberExcitons="5")
-
 
     def _add_phonon_to_tree(self, tree, points):
         root = tree.getroot()
@@ -929,33 +947,35 @@ Returns:
 
 if __name__ == '__main__':
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/exciton_visualization"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond"
 
-    trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
-                                   , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
-                                [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
-    trash_bs_labels = ['GAMMA', 'X', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
-    path = list(zip(trash_bs_points, trash_bs_labels))
+    dos = handler.read_dos()
 
-    atoms = np.array([[0, 0, 0, 3], [0.5, 0.5, 0.5, 9]])
-    unit_cell = 7.608 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
-
-    crystal_structure = sst.CrystalStructure(unit_cell, atoms)
-    # handler.calculate_ks_density(crystal_structure, [1, 1])
-
-    # handler.read_gw_bandstructure(special_k_points=path, structure=crystal_structure)
-
-    # handler.start_ground_state(crystal_structure)
-
-    # handler.start_optical_spectrum(crystal_structure)
-
-    # handler.calculate_exciton_density(crystal_structure,'0.52 0.52 0.52')
-    dens = handler.read_exciton_density()
-
-    import mayavi.mlab as mlab
-
-    mlab.contour3d(dens.density,contours=20)
-    mlab.show()
+    # trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
+    #                                , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
+    #                             [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
+    # trash_bs_labels = ['GAMMA', 'X', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
+    # path = list(zip(trash_bs_points, trash_bs_labels))
+    #
+    # atoms = np.array([[0, 0, 0, 3], [0.5, 0.5, 0.5, 9]])
+    # unit_cell = 7.608 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    #
+    # crystal_structure = sst.CrystalStructure(unit_cell, atoms)
+    # # handler.calculate_ks_density(crystal_structure, [1, 1])
+    #
+    # # handler.read_gw_bandstructure(special_k_points=path, structure=crystal_structure)
+    #
+    # # handler.start_ground_state(crystal_structure)
+    #
+    # # handler.start_optical_spectrum(crystal_structure)
+    #
+    # # handler.calculate_exciton_density(crystal_structure,'0.52 0.52 0.52')
+    # dens = handler.read_exciton_density()
+    #
+    # import mayavi.mlab as mlab
+    #
+    # mlab.contour3d(dens.density,contours=20)
+    # mlab.show()
     # handler.custom_command_active = True
     # ac_bo  = handler.is_engine_running(tasks = ['scf','bandstructure','g0w0'])
     # ac_bo2 = handler._check_if_scf_is_finished()

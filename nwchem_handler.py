@@ -103,7 +103,7 @@ At the same time continued development is needed to enable NWChem to effectively
     def parse_input_file(self, filename):
         raise NotImplementedError()
 
-    def start_ground_state(self, crystal_structure, band_structure_points=None, blocking=False):
+    def start_ground_state(self, crystal_structure, band_structure_points=None, blocking=False, dos=False):
         """This method starts a ground state calculation in a subprocess. The configuration is stored in scf_options.
 
 Args:

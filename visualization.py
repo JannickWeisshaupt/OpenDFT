@@ -153,7 +153,7 @@ class BrillouinVisualization(HasTraits):
             k_path_array[i, :] = np.dot(self.crystal_structure.inv_lattice_vectors.T, self.k_path[i][0])
 
         self.path_plot = self.scene.mlab.plot3d(k_path_array[:, 0], k_path_array[:, 1], k_path_array[:, 2],
-                                                color=(0, 1, 0), reset_zoom=False, tube_radius=0.02,
+                                                color=(0, 1, 0), reset_zoom=False, tube_radius=0.02,tube_sides=30,
                                                 figure=self.scene.mayavi_scene)
         # self.scene.mlab.points3d(k_path_array[[0,-1],0],k_path_array[[0,-1],1],k_path_array[[0,-1],2], scale_factor=.1,reset_zoom=False, figure=self.scene.mayavi_scene)
 
@@ -1011,10 +1011,6 @@ class BandStructureVisualization(QtGui.QWidget):
         elif type(band_structure) is sst.BandStructure:
             self.plot_bandstructure(band_structure)
 
-        if self.first_plot_bool:
-            self.first_plot_bool = False
-            self.figure.tight_layout()
-
         try:
             Emin = float(self.Emin_entry.get_text())
         except Exception:
@@ -1029,6 +1025,10 @@ class BandStructureVisualization(QtGui.QWidget):
             self.ax.set_ylim(bottom=Emin)
         if Emax is not None:
             self.ax.set_ylim(top=Emax)
+
+        if self.first_plot_bool:
+            self.first_plot_bool = False
+            self.figure.tight_layout()
         self.canvas.draw()
 
     def plot_energy_diagram(self, energy_diagram):
@@ -1086,6 +1086,8 @@ class BandStructureVisualization(QtGui.QWidget):
         xlength = band[:, 0].max() - band[:, 0].min()
         self.ax.set_xlim(band[:, 0].min() - xlength / 800, band[:, 0].max())
         self.ax.plot([band[:, 0].min(), band[:, 0].max()], [0, 0], 'k--')
+
+        self.ax.set_ylabel('Energy [eV]')
 
         if band_structure.special_k_points is not None and len(band_structure.special_k_points) > 0:
             for xc, xl in band_structure.special_k_points:
@@ -1168,6 +1170,103 @@ self.figure = plt.figure(1)
 plt.close(plt.figure(1))
 self.ax = None
 self.last_bandstructure = None"""
+
+
+class DosVisualization(QtGui.QWidget):
+    def __init__(self, parent=None):
+        super(DosVisualization, self).__init__()
+        self.first_plot_bool = True
+        # a figure instance to plot on
+        self.figure = plt.figure(1)
+        plt.close(plt.figure(1))
+        self.ax = None
+        self.last_dos = None
+        self.canvas = FigureCanvas(self.figure)
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        color = self.palette().color(QtGui.QPalette.Base)
+        self.figure.patch.set_facecolor([color.red() / 255, color.green() / 255, color.blue() / 255])
+
+        if sum([color.red(), color.blue(), color.green()]) / 3 < 100:
+            self.dark_mode = True
+            self.bg_color = [color.red() / 255, color.green() / 255, color.blue() / 255]
+        else:
+            self.dark_mode = False
+            self.bg_color = None
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas)
+
+        option_widget = QtGui.QWidget()
+        option_widget.setFixedHeight(60)
+        option_layout = QtGui.QHBoxLayout(option_widget)
+        option_layout.setAlignment(QtCore.Qt.AlignLeft)
+        layout.addWidget(option_widget)
+        from main import EntryWithLabel
+        self.Emin_entry = EntryWithLabel(option_widget, 'Emin')
+        self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_dos))
+        option_layout.addWidget(self.Emin_entry)
+        self.Emax_entry = EntryWithLabel(option_widget, 'Emax')
+        self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_dos))
+        option_layout.addWidget(self.Emax_entry)
+
+        # layout.addWidget(self.button)
+        self.setLayout(layout)
+        self.show()
+
+    def clear_plot(self):
+        if not self.first_plot_bool:
+            self.ax.cla()
+            self.canvas.draw()
+
+    def plot(self, dos_list, *args, **kwargs):
+        if not dos_list:
+            return
+        else:
+            self.last_dos = dos_list
+
+        if self.first_plot_bool:
+            self.ax = self.figure.add_subplot(111)
+        else:
+            self.ax.cla()
+
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure, self.ax, self.bg_color)
+            title_color = 'white'
+        else:
+            title_color = 'black'
+
+        for dos in dos_list:
+            self.ax.plot(dos.array[:,0],dos.array[:,1],linewidth=2)
+
+        try:
+            Emin = float(self.Emin_entry.get_text())
+        except Exception:
+            Emin = None
+
+        try:
+            Emax = float(self.Emax_entry.get_text())
+        except Exception:
+            Emax = None
+
+        if Emin is not None:
+            self.ax.set_xlim(left=Emin)
+        if Emax is not None:
+            self.ax.set_xlim(right=Emax)
+
+        self.ax.set_ylim(bottom=0)
+
+        self.ax.set_ylabel('Energy [eV]')
+
+        if self.first_plot_bool:
+            self.first_plot_bool = False
+            self.figure.tight_layout()
+        self.canvas.draw()
+
+    def export(self, filename, band_structure, code=False):
+        pass
 
 
 class ScfVisualization(QtGui.QWidget):

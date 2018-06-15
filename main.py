@@ -27,7 +27,7 @@ except ImportError:
 
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
-    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer
+    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer,DosVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
@@ -851,7 +851,7 @@ class DftEngineWindow(QtGui.QWidget):
         myform.addRow(self.scf_option_widget)
 
         self.bs_option_widget = OptionFrame(self, esc_handler.bs_options, title='Bandstructure options',
-                                            checkbuttons=[['Calculate', True]],
+                                            checkbuttons=[['Calculate BS', True],['Calculate DOS',False]],
                                             buttons=[['Choose k-path', self.parent.open_brillouin_window]])
         myform.addRow(self.bs_option_widget)
 
@@ -976,14 +976,16 @@ class DftEngineWindow(QtGui.QWidget):
             tasks.append('scf')
 
         bs_checkers = self.bs_option_widget.read_checkbuttons()
-        if bs_checkers['Calculate'] and type(self.parent.crystal_structure) is sst.CrystalStructure:
+        if bs_checkers['Calculate BS'] and type(self.parent.crystal_structure) is sst.CrystalStructure:
             bs_points = self.band_structure_points
             tasks.append('bandstructure')
         else:
             bs_points = None
+        if bs_checkers['Calculate DOS']:
+            tasks.append('dos')
         try:
             self.prepare_start(tasks)
-            esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points)
+            esc_handler.start_ground_state(self.parent.crystal_structure, band_structure_points=bs_points,dos=bs_checkers['Calculate DOS'])
             QtCore.QTimer.singleShot(1000, lambda: self.parent.check_engine(tasks))
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
@@ -1005,7 +1007,7 @@ class DftEngineWindow(QtGui.QWidget):
         tasks = []
 
         # bs_checkers = self.bs_option_widget.read_checkbuttons()
-        # if bs_checkers['Calculate']:
+        # if bs_checkers['Calculate BS']:
         #     tasks.append('bandstructure')
         tasks.extend(['g0w0', 'g0w0 bands'])
         try:
@@ -2335,6 +2337,7 @@ class CentralWindow(QtGui.QWidget):
         self.parent = parent
         self._crystal_structure = None
         self.band_structures = {}
+        self.dos = {}
         self.optical_spectra = {}
         self.ks_densities = {}
         self.project_properties = {'title': '', 'dft engine': '', 'custom command': '', 'custom command active': False,
@@ -2369,6 +2372,10 @@ class CentralWindow(QtGui.QWidget):
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
         self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization,
                                                       data_dictionary=self.band_structures, parent=self)
+
+        self.dos_window = PlotWithTreeview(Visualizer=DosVisualization,
+                                                      data_dictionary=self.dos, parent=self,selection_mode='multiple')
+
         self.optical_spectra_window = PlotWithTreeview(Visualizer=OpticalSpectrumVisualization,
                                                        data_dictionary=self.optical_spectra, parent=self,
                                                        selection_mode='multiple')
@@ -2394,15 +2401,16 @@ class CentralWindow(QtGui.QWidget):
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
 
-        self.list_of_tabs = [self.mayavi_widget, self.dft_engine_window, self.band_structure_window,
+        self.list_of_tabs = [self.mayavi_widget, self.dft_engine_window, self.band_structure_window,self.dos_window,
                              self.optical_spectra_window, self.scf_window, self.info_window]
 
         self.tabWidget.addTab(self.list_of_tabs[0], 'Structure')
         self.tabWidget.addTab(self.list_of_tabs[1], 'DFT-Engine')
-        self.tabWidget.addTab(self.list_of_tabs[2], 'Bandstructure')
-        self.tabWidget.addTab(self.list_of_tabs[3], 'Optical Spectrum')
-        self.tabWidget.addTab(self.list_of_tabs[4], 'Scf')
-        self.tabWidget.addTab(self.list_of_tabs[5], 'Info')
+        self.tabWidget.addTab(self.list_of_tabs[2], 'Band Structure')
+        self.tabWidget.addTab(self.list_of_tabs[3], 'DoS')
+        self.tabWidget.addTab(self.list_of_tabs[4], 'Optical Spectrum')
+        self.tabWidget.addTab(self.list_of_tabs[5], 'Scf')
+        self.tabWidget.addTab(self.list_of_tabs[6], 'Info')
 
         self.tabWidget.show()
 
@@ -2521,26 +2529,6 @@ class CentralWindow(QtGui.QWidget):
 
             folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,directory=p,options=QtGui.QFileDialog.ShowDirsOnly)
 
-            # class DirectoryDialog(QtGui.QFileDialog):
-            #     def __init__(self,*args,**kwargs):
-            #         super(DirectoryDialog,self).__init__(*args,**kwargs)
-            #
-            #     # def directoryEntered(self, p_str):
-            #     #     print('easda')
-            #
-            # qf =QtGui.QFileDialog(self)
-            #
-            # def directory_entered_event(qf,event):
-            #
-            #     print(event)
-            #     if os.path.isfile(event+'/save.pkl'):
-            #         qf.accept()
-            #
-            # qf.directoryEntered.connect(lambda x: directory_entered_event(qf,x))
-            # qf.setFileMode(QtGui.QFileDialog.DirectoryOnly)
-            # # qf.setViewMode(QtGui.QFileDialog)
-            # qf.exec()
-
         try:
             self.check_and_set_lock(folder_name)
         except Exception:
@@ -2592,7 +2580,7 @@ class CentralWindow(QtGui.QWidget):
                                            'relax options': esc_handler.relax_options,
                                            'last run information': self.last_run_information}
             self.esc_handler_options[esc_handler.engine_name] = option_dic_specific_handler
-            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures,
+            a = {'crystal structure': self.crystal_structure, 'band structure': self.band_structures,'dos':self.dos,
                  'optical spectra': self.optical_spectra, 'esc handler options': self.esc_handler_options,
                  'properties': self.project_properties, 'dft engine': esc_handler.engine_name,
                  'ks densities': self.ks_densities, 'k path': self.dft_engine_window.band_structure_points}
@@ -2620,6 +2608,12 @@ class CentralWindow(QtGui.QWidget):
                 if type(loaded_bandstructure_dict) == dict:
                     for key, value in loaded_bandstructure_dict.items():
                         self.band_structures[key] = value
+
+                loaded_dos_dict = b.pop('dos',None)
+                if type(loaded_dos_dict) == dict:
+                    for key, value in loaded_dos_dict.items():
+                        self.dos[key] = value
+
 
                 loaded_optical_spectra_dict = b.pop('optical spectra', None)
                 if type(loaded_optical_spectra_dict) == dict:
@@ -2870,11 +2864,11 @@ class CentralWindow(QtGui.QWidget):
             return
         elif esc_handler.is_engine_running(tasks=tasks):
             selected_tab_index = self.tabWidget.currentIndex()
-            if selected_tab_index == 4:
+            if selected_tab_index == 5:
                 self.scf_data = esc_handler.read_scf_status()
                 if self.scf_data is not None:
                     self.scf_window.scf_widget.plot(self.scf_data)
-            elif selected_tab_index == 5:
+            elif selected_tab_index == 6:
                 self.info_window.do_select_event()
             QtCore.QTimer.singleShot(500, lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True, tasks=tasks)
@@ -2983,6 +2977,14 @@ class CentralWindow(QtGui.QWidget):
                 read_bandstructure.engine_information = engine_information
                 self.band_structures[title] = read_bandstructure
                 self.band_structure_window.update_tree()
+
+        if 'dos' in tasks:
+            dos = esc_handler.read_dos()
+            engine_information = {'scf': scf_info, 'bandstructure': {
+                'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}}
+            dos.engine_information = engine_information
+            self.dos[title] = dos
+
         if 'relax' in tasks:
             self.check_relax()
         if 'phonons' in tasks:
