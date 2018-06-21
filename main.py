@@ -290,16 +290,69 @@ class ConsoleWindow(QtGui.QMainWindow):
             # TODO replace tab by some nice functionality (4 spaces + multiselect)
             def __init__(self, *args, **kwargs):
                 super(CodingTextEdit, self).__init__(*args, **kwargs)
+                self.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
+                self.setTabStopWidth(8)
 
-                # def keyPressEvent(self, event):
-                #     cursor = self.textCursor()
-                #     if event.key() == QtCore.Qt.Key_Tab:
-                #         event.accept()
-                #         print('tab was pressed')
-                #     event.accept()
+            def keyPressEvent(self, event):
+                # Shift + Tab is not the same as trying to catch a Shift modifier and a tab Key.
+                # Shift + Tab is a Backtab!!
+                if event.key() == QtCore.Qt.Key_Backtab:
+                    cur = self.textCursor()
+                    # Copy the current selection
+                    pos = cur.position()  # Where a selection ends
+                    anchor = cur.anchor()  # Where a selection starts (can be the same as above)
+
+                    # Can put QtGui.QTextCursor.MoveAnchor as the 2nd arg, but this is the default
+                    cur.setPosition(pos)
+
+                    # Move the position back one, selection the character prior to the original position
+                    cur.setPosition(pos - 1, QtGui.QTextCursor.KeepAnchor)
+
+                    if str(cur.selectedText()) == "\t":
+                        # The prior character is a tab, so delete the selection
+                        cur.removeSelectedText()
+                        # Reposition the cursor with the one character offset
+                        cur.setPosition(anchor - 1)
+                        cur.setPosition(pos - 1, QtGui.QTextCursor.KeepAnchor)
+                    else:
+                        # Try all of the above, looking before the anchor (This helps if the achor is before a tab)
+                        cur.setPosition(anchor)
+                        cur.setPosition(anchor - 1, QtGui.QTextCursor.KeepAnchor)
+                        if str(cur.selectedText()) == "\t":
+                            cur.removeSelectedText()
+                            cur.setPosition(anchor - 1)
+                            cur.setPosition(pos - 1, QtGui.QTextCursor.KeepAnchor)
+                        else:
+
+                            # Its not a tab, so reset the selection to what it was
+                            cur.setPosition(anchor)
+                            cur.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
+                elif event.key() == QtCore.Qt.Key_Tab:
+                    cur = self.textCursor()
+                    # Copy the current selection
+                    pos = cur.position()  # Where a selection ends
+                    anchor = cur.anchor()  # Where a selection starts (can be the same as above)
+                    selected_text = cur.selectedText()
+                    if not selected_text:
+                        selected_text = cur.block().text()
+                        cur.select(QtGui.QTextCursor.BlockUnderCursor)
+                        cur.removeSelectedText()
+                        cur.insertText('\n  '+selected_text)
+
+                        # cur.deleteChar()
+                    else:
+                        select_list = selected_text.splitlines()
+                        new_sel = ['  '+x for x in select_list]
+                        new_text = '\n'.join(new_sel)
+                        cur.removeSelectedText()
+                        cur.insertText(new_text)
+                    cur.setPosition(anchor)
+                    cur.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
+
+                else:
+                    return QtGui.QTextEdit.keyPressEvent(self, event)
 
         self.input_text_widget = CodingTextEdit(self)
-        self.input_text_widget.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
         highlight = syntax.PythonHighlighter(self.input_text_widget.document())
         self.input_scrollbar = self.input_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.input_text_widget)
