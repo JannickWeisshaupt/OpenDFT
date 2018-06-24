@@ -349,27 +349,31 @@ class ConsoleWindow(QtGui.QMainWindow):
                             # Its not a tab, so reset the selection to what it was
                             cur.setPosition(anchor)
                             cur.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
-                elif event.key() == QtCore.Qt.Key_Tab:
-                    cur = self.textCursor()
-                    # Copy the current selection
-                    pos = cur.position()  # Where a selection ends
-                    anchor = cur.anchor()  # Where a selection starts (can be the same as above)
-                    selected_text = cur.selectedText()
-                    if not selected_text:
-                        selected_text = cur.block().text()
-                        cur.select(QtGui.QTextCursor.BlockUnderCursor)
-                        cur.removeSelectedText()
-                        cur.insertText('\n  '+selected_text)
-
-                        # cur.deleteChar()
-                    else:
-                        select_list = selected_text.splitlines()
-                        new_sel = ['  '+x for x in select_list]
-                        new_text = '\n'.join(new_sel)
-                        cur.removeSelectedText()
-                        cur.insertText(new_text)
-                    cur.setPosition(anchor)
-                    cur.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
+                # elif event.key() == QtCore.Qt.Key_Tab:
+                #     cur = self.textCursor()
+                #     # Copy the current selection
+                #     pos = cur.position()  # Where a selection ends
+                #     anchor = cur.anchor()  # Where a selection starts (can be the same as above)
+                #     selected_text = cur.selectedText()
+                #     if not selected_text:
+                #         selected_text = cur.block().text()
+                #         cur.select(QtGui.QTextCursor.BlockUnderCursor)
+                #         cur.beginEditBlock()
+                #         cur.removeSelectedText()
+                #         cur.insertText('  '+selected_text)
+                #         cur.endEditBlock()
+                #         # cur.deleteChar()
+                #     else:
+                #         select_list = selected_text.splitlines()
+                #         new_sel = ['  '+x for x in select_list]
+                #         new_text = '\n'.join(new_sel)
+                #         cur.beginEditBlock()
+                #         cur.removeSelectedText()
+                #         cur.insertText(new_text)
+                #         cur.endEditBlock()
+                #
+                #     cur.setPosition(anchor)
+                #     cur.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
 
                 else:
                     return QtGui.QTextEdit.keyPressEvent(self, event)
