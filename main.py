@@ -9,6 +9,7 @@ if not sys.getfilesystemencoding():
 import os
 import numpy as np
 import warnings
+from collections import OrderedDict
 
 DEBUG = False
 if DEBUG:
@@ -256,6 +257,27 @@ class EntryWithLabel(QtGui.QWidget):
         if self.textbox.isModified():
             self.editFinished_command()
         self.textbox.setModified(False)
+
+
+class LabeledLabel(QtGui.QWidget):
+    def __init__(self,label,value='',width_label=None):
+        super(LabeledLabel,self).__init__()
+        self.layout = QtGui.QHBoxLayout(self)
+        self.label_label = QtGui.QLabel(text=label)
+        self.label_label.setAlignment(QtCore.Qt.AlignLeft)
+        if width_label:
+            self.label_label.setFixedWidth(width_label)
+        self.layout.addWidget(self.label_label)
+        self.value_label = QtGui.QLabel(text=value)
+        self.value_label.setAlignment(QtCore.Qt.AlignLeft)
+        self.value_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.layout.addWidget(self.value_label)
+
+    def text(self,value):
+        self.value_label.setText(value)
+
+    def change_label(self,label):
+        self.label_label.setText(label)
 
 
 class ConsoleWindow(QtGui.QMainWindow):
@@ -1865,7 +1887,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setWindowTitle('Edit Structure')
-        self.resize(1200, 800)
+        self.resize(1300, 800)
         self.setFixedHeight(800)
         self.parent = parent
         self.anything_changed = False
@@ -2016,6 +2038,27 @@ class EditStructureWindow(QtGui.QMainWindow):
 
         self.atom_table.itemChanged.connect(self.handle_change)
         self.unit_cell_table.itemChanged.connect(self.handle_change)
+
+        self.info_widget = QtGui.QWidget(self)
+        self.info_sub_layout = QtGui.QHBoxLayout(self.info_widget)
+        self.info_box = QtGui.QGroupBox(self.info_widget)
+        self.info_box.setFixedWidth(240)
+        self.info_box.setTitle('Structure Properties')
+        self.info_sub_layout.addWidget(self.info_box)
+
+        self.info_layout = QtGui.QVBoxLayout(self.info_box)
+        self.info_layout.setAlignment(QtCore.Qt.AlignTop)
+        self.sub_main_layout.addWidget(self.info_widget)
+
+        self.info_items = OrderedDict([('volume',{'format':'{0:1.1f} Angstrom<sup>3</sup>','widget':None}),('density',{'format':'{0:1.2f} g/cm<sup>3</sup>','widget':None}),
+                                       ('crystal system', {'format': '{0}', 'widget': None}),
+                                       ('space group',{'format':'{0}','widget':None}),('point group',{'format':'{0}','widget':None}),
+                                       ])
+
+        for name,data_dic in self.info_items.items():
+            label = LabeledLabel(name.title()+':',width_label=90)
+            self.info_layout.addWidget(label)
+            data_dic['widget'] = label
 
     def apply(self):
         if self.anything_changed:
@@ -2196,6 +2239,7 @@ class EditStructureWindow(QtGui.QMainWindow):
 
         self.switch_enabled_fields()
         self.update_plot()
+        self.update_info()
 
     def update_plot(self, mode='local'):
         crystal_structure = self.read_tables()
@@ -2328,6 +2372,29 @@ class EditStructureWindow(QtGui.QMainWindow):
     def open_spatial_transform_window(self):
         pass
 
+    def update_info(self):
+        crystal_structure = self.read_tables()
+        if crystal_structure is None:
+            self.clear_info()
+            return
+
+        if isinstance(crystal_structure,sst.CrystalStructure):
+            from solid_state_tools import bohr
+            data = {}
+            lattice_vectors = crystal_structure.lattice_vectors
+            volume = np.dot(np.cross(lattice_vectors[0, :], lattice_vectors[1, :]), lattice_vectors[2, :])
+            data['volume'] = volume
+            density = crystal_structure.density(unit='g/cm^3')
+            data['density'] = density
+            data.update(crystal_structure.lattice_information())
+
+            for key,info_dic in self.info_items.items():
+                info_dic['widget'].text(info_dic['format'].format(data[key]))
+
+
+    def clear_info(self):
+        for name,dic in self.info_items.items():
+            dic['widget'].text('')
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self, parent=None, *args, **kwargs):
@@ -2437,7 +2504,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/graphene/"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -2507,11 +2574,13 @@ class CentralWindow(QtGui.QWidget):
         self.project_properties.clear()
         self.dft_engine_window.band_structure_points = None
         self.band_structures.clear()
+        self.dos.clear()
         self.optical_spectra.clear()
         self.ks_densities.clear()
         self.mayavi_widget.visualization.clear_plot()
         self.band_structure_window.plot_widget.clear_plot()
         self.band_structure_window.clear_treeview()
+        self.dos_window.plot_widget.clear_plot()
         self.scf_window.scf_widget.clear_plot()
         self.optical_spectra_window.plot_widget.clear_plot()
         self.optical_spectra_window.clear_treeview()
@@ -3024,6 +3093,7 @@ class CentralWindow(QtGui.QWidget):
         self.structure_window.update_fields()
         self.structure_window.switch_enabled_fields()
         self.structure_window.update_plot()
+        self.structure_window.update_info()
         self.structure_window.show()
 
     def open_brillouin_window(self):

@@ -11,16 +11,17 @@ from little_helpers import find_data_file
 from collections import OrderedDict
 import itertools
 
-from pymatgen.symmetry.bandstructure import HighSymmKpath
+from pymatgen.symmetry.bandstructure import HighSymmKpath,SpacegroupAnalyzer
 import pymatgen as mg
 
 bohr = 0.52917721067
+unit_mass = 1.660539040e-27
 
 cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat')) / bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
-
+masses = [pt.mass.mass(el) for el in pt.elements]
 
 def remove_duplicates_old(data, treshold=0.01):
     if len(data) == 0:
@@ -201,6 +202,29 @@ class CrystalStructure(object):
 
         return new_coords_out
 
+
+    def density(self,unit='atomic'):
+        volume = np.dot(np.cross(self.lattice_vectors[0, :], self.lattice_vectors[1, :]), self.lattice_vectors[2, :])
+        species = self.atoms[:,3]
+
+        mass_list = [masses[int(x)] for x in species]
+        mass = sum(mass_list)
+        if unit == 'atomic':
+            dens = mass/volume
+        elif unit == 'g/cm^3':
+            dens = mass*unit_mass/(volume*(bohr*1e-8)**3)*1e3
+        return dens
+
+    def lattice_information(self):
+
+        lattice = mg.Lattice(self.lattice_vectors)
+        atoms = self.atoms
+        if len(atoms)==0:
+            return {'space group':'','point group':'','crystal system':''}
+        structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
+        analyzer = SpacegroupAnalyzer(structure_mg)
+        res = {'space group':analyzer.get_space_group_symbol(),'point group':analyzer.get_point_group_symbol(),'crystal system':analyzer.get_crystal_system()}
+        return res
 
 class BandStructure(object):
     def __init__(self, bands, special_k_points=None, bs_type='electronic'):
@@ -691,7 +715,8 @@ if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 6]])
     unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
-    # unit_cell = 6.719 * np.eye(3,3);    unit_cell[2,1] = 0.5
+    #
+
 
     # phi = 60/180*np.pi
     # unit_cell = 6.719 * np.array([ [1,0,0], [np.cos(phi),np.sin(phi),0], [0, 0, 3]])
@@ -699,6 +724,9 @@ if __name__ == "__main__":
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
+
+    density = crystal_structure.density(unit='g/cm^3')
+    print(density)
 
     # bonds = crystal_structure.find_bonds(coords)
     # print(crystal_structure.find_bonds(coords))
