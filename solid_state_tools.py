@@ -330,9 +330,9 @@ class StructureParser:
         alpha = float(re.findall(r"_cell_angle_alpha[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         beta = float(re.findall(r"_cell_angle_beta[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
         gamma = float(re.findall(r"_cell_angle_gamma[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1])
-        a = float(re.findall(r"_cell_length_a[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
-        b = float(re.findall(r"_cell_length_b[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
-        c = float(re.findall(r"_cell_length_c[\s\t]*[-+]?\d*[\.\d+]?", cif_text)[0].split()[1]) / bohr
+        a = float(re.findall(r"_cell_length_a[\s\t]*([-+]?\d*\.\d*)", cif_text)[0]) / bohr
+        b = float(re.findall(r"_cell_length_b[\s\t]*([-+]?\d*\.\d*)", cif_text)[0]) / bohr
+        c = float(re.findall(r"_cell_length_c[\s\t]*([-+]?\d*\.\d*)", cif_text)[0]) / bohr
         params = [a, b, c, alpha, beta, gamma]
 
         unit_vectors = np.array(calculate_lattice_vectors_from_parameters(params))
@@ -721,6 +721,8 @@ if __name__ == "__main__":
     # phi = 60/180*np.pi
     # unit_cell = 6.719 * np.array([ [1,0,0], [np.cos(phi),np.sin(phi),0], [0, 0, 3]])
 
+    p = StructureParser()
+    data = p.parse_cif_file('/home/jannick/OpenDFT_projects/libh4_theo/theo.cif')
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
