@@ -2431,6 +2431,7 @@ class EditStructureWindow(QtGui.QMainWindow):
 
     def update_info(self):
         crystal_structure = self.read_tables()
+
         if crystal_structure is None:
             self.clear_info()
             return
@@ -2448,10 +2449,23 @@ class EditStructureWindow(QtGui.QMainWindow):
             for key,info_dic in self.info_items.items():
                 info_dic['widget'].text(info_dic['format'].format(data[key]))
 
+        elif isinstance(crystal_structure,sst.MolecularStructure):
+            data = {}
+            data.update(crystal_structure.symmetry_information())
+            for key, info_dic in self.info_items.items():
+                if not key in data.keys():
+                    info_dic['widget'].text('')
+                else:
+                    info_dic['widget'].text(info_dic['format'].format(data[key]))
+
+        else:
+            raise ValueError('Structure most be either CrystalStructure of MolecularStructure type but got {}'.format(type(crystal_structure))+' instead')
+
 
     def clear_info(self):
         for name,dic in self.info_items.items():
             dic['widget'].text('')
+
 
 class CentralWindow(QtGui.QWidget):
     def __init__(self, parent=None, *args, **kwargs):

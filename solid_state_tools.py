@@ -12,6 +12,7 @@ from collections import OrderedDict
 import itertools
 
 from pymatgen.symmetry.bandstructure import HighSymmKpath,SpacegroupAnalyzer
+from pymatgen.symmetry.analyzer import PointGroupAnalyzer
 import pymatgen as mg
 
 bohr = 0.52917721067
@@ -61,6 +62,11 @@ class MolecularStructure(object):
                     bonds.append([j1, j2]);
         return bonds
 
+    def symmetry_information(self):
+        mol = mg.Molecule(self.atoms[:, 3], self.atoms[:, :3])
+        analyzer = PointGroupAnalyzer(mol)
+        res = {'point group':analyzer.get_pointgroup()}
+        return res
 
 class CrystalStructure(object):
     def __init__(self, lattice_vectors, atoms, relative_coords=True, scale=1.0):
@@ -202,7 +208,6 @@ class CrystalStructure(object):
 
         return new_coords_out
 
-
     def density(self,unit='atomic'):
         volume = np.dot(np.cross(self.lattice_vectors[0, :], self.lattice_vectors[1, :]), self.lattice_vectors[2, :])
         species = self.atoms[:,3]
@@ -225,6 +230,7 @@ class CrystalStructure(object):
         analyzer = SpacegroupAnalyzer(structure_mg)
         res = {'space group':analyzer.get_space_group_symbol(),'point group':analyzer.get_point_group_symbol(),'crystal system':analyzer.get_crystal_system()}
         return res
+
 
 class BandStructure(object):
     def __init__(self, bands, special_k_points=None, bs_type='electronic'):
