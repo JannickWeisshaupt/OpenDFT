@@ -650,18 +650,13 @@ def construct_convex_hull(w_points):
 
 
 def calculate_standard_path(structure):
-    if mg is None:
-        trash_bs_points = np.array([[0, 0, 0], [0.750, 0.500, 0.250], [0.500, 0.500, 0.500]
-                                       , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
-                                    [0.750, 0.375, 0.375], [0.000, 0.000, 0.000]])
-        trash_bs_labels = ['GAMMA', 'W', 'L', 'GAMMA', 'X', 'W', 'K', 'GAMMA']
-        path = list(zip(trash_bs_points, trash_bs_labels))
-        return path
-
     lattice = mg.Lattice(structure.lattice_vectors)
     atoms = structure.atoms
     structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
     hs_path = HighSymmKpath(structure_mg, symprec=0.1)
+
+    if not hs_path.kpath: # fix for bug in pymatgen that for certain structures no path is returned
+        raise Exception('High symmetry path generation failed.')
 
     kpoints = hs_path.kpath['kpoints']
     path = hs_path.kpath['path']
@@ -681,6 +676,11 @@ def calculate_standard_path(structure):
     conv_path = convert_path(path, kpoints)
     return conv_path
 
+def get_emergency_path():
+    trash_bs_points = np.array([[0, 0, 0],[0.5, 0, 0],[0, 0.5, 0],[0, 0, 0],[0, 0, 0.5] ])
+    trash_bs_labels = ['GAMMA','X','Y','GAMMA','Z']
+    path = list(zip(trash_bs_points, trash_bs_labels))
+    return path
 
 def calculate_path_length(structure, k_path):
     points = []

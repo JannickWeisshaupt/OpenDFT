@@ -194,7 +194,11 @@ class BrillouinWindow(QtGui.QDialog):
 
     def load_standard_path(self):
 
-        conv_path = sst.calculate_standard_path(main.crystal_structure)
+        try:
+            conv_path = sst.calculate_standard_path(main.crystal_structure)
+        except Exception as e:
+            conv_path = sst.get_emergency_path()
+            main.error_dialog.showMessage(str(e)+'<br> A standard non structure specific path will be loaded. Use with care!')
 
         self.clear_path()
         for el in conv_path:
@@ -2614,12 +2618,16 @@ class CentralWindow(QtGui.QWidget):
     @crystal_structure.setter
     def crystal_structure(self, value):
         self._crystal_structure = value
-        try:
-            if self.dft_engine_window.band_structure_points is None and type(value) is sst.CrystalStructure:
+
+        if self.dft_engine_window.band_structure_points is None and isinstance(value,sst.CrystalStructure):
+            try:
                 self.dft_engine_window.band_structure_points = sst.calculate_standard_path(value)
-                self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
-        except Exception as e:
-            logging.error('Could not calculate standard path')
+            except Exception as e:
+                self.dft_engine_window.band_structure_points = sst.get_emergency_path()
+                logging.error('Could not calculate standard path')
+                self.error_dialog.showMessage(str(e)+'<br>A standard non structure specific path will be loaded. Use with care!')
+
+            self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
 
     def tab_is_changed(self, i):
         self.list_of_tabs[i].do_select_event()
