@@ -68,6 +68,7 @@ class MolecularStructure(object):
         res = {'point group':analyzer.get_pointgroup()}
         return res
 
+
 class CrystalStructure(object):
     def __init__(self, lattice_vectors, atoms, relative_coords=True, scale=1.0):
         self._lattice_vectors = np.array(lattice_vectors, dtype=np.float)  # tuple of np.arrays
@@ -320,10 +321,21 @@ class OpticalSpectrum:
         self.all_epsilons = [self.epsilon1, self.epsilon1_11, self.epsilon1_22, self.epsilon1_33, self.epsilon2, self.epsilon2_11,
                              self.epsilon1_22, self.epsilon1_33]
 
+
 class DensityOfStates(object):
     def __init__(self,data):
         self.array = np.array(data).astype(np.float)
         self.engine_information = None
+
+
+class PhononEigenvectors(object):
+    def __init__(self,frequencies,modes):
+        if frequencies.shape != modes.shape[0:2] or len(modes.shape)!=3 or len(frequencies.shape)!=2:
+            raise ValueError('bad shape for input')
+
+        self.frequencies = frequencies
+        self.modes = modes
+
 
 class StructureParser:
     def __init__(self):

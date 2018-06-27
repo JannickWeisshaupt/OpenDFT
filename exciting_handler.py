@@ -551,7 +551,9 @@ Returns:
 Returns:
     - band_structure:       A BandStructure object with the latest phonon band structure result found.
         """
-        return self.read_gw_bandstructure(filename='PHDISP.OUT', special_k_points=special_k_points, structure=structure)
+        phonon_bands = self.read_gw_bandstructure(filename='PHDISP.OUT', special_k_points=special_k_points, structure=structure)
+        phonon_bands.phonon_eigenvectors = self.read_phonon_eigenvectors()
+        return phonon_bands
 
     def read_optical_spectrum(self):
         """This method reads the result of a optical spectrum calculation.
@@ -593,6 +595,48 @@ Returns:
                     # data[:,:,i] = l_data[:,i].reshape((n_grid,n_grid),order='F')
         data = data / data.max()
         return sst.KohnShamDensity(data)
+
+    def read_phonon_eigenvectors(self):
+        with open(self.project_directory+self.working_dirctory+'/PHONON_INTERPOLATE.OUT','r') as f:
+            text = f.readlines()
+
+        k_points = []
+        modes = []
+        mode = []
+        frequencies = []
+
+        for line in text:
+            if line.strip().endswith('vpl'):
+                k1 = line.split()[1:4]
+                k2 = [float(x) for x in k1]
+                k_points.append(np.array(k2))
+
+            elif line.strip().endswith('frequency'):
+                frequencies.append(float(line.split()[1]))
+                if len(mode)>0:
+                    modes.append(mode)
+                    mode = []
+            else:
+                if len(line.strip()) == 0:
+                    continue
+                else:
+                    x1 = line.split()
+                    mode.append(float(x1[3]))
+
+        modes.append(mode)
+
+
+        k_points = np.array(k_points)
+        modes = np.array(modes)
+
+        N_modes = modes.shape[0]//len(k_points)
+        N_kpoints = len(k_points)
+        dim_eigenvector = modes.shape[0]*modes.shape[1]//N_modes//N_kpoints
+
+        frequencies = np.array(frequencies).reshape(N_modes,N_kpoints,order='f')
+        modes = modes.reshape(N_modes,N_kpoints,dim_eigenvector,order='f')
+        return sst.PhononEigenvectors(frequencies,modes)
+
 
     def calculate_ks_density(self, crystal_structure, bs_point, grid='40 40 40'):
         """This method starts a calculation of a specific electronic state in a subprocess.
@@ -809,6 +853,9 @@ Returns:
             cords = point[0]
             label = point[1]
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
+        interpolate = ET.SubElement(phonon,'interpolate',ngridq='8 8 8',writeeigenvectors='true')
+
+
 
     def _read_timestamps(self):
         for task, filename in self._filenames_tasks.items():
@@ -947,9 +994,10 @@ Returns:
 
 if __name__ == '__main__':
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond3"
 
     dos = handler.read_dos()
+    eig = handler.read_phonon_eigenvectors()
 
     # trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
     #                                , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
