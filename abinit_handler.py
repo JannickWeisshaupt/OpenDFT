@@ -341,7 +341,10 @@ Returns:
 
                 e_numbers = []
                 line_list = line.split()
-                read_k_point = [float(line_list[7]), float(line_list[8]), float(line_list[9])]
+                stripped_line = [x.strip() for x in line_list]
+                kpt_index = stripped_line.index('kpt=')
+
+                read_k_point = [float(line_list[kpt_index +1]), float(line_list[kpt_index +2]), float(line_list[kpt_index +3])]
                 k_points.append(read_k_point)
 
                 if special_k_points is not None:
@@ -401,8 +404,14 @@ Returns:
                 econd = min([band[:,1].min() for band in cond_bands])
 
                 efermi = evalence + (econd-evalence)/2
-                for band in bands:
-                    band[:, 1] = band[:, 1] - efermi
+            elif len(cond_bands) == 0 and len(valence_bands)>0:
+                evalence = max([band[:, 1].max() for band in valence_bands])
+                efermi = evalence+1
+            else:
+                raise ValueError('Reading bands failed. Bands are empty')
+
+            for band in bands:
+                band[:, 1] = band[:, 1] - efermi
 
         except Exception:
             pass
@@ -745,15 +754,16 @@ if __name__ == '__main__':
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond3"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/Fe2O3"
     # handler.scf_options['ecutwfc'] = 20.0
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
 
+
     # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points,dos=True)
 
-    dos = handler.read_dos()
+    # dos = handler.read_dos()
 
-    # bs = handler.read_bandstructure()
+    bs = handler.read_bandstructure()
 
     # handler.calculate_electron_density(crystal_structure)
 

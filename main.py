@@ -3,6 +3,7 @@ from __future__ import division, absolute_import, print_function, unicode_litera
 import six
 import sys
 from pathlib import Path
+import psutil
 
 if not sys.getfilesystemencoding():
     sys.getfilesystemencoding = lambda: 'UTF-8'
@@ -1476,12 +1477,18 @@ class StatusBar(QtGui.QWidget):
         self.running_text = running_text
         self.not_running_text = not_running_text
         # self.setMaximumHeight(20)
-        self.layout = QtGui.QVBoxLayout(self)
+        self.layout = QtGui.QHBoxLayout(self)
         self.layout.setAlignment(QtCore.Qt.AlignRight)
         self.status_label = QtGui.QLabel(self.not_running_text)
-        self.status_label.setStyleSheet("color: green;font:bold 14px")
-        # self.status_label.setMaximumHeight(20)
+        self.status_label.setStyleSheet("color: red;font:bold 14px")
+        self.cpu_label = QtGui.QLabel('')
+        self.cpu_label.setStyleSheet("color: green;font:bold 14px")
+        self.memory_label = QtGui.QLabel('')
+        self.memory_label.setStyleSheet("color: green;font:bold 14px")
+
         self.layout.addWidget(self.status_label)
+        self.layout.addWidget(self.cpu_label)
+        self.layout.addWidget(self.memory_label)
         self.show()
 
     def set_engine_status(self, status, tasks=None):
@@ -1491,11 +1498,32 @@ class StatusBar(QtGui.QWidget):
                 tasks_string2 = ' with tasks: ' + tasks_string
             else:
                 tasks_string2 = ''
-            self.status_label.setText(self.running_text + tasks_string2)
-            self.status_label.setStyleSheet("color: red;font:bold 14px")
+            if not esc_handler.custom_command_active:
+                cpu_usage = psutil.cpu_percent()
+                mem_usage = psutil.virtual_memory().percent
+                cpu_string = 'CPU: {0:1.1f}%'.format(cpu_usage)
+                mem_string = 'Memory: {0:1.1f}%'.format(mem_usage)
+            else:
+                cpu_string = 'Running on cluster'
+                mem_string = ''
+                mem_usage = 0.0
+
+            self.status_label.setText(self.running_text + tasks_string2+'.')
+            self.status_label.setStyleSheet("color: green;font:bold 14px")
+            self.cpu_label.setText(cpu_string)
+            self.memory_label.setText(mem_string)
+
+            if mem_usage > 90:
+                self.memory_label.setStyleSheet("color: red;font:bold 14px")
+            elif mem_usage > 70:
+                self.memory_label.setStyleSheet("color: orange;font:bold 14px")
+            else:
+                self.memory_label.setStyleSheet("color: green;font:bold 14px")
         else:
             self.status_label.setText(self.not_running_text)
-            self.status_label.setStyleSheet("color: green;font:bold 14px")
+            self.status_label.setStyleSheet("color: red;font:bold 14px")
+            self.cpu_label.setText('')
+            self.memory_label.setText('')
 
 
 class EngineOptionsDialog(QtGui.QDialog):
@@ -2436,9 +2464,9 @@ class EditStructureWindow(QtGui.QMainWindow):
             self.clear_info()
             return
 
+        data = {}
         if isinstance(crystal_structure,sst.CrystalStructure):
             from solid_state_tools import bohr
-            data = {}
             lattice_vectors = crystal_structure.lattice_vectors
             volume = np.dot(np.cross(lattice_vectors[0, :], lattice_vectors[1, :]), lattice_vectors[2, :])
             data['volume'] = volume
@@ -2446,21 +2474,17 @@ class EditStructureWindow(QtGui.QMainWindow):
             data['density'] = density
             data.update(crystal_structure.lattice_information())
 
-            for key,info_dic in self.info_items.items():
-                info_dic['widget'].text(info_dic['format'].format(data[key]))
-
         elif isinstance(crystal_structure,sst.MolecularStructure):
-            data = {}
             data.update(crystal_structure.symmetry_information())
-            for key, info_dic in self.info_items.items():
-                if not key in data.keys():
-                    info_dic['widget'].text('')
-                else:
-                    info_dic['widget'].text(info_dic['format'].format(data[key]))
 
         else:
             raise ValueError('Structure most be either CrystalStructure of MolecularStructure type but got {}'.format(type(crystal_structure))+' instead')
 
+        for key, info_dic in self.info_items.items():
+            if not key in data.keys():
+                info_dic['widget'].text('')
+            else:
+                info_dic['widget'].text(info_dic['format'].format(data[key]))
 
     def clear_info(self):
         for name,dic in self.info_items.items():
