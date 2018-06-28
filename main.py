@@ -29,7 +29,7 @@ except ImportError:
 
 from pyface.qt import QtGui, QtCore
 from visualization import StructureVisualization, BandStructureVisualization, ScfVisualization, \
-    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer,DosVisualization
+    OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer,DosVisualization,PhononVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
@@ -227,6 +227,147 @@ class MayaviQWidget(QtGui.QWidget):
 
     def do_select_event(self):
         pass
+
+
+class MayaviPhononWindow(QtGui.QMainWindow):
+    def __init__(self, crystal_structure,data_dictionary, parent=None):
+        super(MayaviPhononWindow, self).__init__(parent)
+
+        self.data_dictionary = data_dictionary
+
+        self.main_widget = QtGui.QWidget(self)
+        self.setCentralWidget(self.main_widget)
+
+        layout = QtGui.QHBoxLayout(self.main_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.visualization = PhononVisualization(crystal_structure)
+        self.ui = self.visualization.edit_traits(parent=self.main_widget,
+                                                 kind='subpanel').control
+        layout.addWidget(self.ui)
+        self.ui.setParent(self.main_widget)
+
+        self.treeview = QtGui.QTreeWidget(parent=self)
+        self.treeview.setMaximumWidth(200)
+        self.treeview.setHeaderHidden(True)
+        self.treeview.itemSelectionChanged.connect(self.handle_item_changed_main)
+        layout.addWidget(self.treeview)
+
+        self.mode_treeview = QtGui.QTreeWidget(parent=self)
+        self.mode_treeview.setMaximumWidth(60)
+        self.mode_treeview.setHeaderHidden(True)
+        self.mode_treeview.itemSelectionChanged.connect(self.handle_item_changed)
+        layout.addWidget(self.mode_treeview)
+
+        self.k_treeview = QtGui.QTreeWidget(parent=self)
+        self.k_treeview.setMaximumWidth(150)
+        self.k_treeview.setHeaderHidden(True)
+        self.k_treeview.itemSelectionChanged.connect(self.handle_item_changed)
+        layout.addWidget(self.k_treeview)
+
+    def update_plot(self, keep_view=False):
+        self.visualization.update_plot(keep_view=keep_view)
+
+    def update_crystal_structure(self, crystal_structure):
+        self.visualization.crystal_structure = crystal_structure
+
+    def handle_item_changed_main(self):
+        indexes = self.treeview.selectedIndexes()
+        if len(indexes) == 0:
+            return
+
+        item = self.treeview.itemFromIndex(indexes[0])
+        bs_name = item.text(0)
+        if bs_name == 'None':
+            self.k_treeview.clear()
+            self.mode_treeview.clear()
+            return
+
+
+        phonon_eigenvectors = self.get_phonon_eigenvectors()
+        self.update_mode_and_k_tree(phonon_eigenvectors)
+        self.handle_item_changed()
+
+    def get_phonon_eigenvectors(self):
+        indexes = self.treeview.selectedIndexes()
+        if len(indexes) == 0:
+            return
+
+        item = self.treeview.itemFromIndex(indexes[0])
+        bs_name = item.text(0)
+
+        if bs_name == 'None':
+            self.visualization.remove_phonons()
+            return
+
+        data = self.data_dictionary[bs_name]
+        return data.phonon_eigenvectors
+
+    def handle_item_changed(self):
+
+        phonon_eigenvectors = self.get_phonon_eigenvectors()
+        self.visualization.phonon_eigenvectors = phonon_eigenvectors
+
+        mode,k = self.get_mode_and_k()
+        self.visualization.plot_phonons(mode,k)
+
+    def add_result_key(self, title):
+        item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
+        return item
+
+    def clear_treeview(self):
+        self.treeview.itemSelectionChanged.disconnect()
+
+        self.treeview.clear()
+        self.add_result_key('None')
+        self.treeview.itemSelectionChanged.connect(self.handle_item_changed_main)
+
+    def update_tree(self):
+        self.treeview.itemSelectionChanged.disconnect()
+        self.treeview.clear()
+        self.add_result_key('None')
+        for key, value in OrderedDict(sorted(self.data_dictionary.items())).items():
+            if hasattr(value,'phonon_eigenvectors'):
+                self.add_result_key(key)
+        self.treeview.itemSelectionChanged.connect(self.handle_item_changed_main)
+
+    def update_mode_and_k_tree(self,phonon_eigenvectors):
+        self.mode_treeview.clear()
+        self.k_treeview.clear()
+
+        try:
+            self.mode_treeview.itemSelectionChanged.disconnect()
+            self.k_treeview.itemSelectionChanged.disconnect()
+        except Exception:
+            pass
+
+        modes = range(phonon_eigenvectors.modes.shape[0])
+        ks = range(phonon_eigenvectors.modes.shape[1])
+        k_points = phonon_eigenvectors.k_vectors
+
+        for mode in modes:
+            QtGui.QTreeWidgetItem(self.mode_treeview.invisibleRootItem(), ['{0}'.format(mode)])
+        for k in ks:
+            QtGui.QTreeWidgetItem(self.k_treeview.invisibleRootItem(), ['{0:1.2f} {1:1.2f} {2:1.2f}'.format(*k_points[k,:])])
+
+        self.mode_treeview.itemSelectionChanged.connect(self.handle_item_changed)
+        self.k_treeview.itemSelectionChanged.connect(self.handle_item_changed)
+
+    def get_mode_and_k(self):
+        indexes_mode = self.mode_treeview.selectedIndexes()
+        if len(indexes_mode) == 0:
+            mode = 0
+        else:
+            item = self.mode_treeview.itemFromIndex(indexes_mode[0])
+            mode = int(item.text(0))
+
+        indexes_k = self.k_treeview.selectedIndexes()
+        if len(indexes_k) == 0:
+            k = 0
+        else:
+            k = indexes_k[0].row()
+
+        return mode,k
 
 
 class EntryWithLabel(QtGui.QWidget):
@@ -2563,6 +2704,8 @@ class CentralWindow(QtGui.QWidget):
         self.console_window = ConsoleWindow(self)
         self.information_window = CodeInformationWindow(self)
         self.volume_slicer_window = VolumeSlicerWidget(self)
+        self.phonon_window = MayaviPhononWindow(self.crystal_structure,self.band_structures,parent=self)
+
 
         self.tab_layout = QtGui.QVBoxLayout()
         self.tabWidget.setLayout(self.tab_layout)
@@ -2603,7 +2746,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond/"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond3/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -2994,6 +3137,10 @@ class CentralWindow(QtGui.QWidget):
         ks_vis_action.triggered.connect(self.open_state_vis_window)
         self.vis_menu.addAction(ks_vis_action)
 
+        phonon_action = QtGui.QAction("Phonons", self.window)
+        phonon_action.triggered.connect(self.open_phonon_window)
+        self.vis_menu.addAction(phonon_action)
+
         self.dft_menu = self.menu_bar.addMenu('&DFT Engine')
 
         dft_options_action = QtGui.QAction("Options", self.window)
@@ -3237,6 +3384,12 @@ class CentralWindow(QtGui.QWidget):
                        'KohnShamDensity': sst.KohnShamDensity, 'MolecularDensity': sst.MolecularDensity,
                        'plot_scf': add_scf_to_queue}
         self.console_window.python_interpreter.update_vars(shared_vars)
+
+    def open_phonon_window(self):
+        self.phonon_window.update_crystal_structure(self.crystal_structure)
+        self.phonon_window.update_plot()
+        self.phonon_window.update_tree()
+        self.phonon_window.show()
 
     def configure_buttons(self, disable_all=False):
         self.dft_engine_window.configure_buttons(disable_all=disable_all)

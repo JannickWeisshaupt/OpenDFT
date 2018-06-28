@@ -1348,6 +1348,31 @@ class ScfVisualization(QtGui.QWidget):
         self.canvas.draw()
 
 
+class PhononVisualization(StructureVisualization):
+    def __init__(self,crystal_structure):
+        super(PhononVisualization,self).__init__(crystal_structure)
+        self.phonon_eigenvectors = None
+        self.mayavi_phonons = None
+
+    def plot_phonons(self,n_mode,n_k):
+        self.remove_phonons()
+        if self.phonon_eigenvectors is None:
+            return
+        repeat = [self.n_x, self.n_y, self.n_z]
+
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
+        mass_matrix = sst.calculate_mass_matrix(self.crystal_structure,phonon_conv=True) # phonon conv=True return m**-1/2
+
+        mode_conv = np.dot(mass_matrix, self.phonon_eigenvectors.modes[n_mode, n_k, :])
+        mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
+        # mode_unit = mode/np.abs(mode).max()
+        self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode[:,0],mode[:,1],mode[:,2],figure=self.scene.mayavi_scene,
+                                 scale_factor=8,line_width=3,reset_zoom=False)
+    def remove_phonons(self):
+        if self.mayavi_phonons:
+            self.mayavi_phonons.remove()
+            self.mayavi_phonons = None
+
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')
     ax.tick_params(axis='y', colors='white')

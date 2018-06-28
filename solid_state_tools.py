@@ -22,7 +22,7 @@ cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat')) / bohr
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
-masses = [pt.mass.mass(el) for el in pt.elements]
+elemental_masses = [pt.mass.mass(el) for el in pt.elements]
 
 def remove_duplicates_old(data, treshold=0.01):
     if len(data) == 0:
@@ -213,7 +213,7 @@ class CrystalStructure(object):
         volume = np.dot(np.cross(self.lattice_vectors[0, :], self.lattice_vectors[1, :]), self.lattice_vectors[2, :])
         species = self.atoms[:,3]
 
-        mass_list = [masses[int(x)] for x in species]
+        mass_list = [elemental_masses[int(x)] for x in species]
         mass = sum(mass_list)
         if unit == 'atomic':
             dens = mass/volume
@@ -329,12 +329,13 @@ class DensityOfStates(object):
 
 
 class PhononEigenvectors(object):
-    def __init__(self,frequencies,modes):
+    def __init__(self,frequencies,modes,k_vectors):
         if frequencies.shape != modes.shape[0:2] or len(modes.shape)!=3 or len(frequencies.shape)!=2:
             raise ValueError('bad shape for input')
 
         self.frequencies = frequencies
         self.modes = modes
+        self.k_vectors = k_vectors
 
 
 class StructureParser:
@@ -676,11 +677,13 @@ def calculate_standard_path(structure):
     conv_path = convert_path(path, kpoints)
     return conv_path
 
+
 def get_emergency_path():
     trash_bs_points = np.array([[0, 0, 0],[0.5, 0, 0],[0, 0.5, 0],[0, 0, 0],[0, 0, 0.5] ])
     trash_bs_labels = ['GAMMA','X','Y','GAMMA','Z']
     path = list(zip(trash_bs_points, trash_bs_labels))
     return path
+
 
 def calculate_path_length(structure, k_path):
     points = []
@@ -729,8 +732,21 @@ def bonds_to_path(bonds_in):
     return paths
 
 
+def calculate_mass_matrix(structure,repeat=(1,1,1),edges=False,phonon_conv=False):
+    coords = structure.calc_absolute_coordinates(repeat=repeat,edges=edges)
+    species = coords[:,3]
+
+    mass_matrix = np.zeros((coords.shape[0]*3,coords.shape[0]*3))
+    if phonon_conv:
+        mass_list = np.array([3*[np.sqrt(elemental_masses[int(x)])**-1] for x in species ])
+    else:
+        mass_list = np.array([3*[elemental_masses[int(x)]] for x in species ])
+    mass_list_coll = [item for sub_list in mass_list for item in sub_list]
+    np.fill_diagonal(mass_matrix,mass_list_coll)
+    return mass_matrix
+
 if __name__ == "__main__":
-    atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 6]])
+    atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 10]])
     unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
     #
@@ -743,6 +759,7 @@ if __name__ == "__main__":
     data = p.parse_cif_file('/home/jannick/OpenDFT_projects/libh4_theo/theo.cif')
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
+    mass_matrix = calculate_mass_matrix(crystal_structure)
     coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
 
     density = crystal_structure.density(unit='g/cm^3')

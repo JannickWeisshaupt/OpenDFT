@@ -635,7 +635,8 @@ Returns:
 
         frequencies = np.array(frequencies).reshape(N_modes,N_kpoints,order='f')
         modes = modes.reshape(N_modes,N_kpoints,dim_eigenvector,order='f')
-        return sst.PhononEigenvectors(frequencies,modes)
+
+        return sst.PhononEigenvectors(frequencies,modes,k_points)
 
 
     def calculate_ks_density(self, crystal_structure, bs_point, grid='40 40 40'):
@@ -854,7 +855,7 @@ Returns:
             label = point[1]
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
         interpolate = ET.SubElement(phonon,'interpolate',ngridq='8 8 8',writeeigenvectors='true')
-
+        dos = ET.SubElement(phonon,'phonondos',ngrdos="100",nwdos="500",ntemp="200",nsmdos="2")
 
 
     def _read_timestamps(self):
