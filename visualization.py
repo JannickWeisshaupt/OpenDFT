@@ -1349,10 +1349,19 @@ class ScfVisualization(QtGui.QWidget):
 
 
 class PhononVisualization(StructureVisualization):
+    view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
+                     height=450, width=500, show_label=False),
+                Group('_','show_unitcell', 'show_bonds', 'show_atoms', orientation='horizontal'),
+                resizable=True,  # We need this to resize with the parent widget
+                )
+
+    scene = Instance(MlabSceneModel, ())
+
     def __init__(self,crystal_structure):
         super(PhononVisualization,self).__init__(crystal_structure)
         self.phonon_eigenvectors = None
         self.mayavi_phonons = None
+
 
     def plot_phonons(self,n_mode,n_k):
         self.remove_phonons()
@@ -1367,7 +1376,7 @@ class PhononVisualization(StructureVisualization):
         mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
         # mode_unit = mode/np.abs(mode).max()
         self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode[:,0],mode[:,1],mode[:,2],figure=self.scene.mayavi_scene,
-                                 scale_factor=8,line_width=3,reset_zoom=False)
+                                 scale_factor=10,line_width=3,reset_zoom=False,colormap='viridis')
     def remove_phonons(self):
         if self.mayavi_phonons:
             self.mayavi_phonons.remove()

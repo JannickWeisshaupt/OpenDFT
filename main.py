@@ -234,6 +234,7 @@ class MayaviPhononWindow(QtGui.QMainWindow):
         super(MayaviPhononWindow, self).__init__(parent)
 
         self.data_dictionary = data_dictionary
+        self.setWindowTitle('Phonon visualization')
 
         self.main_widget = QtGui.QWidget(self)
         self.setCentralWidget(self.main_widget)
