@@ -264,6 +264,12 @@ class BandStructure(object):
         return bandgap, k_bandgap
 
 
+class VibrationalStructure(object):
+    def __init__(self,frequencies):
+        self.frequencies = frequencies
+        self.engine_information = None
+
+
 class EnergyDiagram(object):
     def __init__(self, energies, labels, occupations=None):
         self.energies = energies

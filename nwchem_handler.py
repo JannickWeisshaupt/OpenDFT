@@ -63,7 +63,7 @@ At the same time continued development is needed to enable NWChem to effectively
         self._timestamp_tasks = {}
 
         self.supported_methods = sst.ComputationalMethods(
-            ['non-periodic', 'scf', 'relax'])
+            ['non-periodic', 'scf', 'relax','phonons'])
 
         self.project_directory = None
         self.input_filename = 'scf.in'
@@ -74,9 +74,10 @@ At the same time continued development is needed to enable NWChem to effectively
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = convert_to_ordered(
-            {'basis': 'cc-pvdz', 'method': 'scf', 'spin state': 'singlet', 'spin restriction': 'RHF'})
+        self.scf_options = convert_to_ordered({'basis': 'cc-pvdz', 'method': 'scf',
+                                               'spin state': 'singlet', 'spin restriction': 'RHF', 'xc': 'pbe0','charge':'0'})
         self.scf_options_tooltip = {}
+
 
         self.general_options = {'title': 'title'}
         self.bs_options = {}
@@ -157,7 +158,7 @@ Returns:
         """
         raise NotImplementedError
 
-    def start_phonon(self, crystal_structure, band_structure_points):
+    def start_phonon(self, crystal_structure, band_structure_points,blocking=False):
         """This method starts a phonon bandstructure calculation in a subprocess. The configuration is stored in phonons_options.
 
         Args:
@@ -171,9 +172,12 @@ Returns:
         Returns:
             - None
                 """
-        raise NotImplementedError
+        file = self._make_input_file()
+        self._add_scf_to_file(file, crystal_structure,calculation='freq')
+        file.close()
+        self._start_engine(blocking=blocking)
 
-    def start_relax(self, crystal_structure):
+    def start_relax(self, crystal_structure,blocking=False):
         """This method starts a structure relaxation calculation in a subprocess. The configuration is stored in relax_options.
 
 Args:
@@ -185,7 +189,7 @@ Returns:
         file = self._make_input_file()
         self._add_scf_to_file(file, crystal_structure, calculation='optimize')
         file.close()
-        self._start_engine()
+        self._start_engine(blocking=blocking)
 
     def load_relax_structure(self):
         """This method loads the result of a relaxation calculation, which is a molecular or crystal structure.
@@ -239,43 +243,45 @@ Returns:
             return None
         info_text = f.read()
         f.close()
+        try:
+            scf_energy_list = []
 
-        scf_energy_list = []
+            # this is for future use
+            matches = re.findall('SCF calculation type: \w*', info_text)
+            if len(matches) == 0:
+                calculation_type = 'scf'
+                task = 'scf'
+            else:
+                calculation_type = matches[0].split(':')[1].strip().lower()
+                task = ''
 
-        # this is for future use
-        matches = re.findall('SCF calculation type: \w*', info_text)
-        if len(matches) == 0:
-            calculation_type = 'scf'
-            task = 'scf'
-        else:
-            calculation_type = matches[0].split(':')[1].strip().lower()
-            task = ''
+            hits = [i for i, l in enumerate(info_text.split('\n')) if
+                    l.strip().startswith('iter') or l.strip().startswith('convergence')]
+            if len(hits) > 0:
+                hit = hits[0]
+                header_line = info_text.split('\n')[hit].split()
+                energy_index = header_line.index('energy')
 
-        hits = [i for i, l in enumerate(info_text.split('\n')) if
-                l.strip().startswith('iter') or l.strip().startswith('convergence')]
-        if len(hits) > 0:
-            hit = hits[0]
-            header_line = info_text.split('\n')[hit].split()
-            energy_index = header_line.index('energy')
+                for line in info_text.split('\n')[hit + 2:]:
+                    sline = line.split('  ')
+                    sline = [x for x in sline if len(x) > 0]
+                    if len(sline) <= energy_index:
+                        break
+                    scf_energy_list.append(float(sline[energy_index].split()[0]))
 
-            for line in info_text.split('\n')[hit + 2:]:
-                sline = line.split('  ')
-                sline = [x for x in sline if len(x) > 0]
-                if len(sline) <= energy_index:
-                    break
-                scf_energy_list.append(float(sline[energy_index].split()[0]))
+            # find only final result
+            matches = re.findall(r"Total \w\w\w energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
+            for match in matches:
+                ms = match.split('=')
+                scf_energy_list.append(float(ms[1]))
 
-        # find only final result
-        matches = re.findall(r"Total \w\w\w energy[\s\t]*=[\s\t]*[-+]?\d*\.\d+", info_text)
-        for match in matches:
-            ms = match.split('=')
-            scf_energy_list.append(float(ms[1]))
+            res = np.array(list(zip(range(1, len(scf_energy_list) + 1), scf_energy_list)))
 
-        res = np.array(list(zip(range(1, len(scf_energy_list) + 1), scf_energy_list)))
-
-        if len(res) == 0:
+            if len(res) == 0:
+                return None
+            return res
+        except Exception as e:
             return None
-        return res
 
     def read_bandstructure(self, special_k_points=None):
         """This method reads the result of a electronic band structure calculation.
@@ -381,13 +387,60 @@ Returns:
         """
         raise NotImplementedError
 
-    def read_phonon_bandstructure(self):
+    def read_phonon_bandstructure(self,special_k_points=None, structure=None):
         """This method reads the result of a phonon band structure calculation.
 
 Returns:
     - band_structure:       A BandStructure object with the latest phonon band structure result found.
         """
-        raise NotImplementedError
+        try:
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
+        except IOError:
+            return None
+        text = f.readlines()
+
+        frequencies = []
+        eigenvectors = []
+
+        freq_found = False
+        eig_lines = []
+
+        eigenvector_array = None
+
+        for line in text:
+            if line.strip().startswith('P.Frequency'):
+                freq_strings = line.split()[1:]
+                freqs = [float(x) for x in freq_strings]
+                frequencies.extend(freqs)
+                freq_found = True
+                continue
+
+
+            if freq_found:
+                if len(line.strip()) == 0:
+                    continue
+                else:
+                    eig_line = line.strip().split()
+                    if len(eig_line) == len(freqs)+1:
+                        eig_line_float = [float(x) for x in eig_line[1:]]
+                        eig_lines.append(eig_line_float)
+                    else:
+                        eig_array = np.array(eig_lines).T
+                        if eigenvector_array is None:
+                            eigenvector_array = eig_array
+                        else:
+                            eigenvector_array = np.append(eigenvector_array,eig_array,axis=0)
+                        freqs = []
+                        eig_lines = []
+                        freq_found = False
+        k_points = np.array([0,0,0])
+        k_points = k_points[np.newaxis,:]
+        freqs_conv = np.array(frequencies)[:,np.newaxis]
+        eigs_conv = eigenvector_array[:,np.newaxis,:]
+        phonon_eigenvectors = sst.PhononEigenvectors(freqs_conv,eigs_conv,k_points)
+        vib = sst.VibrationalStructure(np.array(frequencies))
+        vib.phonon_eigenvectors = phonon_eigenvectors
+        return vib
 
     def read_optical_spectrum(self):
         """This method reads the result of a optical spectrum calculation.
@@ -525,9 +578,12 @@ Returns:
         file.write('title ' + '"' + self.general_options['title'] + '"\n')
         self._add_geometry(file, crystal_structure)
         self._add_basis(file, crystal_structure)
-        self._add_scf_field_to_file(file)
+        if self.scf_options['method'] =='scf':
+            self._add_scf_field_to_file(file)
+        elif self.scf_options['method'] == 'dft':
+            self._add_dft_field_to_file(file,crystal_structure)
         file.write('task ' + self.scf_options['method'])
-        if calculation == 'optimize':
+        if calculation in ['optimize','freq']:
             file.write(' ' + calculation)
         file.write('\n')
 
@@ -566,6 +622,7 @@ Returns:
             file.write('    ' + p_table[atom[3]].lower())
             file.write(" {0:1.9f} {1:1.9f} {2:1.9f}\n".format(*atom[:3]))
         file.write('end\n')
+        file.write('charge '+self.scf_options['charge']+'\n')
 
     def _add_basis(self, file, crystal_structure):
         file.write('basis\n')
@@ -581,6 +638,17 @@ Returns:
         file.write('   ' + self.scf_options['spin state'] + '\n')
         file.write('   ' + self.scf_options['spin restriction'] + '\n')
 
+        file.write('end\n')
+
+    def _add_dft_field_to_file(self, file,crystal_structure):
+        n_electrons = int(crystal_structure.atoms[:,3].sum())
+        mult_dic = {'singlet':1, 'doublet':2, 'triplet':3,'quartet':4,'quintet':5,'sextet':6,'septet':7,'octet':8}
+
+        file.write('dft\n')
+        file.write('   xc ' + self.scf_options['xc'] + '\n')
+        if n_electrons%2 == 1:
+            file.write('   ODFT' + '\n')
+            file.write('   MULT {}'.format(mult_dic[self.scf_options['spin state']])+'\n')
         file.write('end\n')
 
     def _add_dplot_to_file(self, file, crystal_structure, limits=None, orbital=None, grid=(100, 100, 100)):
@@ -618,11 +686,14 @@ if __name__ == '__main__':
     crystal_structure = sst.MolecularStructure(atoms)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/nwchem3"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/CH4_exciting"
+
+    eigs = handler.read_phonon_bandstructure()
+
     # handler.start_ground_state(crystal_structure)
     # handler.read_scf_status()
-    energies = handler.read_scf_status()
-    print(energies)
+    # energies = handler.read_scf_status()
+    # print(energies)
     # handler.calculate_electron_density(crystal_structure)
     # while handler.is_engine_running():
     #     time.sleep(0.1)

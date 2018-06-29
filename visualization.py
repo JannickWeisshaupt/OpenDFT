@@ -7,7 +7,7 @@ import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 
 from pyface.qt import QtGui, QtCore
-from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button, Array
+from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button, Array, Float, Enum
 from traitsui.api import View, Item, Group, HGroup
 
 from mayavi import mlab
@@ -1010,6 +1010,8 @@ class BandStructureVisualization(QtGui.QWidget):
             self.plot_energy_diagram(band_structure)
         elif type(band_structure) is sst.BandStructure:
             self.plot_bandstructure(band_structure)
+        elif type(band_structure) is sst.VibrationalStructure:
+            self.plot_vibrational(band_structure)
 
         try:
             Emin = float(self.Emin_entry.get_text())
@@ -1120,6 +1122,24 @@ class BandStructureVisualization(QtGui.QWidget):
         else:
             self.ax.set_ylim(bottom=0)
             self.ax.set_title('Phonon bandstructure', fontsize=25, color=title_color)
+
+    def plot_vibrational(self,band_structure):
+        self.ax.format_coord = lambda x, y: r'ν = {0:1.1f} cm^-1'.format(y)
+
+        self.ax.cla()
+        if self.dark_mode:
+            set_dark_mode_matplotlib(self.figure, self.ax, self.bg_color)
+            title_color = 'white'
+        else:
+            title_color = 'black'
+
+        for i,freq in enumerate(band_structure.frequencies):
+            self.ax.plot([-.3, .3],[freq,freq])
+
+        self.ax.set_ylabel(r'Frequncy $\left[\mathrm{cm}^{-1}\right]$')
+        self.ax.set_xticks([])
+        self.ax.set_xlim(-1, 1)
+        self.ax.set_title('Vibrational modes', fontsize=25, color=title_color)
 
     def make_interactive_text(self, k_in, E, band_structure):
         bands = band_structure.bands
@@ -1349,9 +1369,12 @@ class ScfVisualization(QtGui.QWidget):
 
 
 class PhononVisualization(StructureVisualization):
+    arrow = Float(10)
+    colormap = Enum('viridis',colormap_list)
+
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','show_unitcell', 'show_bonds', 'show_atoms', orientation='horizontal'),
+                Group('_','show_unitcell', 'show_bonds', 'show_atoms','arrow','colormap', orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -1361,12 +1384,19 @@ class PhononVisualization(StructureVisualization):
         super(PhononVisualization,self).__init__(crystal_structure)
         self.phonon_eigenvectors = None
         self.mayavi_phonons = None
+        self.last_plot = None
 
+    @on_trait_change('arrow,colormap')
+    def _arrow_changed_event(self):
+        if self.last_plot:
+            self.plot_phonons(*self.last_plot)
 
     def plot_phonons(self,n_mode,n_k):
         self.remove_phonons()
         if self.phonon_eigenvectors is None:
             return
+        self.last_plot = [n_mode,n_k]
+
         repeat = [self.n_x, self.n_y, self.n_z]
 
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
@@ -1376,11 +1406,13 @@ class PhononVisualization(StructureVisualization):
         mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
         # mode_unit = mode/np.abs(mode).max()
         self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode[:,0],mode[:,1],mode[:,2],figure=self.scene.mayavi_scene,
-                                 scale_factor=10,line_width=3,reset_zoom=False,colormap='viridis')
+                                 scale_factor=self.arrow,line_width=3,reset_zoom=False,colormap=self.colormap)
+
     def remove_phonons(self):
         if self.mayavi_phonons:
             self.mayavi_phonons.remove()
             self.mayavi_phonons = None
+
 
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')

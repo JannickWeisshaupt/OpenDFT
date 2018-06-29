@@ -233,20 +233,27 @@ class MayaviPhononWindow(QtGui.QMainWindow):
     def __init__(self, crystal_structure,data_dictionary, parent=None):
         super(MayaviPhononWindow, self).__init__(parent)
 
+        self.resize(1000, 600)
+
         self.data_dictionary = data_dictionary
         self.setWindowTitle('Phonon visualization')
 
         self.main_widget = QtGui.QWidget(self)
         self.setCentralWidget(self.main_widget)
 
-        layout = QtGui.QHBoxLayout(self.main_widget)
+        main_layout = QtGui.QVBoxLayout(self.main_widget)
+
+        self.sub_widget = QtGui.QWidget(self.main_widget)
+        main_layout.addWidget(self.sub_widget)
+
+        layout = QtGui.QHBoxLayout(self.sub_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.visualization = PhononVisualization(crystal_structure)
-        self.ui = self.visualization.edit_traits(parent=self.main_widget,
+        self.ui = self.visualization.edit_traits(parent=self.sub_widget,
                                                  kind='subpanel').control
         layout.addWidget(self.ui)
-        self.ui.setParent(self.main_widget)
+        self.ui.setParent(self.sub_widget)
 
         self.treeview = QtGui.QTreeWidget(parent=self)
         self.treeview.setMaximumWidth(200)
@@ -265,6 +272,21 @@ class MayaviPhononWindow(QtGui.QMainWindow):
         self.k_treeview.setHeaderHidden(True)
         self.k_treeview.itemSelectionChanged.connect(self.handle_item_changed)
         layout.addWidget(self.k_treeview)
+
+        self.info_widget = QtGui.QWidget(self.main_widget)
+        main_layout.addWidget(self.info_widget)
+
+        info_layout = QtGui.QHBoxLayout(self.info_widget)
+        info_layout.setAlignment(QtCore.Qt.AlignLeft)
+
+        infos = ['frequency']
+        self.info_labels = {}
+
+        for info in infos:
+            new_label = LabeledLabel(info.title()+':')
+            info_layout.addWidget(new_label)
+            self.info_labels[info] = new_label
+
 
     def update_plot(self, keep_view=False):
         self.visualization.update_plot(keep_view=keep_view)
@@ -311,6 +333,9 @@ class MayaviPhononWindow(QtGui.QMainWindow):
 
         mode,k = self.get_mode_and_k()
         self.visualization.plot_phonons(mode,k)
+
+        self.update_infos(phonon_eigenvectors,mode,k)
+
 
     def add_result_key(self, title):
         item = QtGui.QTreeWidgetItem(self.treeview.invisibleRootItem(), [title])
@@ -369,6 +394,16 @@ class MayaviPhononWindow(QtGui.QMainWindow):
             k = indexes_k[0].row()
 
         return mode,k
+
+    def update_infos(self,eigs,mode,k):
+        freqs = eigs.frequencies
+        freq = freqs[mode,k]
+        data = {'frequency':'{0:1.1f} cm^-1'.format(freq)}
+
+        for label,widget in self.info_labels.items():
+            if label in data.keys():
+                widget.text(data[label])
+
 
 
 class EntryWithLabel(QtGui.QWidget):
@@ -2747,7 +2782,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/diamond3/"
+                project_directory = r"/home/jannick/OpenDFT_projects/CH4_exciting/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
