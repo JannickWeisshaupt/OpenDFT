@@ -2118,16 +2118,17 @@ class KsStateWindow(QtGui.QDialog):
                 self.parent.error_dialog.showMessage(error_message)
 
             ks_dens = esc_handler.read_ks_state()
-            ks_dens.engine_information = {'scf': copy.deepcopy(self.parent.last_run_information['scf'])}
-            label = self.current_calc_properties['label']
-            if self.current_calc_properties['type'] == 'ks density':
-                n_band = self.current_calc_properties['n_band']
-                k = self.current_calc_properties['k']
-                key = "{} k{} n{}".format(label, k, n_band)
-            elif self.current_calc_properties['type'] == 'density':
-                key = label + ' density'
-
             if ks_dens is not None:
+                ks_dens.engine_information = {'scf': copy.deepcopy(self.parent.last_run_information['scf'])}
+                label = self.current_calc_properties['label']
+                if self.current_calc_properties['type'] == 'ks density':
+                    n_band = self.current_calc_properties['n_band']
+                    k = self.current_calc_properties['k']
+                    key = "{} k{} n{}".format(label, k, n_band)
+                elif self.current_calc_properties['type'] == 'density':
+                    key = label + ' density'
+
+
                 self.parent.ks_densities[key] = ks_dens
                 self.plot_widget.update_tree()
 
