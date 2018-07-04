@@ -7,6 +7,7 @@ import os
 os.environ['ETS_TOOLKIT'] = 'qt4'
 
 from pyface.qt import QtGui, QtCore
+from pyface.api import GUI
 from traits.api import HasTraits, Instance, on_trait_change, Range, Bool, Button, Array, Float, Enum
 from traitsui.api import View, Item, Group, HGroup
 
@@ -39,6 +40,8 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import random
+
+_gui = GUI()
 
 bohr = 0.52917721
 
@@ -1371,10 +1374,11 @@ class ScfVisualization(QtGui.QWidget):
 class PhononVisualization(StructureVisualization):
     arrow = Float(10)
     colormap = Enum('viridis',colormap_list)
+    animate = Button('Animate')
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','show_unitcell', 'show_bonds', 'show_atoms','arrow','colormap', orientation='horizontal'),
+                Group('_','show_unitcell', 'show_bonds', 'show_atoms','arrow','colormap',Item('animate', show_label=False), orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -1400,10 +1404,8 @@ class PhononVisualization(StructureVisualization):
         repeat = [self.n_x, self.n_y, self.n_z]
 
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
-        mass_matrix = sst.calculate_mass_matrix(self.crystal_structure,phonon_conv=True) # phonon conv=True return m**-1/2
 
-        mode_conv = np.dot(mass_matrix, self.phonon_eigenvectors.modes[n_mode, n_k, :])
-        mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
+        mode = self._calculate_phonon_mode(n_mode,n_k)
         # mode_unit = mode/np.abs(mode).max()
         self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode[:,0],mode[:,1],mode[:,2],figure=self.scene.mayavi_scene,
                                  scale_factor=self.arrow,line_width=3,reset_zoom=False,colormap=self.colormap)
@@ -1413,6 +1415,29 @@ class PhononVisualization(StructureVisualization):
             self.mayavi_phonons.remove()
             self.mayavi_phonons = None
 
+    def _animate_fired(self):
+        arrows_plotted = self.mayavi_phonons is not None
+        if arrows_plotted:
+            self.remove_phonons()
+        if self.last_plot:
+            abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates()
+            mode = self._calculate_phonon_mode(*self.last_plot)
+            for i in range(500):
+                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode*np.sin(2*np.pi*i/100)
+                x = phonon_coords[:,0]
+                y = phonon_coords[:,1]
+                z = phonon_coords[:,2]
+                self.mayavi_atom.mlab_source.trait_set(x=x,y=y,z=z)
+                _gui.process_events()
+        if arrows_plotted:
+            self.plot_phonons(*self.last_plot)
+
+    def _calculate_phonon_mode(self,n_mode,n_k):
+        mass_matrix = sst.calculate_mass_matrix(self.crystal_structure,phonon_conv=True) # phonon conv=True return m**-1/2
+
+        mode_conv = np.dot(mass_matrix, self.phonon_eigenvectors.modes[n_mode, n_k, :])
+        mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
+        return mode
 
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')
@@ -1430,11 +1455,22 @@ if __name__ == "__main__":
     atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    from solid_state_tools import CrystalStructure
+    from solid_state_tools import CrystalStructure, PhononEigenvectors
+
+    freqs = np.ones((1, 1))
+    mode = np.array([[1,1,1,-1,-1,-1]])[None,:,:]
+    k_vector = np.array([[0,0,0]])
+
+    eig = PhononEigenvectors(freqs,mode,k_vector)
 
     crystal_structure = CrystalStructure(unit_cell, atoms)
-    vis = StructureVisualization(crystal_structure)
+    vis = PhononVisualization(crystal_structure)
+    vis.phonon_eigenvectors = eig
+    vis.plot_phonons(0,0)
     vis.configure_traits()
+
+
+
 
     # x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]
     # data = np.sin(3 * x) / x + 0.05 * z ** 2 + np.cos(3 * y)
