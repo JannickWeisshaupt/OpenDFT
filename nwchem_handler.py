@@ -353,27 +353,30 @@ Returns:
 
         hits = [i for i, l in enumerate(text) if 'final molecular orbital analysis' in l.lower()]
         if len(hits) == 0:
-            return None
-        hit = hits[-1]
+            hits_alpha = [i for i, l in enumerate(text) if 'final alpha molecular orbital analysis' in l.lower()]
+            hits_beta = [i for i, l in enumerate(text) if 'final beta molecular orbital analysis' in l.lower()]
+
+            if len(hits_alpha) == 0:
+                raise Exception('Ouput is not a valid nwchem output file with energy levels')
+            else:
+                hit = [hits_alpha[-1],hits_beta[-1]]
+        else:
+            hit = [hits[-1]]
+
+        results = []
+        for h in hit:
+            results.append(self._read_final_molecular_orbit(text,h))
 
         energies = []
+        labels = []
         occupations = []
-        for line in text[hit + 1:]:
-            try:
-                if not line.strip().startswith('Vector'):
-                    continue
-                sline = line.split('E=')
-                if len(sline) == 0:
-                    continue
-                energies.append(float(sline[1].strip().replace('D', 'e')) * hartree)
-                sline2 = line.split('Occ=')[1]
-                sline3 = sline2.split('E=')[0]
-                sline3 = sline3.replace('D', 'e')
-                occupations.append(float(sline3))
-            except Exception:
-                pass
+        for res in results:
+            e,l,o = res
+            energies.extend(e)
+            labels.extend(l)
+            occupations.extend(o)
 
-        labels = ['' for i, energie in enumerate(energies)]
+        energies, labels, occupations = (list(t) for t in zip(*sorted(zip(energies, labels, occupations))))
         return sst.EnergyDiagram(energies, labels, occupations=occupations)
 
     def read_gw_bandstructure(self, filename='BAND-QP.OUT'):
@@ -641,7 +644,7 @@ Returns:
         file.write('end\n')
 
     def _add_dft_field_to_file(self, file,crystal_structure):
-        n_electrons = int(crystal_structure.atoms[:,3].sum())
+        n_electrons = int(crystal_structure.atoms[:,3].sum()) + int(self.scf_options['charge'])
         mult_dic = {'singlet':1, 'doublet':2, 'triplet':3,'quartet':4,'quintet':5,'sextet':6,'septet':7,'octet':8}
 
         file.write('dft\n')
@@ -680,6 +683,29 @@ Returns:
 
         file.write('end\n')
 
+    def _read_final_molecular_orbit(self,text,hit):
+
+        energies = []
+        occupations = []
+        for line in text[hit + 1:]:
+            if 'molecular orbital analysis' in line.lower():
+                break
+            try:
+                if not line.strip().startswith('Vector'):
+                    continue
+                sline = line.split('E=')
+                if len(sline) == 0:
+                    continue
+                energies.append(float(sline[1].strip().replace('D', 'e')) * hartree)
+                sline2 = line.split('Occ=')[1]
+                sline3 = sline2.split('E=')[0]
+                sline3 = sline3.replace('D', 'e')
+                occupations.append(float(sline3))
+            except Exception:
+                pass
+
+        labels = ['' for i, energie in enumerate(energies)]
+        return energies,labels,occupations
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, -1.2, 7], [0, 0, 1.2, 7]])
@@ -688,8 +714,8 @@ if __name__ == '__main__':
     handler = Handler()
     handler.project_directory = "/home/jannick/OpenDFT_projects/CH4_exciting"
 
-    eigs = handler.read_phonon_bandstructure()
-
+    # eigs = handler.read_phonon_bandstructure()
+    e = handler.read_energy_diagram()
     # handler.start_ground_state(crystal_structure)
     # handler.read_scf_status()
     # energies = handler.read_scf_status()
