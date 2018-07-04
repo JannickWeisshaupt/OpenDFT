@@ -1378,7 +1378,7 @@ class PhononVisualization(StructureVisualization):
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','show_unitcell', 'show_bonds', 'show_atoms','arrow','colormap',Item('animate', show_label=False), orientation='horizontal'),
+                Group('_','show_unitcell', 'show_bonds', 'show_atoms',Item('arrow',resizable=False,width=-50),'colormap',Item('animate', show_label=False), orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -1417,6 +1417,8 @@ class PhononVisualization(StructureVisualization):
             self.mayavi_phonons = None
 
     def _animate_fired(self):
+        if self.animation_active or self.mayavi_atom is None:
+            return
         arrows_plotted = self.mayavi_phonons is not None
         if arrows_plotted:
             self.remove_phonons()
@@ -1455,23 +1457,29 @@ def set_dark_mode_matplotlib(f, ax, color):
 
 
 if __name__ == "__main__":
+    from solid_state_tools import CrystalStructure, PhononEigenvectors,StructureParser
+
     # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
     # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
-    unit_cell = 20*np.eye(3,3)
-    N = 50
-    atoms = np.random.rand(N,4)
-    atoms[:,3] = np.random.randint(1,30,N)
+    # unit_cell = 20*np.eye(3,3)
+    # N = 50
+    # atoms = np.random.rand(N,4)
+    # atoms[:,3] = np.random.randint(1,30,N)
 
-    from solid_state_tools import CrystalStructure, PhononEigenvectors
+    # crystal_structure = CrystalStructure(unit_cell, atoms)
+
+    p = StructureParser()
+    crystal_structure = p.parse_cif_file(r'D:\OpenDFT_projects\bbo\2310091.cif')
+
+    N_atoms = crystal_structure.atoms.shape[0]
 
     freqs = np.ones((1, 1))
-    mode = np.array([np.random.randn(3*N)])[None,:,:]
+    mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
     k_vector = np.array([[0,0,0]])
 
     eig = PhononEigenvectors(freqs,mode,k_vector)
 
-    crystal_structure = CrystalStructure(unit_cell, atoms)
     vis = PhononVisualization(crystal_structure)
     vis.phonon_eigenvectors = eig
     vis.plot_phonons(0,0)
