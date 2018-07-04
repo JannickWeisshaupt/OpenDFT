@@ -1389,10 +1389,11 @@ class PhononVisualization(StructureVisualization):
         self.phonon_eigenvectors = None
         self.mayavi_phonons = None
         self.last_plot = None
+        self.animation_active = False
 
     @on_trait_change('arrow,colormap')
     def _arrow_changed_event(self):
-        if self.last_plot:
+        if self.last_plot and not self.animation_active:
             self.plot_phonons(*self.last_plot)
 
     def plot_phonons(self,n_mode,n_k):
@@ -1420,15 +1421,17 @@ class PhononVisualization(StructureVisualization):
         if arrows_plotted:
             self.remove_phonons()
         if self.last_plot:
+            self.animation_active = True
             abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates()
             mode = self._calculate_phonon_mode(*self.last_plot)
-            for i in range(500):
+            for i in range(501):
                 phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode*np.sin(2*np.pi*i/100)
                 x = phonon_coords[:,0]
                 y = phonon_coords[:,1]
                 z = phonon_coords[:,2]
                 self.mayavi_atom.mlab_source.trait_set(x=x,y=y,z=z)
                 _gui.process_events()
+        self.animation_active = False
         if arrows_plotted:
             self.plot_phonons(*self.last_plot)
 
@@ -1452,13 +1455,18 @@ def set_dark_mode_matplotlib(f, ax, color):
 
 
 if __name__ == "__main__":
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+
+    unit_cell = 20*np.eye(3,3)
+    N = 50
+    atoms = np.random.rand(N,4)
+    atoms[:,3] = np.random.randint(1,30,N)
 
     from solid_state_tools import CrystalStructure, PhononEigenvectors
 
     freqs = np.ones((1, 1))
-    mode = np.array([[1,1,1,-1,-1,-1]])[None,:,:]
+    mode = np.array([np.random.randn(3*N)])[None,:,:]
     k_vector = np.array([[0,0,0]])
 
     eig = PhononEigenvectors(freqs,mode,k_vector)
