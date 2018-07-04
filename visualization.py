@@ -1375,10 +1375,13 @@ class PhononVisualization(StructureVisualization):
     arrow = Float(10)
     colormap = Enum('viridis',colormap_list)
     animate = Button('Animate')
+    stop = Button('Stop')
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','show_unitcell', 'show_bonds', 'show_atoms',Item('arrow',resizable=False,width=-50),'colormap',Item('animate', show_label=False), orientation='horizontal'),
+                Group('_','show_unitcell', 'show_bonds', 'show_atoms',
+                      Item('arrow',resizable=False,width=-50,label='Arrow/Disp.',tooltip='Determines the length of the arrows or the displacement in the animation'),
+                      'colormap',Item('animate', show_label=False),Item('stop', show_label=False), orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -1390,6 +1393,7 @@ class PhononVisualization(StructureVisualization):
         self.mayavi_phonons = None
         self.last_plot = None
         self.animation_active = False
+        self.stop_bool = False
 
     @on_trait_change('arrow,colormap')
     def _arrow_changed_event(self):
@@ -1416,23 +1420,40 @@ class PhononVisualization(StructureVisualization):
             self.mayavi_phonons.remove()
             self.mayavi_phonons = None
 
+    def _stop_fired(self):
+        self.stop_bool = True
+
     def _animate_fired(self):
+        steps = 100
+
         if self.animation_active or self.mayavi_atom is None:
             return
         arrows_plotted = self.mayavi_phonons is not None
         if arrows_plotted:
             self.remove_phonons()
         if self.last_plot:
+            self.stop_bool = False
             self.animation_active = True
+            break_bool = False
             abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates()
             mode = self._calculate_phonon_mode(*self.last_plot)
-            for i in range(501):
-                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode*np.sin(2*np.pi*i/100)
+            i = 0
+            while True:
+                i = i % steps
+                if self.stop_bool:
+                    self.stop_bool = False
+                    break_bool = True
+                    i = 0
+                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode*np.sin(2*np.pi*i/steps)
                 x = phonon_coords[:,0]
                 y = phonon_coords[:,1]
                 z = phonon_coords[:,2]
                 self.mayavi_atom.mlab_source.trait_set(x=x,y=y,z=z)
                 _gui.process_events()
+                i = i + 1
+                if break_bool:
+                    break
+
         self.animation_active = False
         if arrows_plotted:
             self.plot_phonons(*self.last_plot)

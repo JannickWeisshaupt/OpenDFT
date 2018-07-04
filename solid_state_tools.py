@@ -343,6 +343,18 @@ class PhononEigenvectors(object):
         self.modes = modes
         self.k_vectors = k_vectors
 
+    # def calculate_mode(self,n,k,repeat=(1,1,1)):
+    #     n_repeat = repeat[0] * repeat[1] * repeat[2]
+    #
+    #     repeated_mode = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 3))
+    #
+    #     for j1 in range(repeat[0]):
+    #         for j2 in range(repeat[1]):
+    #             for j3 in range(repeat[2]):
+    #                 for i in range(self.n_atoms):
+    #                     repeated_mode[i, j1, j2, j3, :] = self.modes[n,k]
+    #     mode_out = abs_coord.reshape((n_repeat * self.n_atoms, 3))
+    #     return mode_out
 
 class StructureParser:
     def __init__(self):
