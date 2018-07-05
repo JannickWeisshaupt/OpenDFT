@@ -250,6 +250,7 @@ class StructureVisualization(HasTraits):
         self.mayavi_atom = None
         self.mayavi_bonds = None
         self.mayavi_unitcell = None
+        self.atom_resolution = 20
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -351,7 +352,7 @@ class StructureVisualization(HasTraits):
         self.mayavi_unitcell = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
         mayavi_grid.mlab_source.update()
 
-    def plot_atoms(self, repeat=[1, 1, 1],edge_atoms=False):
+    def plot_atoms(self, repeat=(1, 1, 1),edge_atoms=False):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat,edges=edge_atoms)
         # species = set(abs_coord_atoms[:,3].astype(np.int))
 
@@ -359,7 +360,7 @@ class StructureVisualization(HasTraits):
 
         pts = self.scene.mlab.points3d(abs_coord_atoms[:, 0], abs_coord_atoms[:, 1], abs_coord_atoms[:, 2],
                                        scale_factor=0.6, vmin=1, vmax=256, figure=self.scene.mayavi_scene,
-                                       resolution=20)
+                                       resolution=self.atom_resolution)
 
         pts.module_manager.scalar_lut_manager.lut.table = lut
 
@@ -442,7 +443,7 @@ class StructureVisualization(HasTraits):
         self.scene.mlab.roll(cur_roll, figure=self.scene.mayavi_scene)
         self.density_plotted = ks_density
 
-    def plot_bonds(self, repeat=[1, 1, 1]):
+    def plot_bonds(self, repeat=(1, 1, 1)):
         if self.mayavi_atom is None:
             self.plot_atoms(repeat=repeat,edge_atoms=self.edge_atoms)
 
@@ -1394,6 +1395,7 @@ class PhononVisualization(StructureVisualization):
         self.last_plot = None
         self.animation_active = False
         self.stop_bool = False
+        self.atom_resolution = 10
 
     @on_trait_change('arrow,colormap')
     def _arrow_changed_event(self):
@@ -1445,6 +1447,7 @@ class PhononVisualization(StructureVisualization):
             k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.phonon_eigenvectors.k_vectors[self.last_plot[1],:])
             mode_spatial = mode*np.repeat(np.cos((abs_coord_atoms[:,:3]*k_vector).sum(axis=1)[:,None] ),3,axis=1)
             i = 0
+
             while True:
                 i = i % steps
                 if self.stop_bool:
@@ -1459,9 +1462,9 @@ class PhononVisualization(StructureVisualization):
                 _gui.process_events()
                 i = i + 1
                 if break_bool:
+                    self.animation_active = False
                     break
 
-        self.animation_active = False
         if arrows_plotted:
             self.plot_phonons(*self.last_plot)
 
@@ -1479,6 +1482,16 @@ class PhononVisualization(StructureVisualization):
         # mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0]*n_repeat,3)
         return mode_conv
 
+    @on_trait_change('scene.activated,n_x,n_y,n_z')
+    def update_plot(self, *args, **kwargs):
+        if not self.animation_active:
+            super().update_plot(*args,**kwargs)
+
+    @on_trait_change('show_atoms')
+    def _show_atoms_event(self):
+        if not self.animation_active:
+            super()._show_atoms_event()
+
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')
     ax.tick_params(axis='y', colors='white')
@@ -1494,26 +1507,26 @@ def set_dark_mode_matplotlib(f, ax, color):
 if __name__ == "__main__":
     from solid_state_tools import CrystalStructure, PhononEigenvectors,StructureParser
 
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
     # unit_cell = 20*np.eye(3,3)
     # N = 50
     # atoms = np.random.rand(N,4)
     # atoms[:,3] = np.random.randint(1,30,N)
 
-    crystal_structure = CrystalStructure(unit_cell, atoms)
+    # crystal_structure = CrystalStructure(unit_cell, atoms)
 
-    # p = StructureParser()
-    # crystal_structure = p.parse_cif_file(r'D:\OpenDFT_projects\bbo\2310091.cif')
+    p = StructureParser()
+    crystal_structure = p.parse_cif_file(r'D:\OpenDFT_projects\bbo\2310091.cif')
 
     N_atoms = crystal_structure.atoms.shape[0]
 
     freqs = np.ones((1, 1))
-    # mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
-    mode = np.array([[1,1,-1,1,1,-1]])[None,:,:]
+    mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
+    # mode = np.array([[-1,1,1,-1,1,1]])[None,:,:]
 
-    k_vector = np.array([[0.15,0.15,0.15]])
+    k_vector = np.array([[0.5,0.0,0.0]])
 
     eig = PhononEigenvectors(freqs,mode,k_vector)
 
