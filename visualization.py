@@ -1416,8 +1416,12 @@ class PhononVisualization(StructureVisualization):
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
 
         mode = self._calculate_phonon_mode(*self.last_plot, repeat=repeat)
-        k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
-                          self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+        if isinstance(self.crystal_structure,sst.CrystalStructure):
+            k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
+                              self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+        elif isinstance(self.crystal_structure,sst.MolecularStructure):
+            k_vector = k_vector = np.array([0,0,0])
+
         mode_spatial = mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]), 3, axis=1)
 
         # mode_unit = mode/np.abs(mode).max()
@@ -1447,7 +1451,13 @@ class PhononVisualization(StructureVisualization):
             break_bool = False
             abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
             mode = self._calculate_phonon_mode(*self.last_plot,repeat=repeat)
-            k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.phonon_eigenvectors.k_vectors[self.last_plot[1],:])
+
+            if isinstance(self.crystal_structure, sst.CrystalStructure):
+                k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
+                                  self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+            elif isinstance(self.crystal_structure, sst.MolecularStructure):
+                k_vector = np.array([0,0,0])
+
             mode_spatial = mode*np.repeat(np.cos((abs_coord_atoms[:,:3]*k_vector).sum(axis=1)[:,None] ),3,axis=1)
             i = 0
 
@@ -1474,7 +1484,7 @@ class PhononVisualization(StructureVisualization):
                     self.animation_active = False
                     break
 
-        if arrows_plotted:
+        if arrows_plotted and self.last_plot is not None:
             self.plot_phonons(*self.last_plot)
 
     def _calculate_phonon_mode(self,n_mode,n_k,repeat=(1,1,1)):
@@ -1483,8 +1493,11 @@ class PhononVisualization(StructureVisualization):
         mode_initial = self.phonon_eigenvectors.calculate_mode(n_mode, n_k,repeat=repeat)
         mode_conv = np.zeros(mode_initial.shape)
 
-        for i in range(3):
-            mode_conv[:,i] = np.dot(mass_matrix,mode_initial[:,i])
+        if isinstance(self.crystal_structure,sst.CrystalStructure):
+            for i in range(3):
+                mode_conv[:,i] = np.dot(mass_matrix,mode_initial[:,i])
+        elif isinstance(self.crystal_structure,sst.MolecularStructure): # workaround because nwchem yields cartesian eigenvectors
+            mode_conv = mode_initial
 
         # mode_conv = np.dot(mass_matrix,mode_initial)
         # n_repeat = repeat[0]*repeat[1]*repeat[2]

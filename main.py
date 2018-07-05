@@ -332,7 +332,13 @@ class MayaviPhononWindow(QtGui.QMainWindow):
         self.visualization.phonon_eigenvectors = phonon_eigenvectors
 
         mode,k = self.get_mode_and_k()
-        self.visualization.plot_phonons(mode,k)
+        if self.visualization.animation_active:
+            self.visualization._stop_fired()
+            if phonon_eigenvectors is not None:
+                self.visualization.last_plot = [mode,k]
+                QtCore.QTimer.singleShot(100,self.visualization._animate_fired)
+        else:
+            self.visualization.plot_phonons(mode,k)
 
         self.update_infos(phonon_eigenvectors,mode,k)
 
@@ -396,6 +402,8 @@ class MayaviPhononWindow(QtGui.QMainWindow):
         return mode,k
 
     def update_infos(self,eigs,mode,k):
+        if eigs is None:
+            return
         freqs = eigs.frequencies
         freq = freqs[mode,k]
         data = {'frequency':'{0:1.1f} cm^-1'.format(freq)}
@@ -404,7 +412,9 @@ class MayaviPhononWindow(QtGui.QMainWindow):
             if label in data.keys():
                 widget.text(data[label])
 
-
+    def closeEvent(self,event):
+        self.visualization._stop_fired()
+        event.accept()
 
 class EntryWithLabel(QtGui.QWidget):
     def __init__(self, parent, label, value=None, width_text=200, width_label=90):
@@ -3424,6 +3434,7 @@ class CentralWindow(QtGui.QWidget):
 
     def open_phonon_window(self):
         self.phonon_window.update_crystal_structure(self.crystal_structure)
+        self.phonon_window.visualization.last_plot = None
         self.phonon_window.update_plot()
         self.phonon_window.update_tree()
         self.phonon_window.show()
