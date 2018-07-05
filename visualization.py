@@ -1379,7 +1379,7 @@ class PhononVisualization(StructureVisualization):
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','show_unitcell', 'show_bonds', 'show_atoms',
+                Group('_','n_x','n_y','n_z','show_unitcell', 'show_bonds', 'show_atoms',
                       Item('arrow',resizable=False,width=-50,label='Arrow/Disp.',tooltip='Determines the length of the arrows or the displacement in the animation'),
                       'colormap',Item('animate', show_label=False),Item('stop', show_label=False), orientation='horizontal'),
                 resizable=True,  # We need this to resize with the parent widget
@@ -1410,9 +1410,13 @@ class PhononVisualization(StructureVisualization):
 
         abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
 
-        mode = self._calculate_phonon_mode(n_mode,n_k)
+        mode = self._calculate_phonon_mode(*self.last_plot, repeat=repeat)
+        k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
+                          self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+        mode_spatial = mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]), 3, axis=1)
+
         # mode_unit = mode/np.abs(mode).max()
-        self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode[:,0],mode[:,1],mode[:,2],figure=self.scene.mayavi_scene,
+        self.mayavi_phonons = self.scene.mlab.quiver3d(abs_coord_atoms[:,0],abs_coord_atoms[:,1],abs_coord_atoms[:,2],mode_spatial[:,0],mode_spatial[:,1],mode_spatial[:,2],figure=self.scene.mayavi_scene,
                                  scale_factor=self.arrow,line_width=3,reset_zoom=False,colormap=self.colormap)
 
     def remove_phonons(self):
@@ -1432,11 +1436,14 @@ class PhononVisualization(StructureVisualization):
         if arrows_plotted:
             self.remove_phonons()
         if self.last_plot:
+            repeat = [self.n_x,self.n_y,self.n_z]
             self.stop_bool = False
             self.animation_active = True
             break_bool = False
-            abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates()
-            mode = self._calculate_phonon_mode(*self.last_plot)
+            abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+            mode = self._calculate_phonon_mode(*self.last_plot,repeat=repeat)
+            k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,self.phonon_eigenvectors.k_vectors[self.last_plot[1],:])
+            mode_spatial = mode*np.repeat(np.cos((abs_coord_atoms[:,:3]*k_vector).sum(axis=1)[:,None] ),3,axis=1)
             i = 0
             while True:
                 i = i % steps
@@ -1444,7 +1451,7 @@ class PhononVisualization(StructureVisualization):
                     self.stop_bool = False
                     break_bool = True
                     i = 0
-                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode*np.sin(2*np.pi*i/steps)
+                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode_spatial*np.sin(2*np.pi*i/steps)
                 x = phonon_coords[:,0]
                 y = phonon_coords[:,1]
                 z = phonon_coords[:,2]
@@ -1458,12 +1465,19 @@ class PhononVisualization(StructureVisualization):
         if arrows_plotted:
             self.plot_phonons(*self.last_plot)
 
-    def _calculate_phonon_mode(self,n_mode,n_k):
-        mass_matrix = sst.calculate_mass_matrix(self.crystal_structure,phonon_conv=True) # phonon conv=True return m**-1/2
+    def _calculate_phonon_mode(self,n_mode,n_k,repeat=(1,1,1)):
+        mass_matrix = sst.calculate_mass_matrix(self.crystal_structure,phonon_conv=True,repeat=repeat) # phonon conv=True return m**-1/2
 
-        mode_conv = np.dot(mass_matrix, self.phonon_eigenvectors.modes[n_mode, n_k, :])
-        mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0],3)
-        return mode
+        mode_initial = self.phonon_eigenvectors.calculate_mode(n_mode, n_k,repeat=repeat)
+        mode_conv = np.zeros(mode_initial.shape)
+
+        for i in range(3):
+            mode_conv[:,i] = np.dot(mass_matrix,mode_initial[:,i])
+
+        # mode_conv = np.dot(mass_matrix,mode_initial)
+        # n_repeat = repeat[0]*repeat[1]*repeat[2]
+        # mode = mode_conv.reshape(self.crystal_structure.atoms.shape[0]*n_repeat,3)
+        return mode_conv
 
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')
@@ -1480,24 +1494,26 @@ def set_dark_mode_matplotlib(f, ax, color):
 if __name__ == "__main__":
     from solid_state_tools import CrystalStructure, PhononEigenvectors,StructureParser
 
-    # atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    # unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
+    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
 
     # unit_cell = 20*np.eye(3,3)
     # N = 50
     # atoms = np.random.rand(N,4)
     # atoms[:,3] = np.random.randint(1,30,N)
 
-    # crystal_structure = CrystalStructure(unit_cell, atoms)
+    crystal_structure = CrystalStructure(unit_cell, atoms)
 
-    p = StructureParser()
-    crystal_structure = p.parse_cif_file(r'D:\OpenDFT_projects\bbo\2310091.cif')
+    # p = StructureParser()
+    # crystal_structure = p.parse_cif_file(r'D:\OpenDFT_projects\bbo\2310091.cif')
 
     N_atoms = crystal_structure.atoms.shape[0]
 
     freqs = np.ones((1, 1))
-    mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
-    k_vector = np.array([[0,0,0]])
+    # mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
+    mode = np.array([[1,1,-1,1,1,-1]])[None,:,:]
+
+    k_vector = np.array([[0.15,0.15,0.15]])
 
     eig = PhononEigenvectors(freqs,mode,k_vector)
 

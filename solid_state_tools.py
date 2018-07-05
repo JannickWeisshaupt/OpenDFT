@@ -343,18 +343,21 @@ class PhononEigenvectors(object):
         self.modes = modes
         self.k_vectors = k_vectors
 
-    # def calculate_mode(self,n,k,repeat=(1,1,1)):
-    #     n_repeat = repeat[0] * repeat[1] * repeat[2]
-    #
-    #     repeated_mode = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 3))
-    #
-    #     for j1 in range(repeat[0]):
-    #         for j2 in range(repeat[1]):
-    #             for j3 in range(repeat[2]):
-    #                 for i in range(self.n_atoms):
-    #                     repeated_mode[i, j1, j2, j3, :] = self.modes[n,k]
-    #     mode_out = abs_coord.reshape((n_repeat * self.n_atoms, 3))
-    #     return mode_out
+    def calculate_mode(self,n,k,repeat=(1,1,1)):
+        n_repeat = repeat[0] * repeat[1] * repeat[2]
+        n_atoms = len(self.modes[n,k])//3
+        mode = self.modes[n, k]
+        mode_conv = mode.reshape((n_atoms,3))
+        repeated_mode = np.zeros((n_atoms,repeat[0], repeat[1], repeat[2], 3))
+
+        for j1 in range(repeat[0]):
+            for j2 in range(repeat[1]):
+                for j3 in range(repeat[2]):
+                    for i in range(n_atoms):
+                        repeated_mode[i, j1, j2, j3, :] = mode_conv[i,:]
+
+        mode_out = repeated_mode.reshape((n_repeat*n_atoms ,3))
+        return mode_out
 
 class StructureParser:
     def __init__(self):
@@ -753,12 +756,13 @@ def bonds_to_path(bonds_in):
 def calculate_mass_matrix(structure,repeat=(1,1,1),edges=False,phonon_conv=False):
     coords = structure.calc_absolute_coordinates(repeat=repeat,edges=edges)
     species = coords[:,3]
+    n_repeat = repeat[0]*repeat[1]*repeat[2]
 
-    mass_matrix = np.zeros((coords.shape[0]*3,coords.shape[0]*3))
+    mass_matrix = np.zeros((coords.shape[0],coords.shape[0]))
     if phonon_conv:
-        mass_list = np.array([3*[np.sqrt(elemental_masses[int(x)])**-1] for x in species ])
+        mass_list = np.array([[np.sqrt(elemental_masses[int(x)])**-1] for x in species ])
     else:
-        mass_list = np.array([3*[elemental_masses[int(x)]] for x in species ])
+        mass_list = np.array([[elemental_masses[int(x)]] for x in species ])
     mass_list_coll = [item for sub_list in mass_list for item in sub_list]
     np.fill_diagonal(mass_matrix,mass_list_coll)
     return mass_matrix
