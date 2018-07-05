@@ -224,9 +224,9 @@ class BrillouinVisualization(HasTraits):
 
 
 class StructureVisualization(HasTraits):
-    n_x = Range(1, 20, 1, mode='spinner')  # )
-    n_y = Range(1, 20, 1, mode='spinner')  # mode='spinner')
-    n_z = Range(1, 20, 1, mode='spinner')  # mode='spinner')
+    n_x = Range(1, 40, 1, mode='spinner')  # )
+    n_y = Range(1, 40, 1, mode='spinner')  # mode='spinner')
+    n_z = Range(1, 40, 1, mode='spinner')  # mode='spinner')
     prop_but = Button(label='Properties')
 
     show_unitcell = Bool(True)
@@ -1377,12 +1377,15 @@ class PhononVisualization(StructureVisualization):
     colormap = Enum('viridis',colormap_list)
     animate = Button('Animate')
     stop = Button('Stop')
+    standing = Bool(False)
+    speed = Float(10)
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),
-                Group('_','n_x','n_y','n_z','show_unitcell', 'show_bonds', 'show_atoms',
+                Group(Group('_','n_x','n_y','n_z','show_unitcell', 'show_bonds', 'show_atoms',
                       Item('arrow',resizable=False,width=-50,label='Arrow/Disp.',tooltip='Determines the length of the arrows or the displacement in the animation'),
-                      'colormap',Item('animate', show_label=False),Item('stop', show_label=False), orientation='horizontal'),
+                      'colormap', orientation='horizontal'),
+                      Group(Item('animate', show_label=False),Item('stop', show_label=False),Item('standing',label='Standing wave'),Item('speed',resizable=False,width=-50), orientation='horizontal'),orientation='vertical'),
                 resizable=True,  # We need this to resize with the parent widget
                 )
 
@@ -1395,7 +1398,7 @@ class PhononVisualization(StructureVisualization):
         self.last_plot = None
         self.animation_active = False
         self.stop_bool = False
-        self.atom_resolution = 20
+        self.atom_resolution = 10
 
     @on_trait_change('arrow,colormap')
     def _arrow_changed_event(self):
@@ -1449,12 +1452,18 @@ class PhononVisualization(StructureVisualization):
             i = 0
 
             while True:
-                i = i % steps
+                i = i % (10*steps//self.speed)
+
+                if not self.standing:
+                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]-self.speed*2*np.pi*i/steps/10), 3, axis=1)
+                else:
+                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode_spatial*np.sin(self.speed*2*np.pi*i/steps/10)
+
                 if self.stop_bool:
                     self.stop_bool = False
                     break_bool = True
-                    i = 0
-                phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode_spatial*np.sin(2*np.pi*i/steps)
+                    phonon_coords = abs_coord_atoms[:,:3]
+
                 x = phonon_coords[:,0]
                 y = phonon_coords[:,1]
                 z = phonon_coords[:,2]
@@ -1509,8 +1518,8 @@ def set_dark_mode_matplotlib(f, ax, color):
 if __name__ == "__main__":
     from solid_state_tools import CrystalStructure, PhononEigenvectors,StructureParser
 
-    atoms = np.array([[0, 0, 0, 6], [0.25, 0.25, 0.25, 6]])
-    unit_cell = 6.719 * np.array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]])
+    atoms = np.array([[0, 0, 0, 6], [1/3, 1/3, 0, 6]])
+    unit_cell = 4.65 * np.array([[0.5,  0.8660254040,  0.0], [-0.5,0.8660254040,0.0], [0, 0, 6.0]])
 
     # unit_cell = 20*np.eye(3,3)
     # N = 50
@@ -1526,9 +1535,9 @@ if __name__ == "__main__":
 
     freqs = np.ones((1, 1))
     # mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
-    mode = np.array([[-1,1,1,-1,1,1]])[None,:,:]
+    mode = np.array([[0,0,1,0,0,1]])[None,:,:]
 
-    k_vector = np.array([[0.1,0.1,0.1]])
+    k_vector = np.array([[0.1,0.1,0]])
 
     eig = PhononEigenvectors(freqs,mode,k_vector)
 
