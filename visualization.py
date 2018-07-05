@@ -1378,7 +1378,7 @@ class PhononVisualization(StructureVisualization):
     animate = Button('Animate')
     stop = Button('Stop')
     standing = Bool(False)
-    speed = Float(10)
+    speed = Range(1,200,10,mode='spinner')
 
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=450, width=500, show_label=False),

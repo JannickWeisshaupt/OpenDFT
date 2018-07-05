@@ -505,7 +505,7 @@ class ConsoleWindow(QtGui.QMainWindow):
             def __init__(self, *args, **kwargs):
                 super(CodingTextEdit, self).__init__(*args, **kwargs)
                 self.setStyleSheet('QTextEdit { font-size: 10pt; font-family: monospace; }')
-                self.setTabStopWidth(8)
+                self.setTabStopWidth(16)
 
             def keyPressEvent(self, event):
                 # Shift + Tab is not the same as trying to catch a Shift modifier and a tab Key.
@@ -571,7 +571,7 @@ class ConsoleWindow(QtGui.QMainWindow):
                     return QtGui.QTextEdit.keyPressEvent(self, event)
 
         self.input_text_widget = CodingTextEdit(self)
-        highlight = syntax.PythonHighlighter(self.input_text_widget.document())
+        highlight = syntax.PythonHighlighter(self.input_text_widget)
         self.input_scrollbar = self.input_text_widget.verticalScrollBar()
         self.splitter.addWidget(self.input_text_widget)
 
