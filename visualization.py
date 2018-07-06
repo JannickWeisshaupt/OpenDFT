@@ -1462,15 +1462,12 @@ class PhononVisualization(StructureVisualization):
             i = 0
 
             while True:
-                i = i % (10*steps//self.speed)
-
-                if not self.standing:
-                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]-self.speed*2*np.pi*i/steps/10), 3, axis=1)
-                else:
+                if self.standing: # use cos(kr)cos(t) formula for standing wave
                     phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode_spatial*np.sin(self.speed*2*np.pi*i/steps/10)
+                else: # use cos(kr-wt) formula for propagating wave
+                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]-self.speed*2*np.pi*i/steps/10), 3, axis=1)
 
                 if self.stop_bool:
-                    self.stop_bool = False
                     break_bool = True
                     phonon_coords = abs_coord_atoms[:,:3]
 
@@ -1479,8 +1476,9 @@ class PhononVisualization(StructureVisualization):
                 z = phonon_coords[:,2]
                 self.mayavi_atom.mlab_source.trait_set(x=x,y=y,z=z)
                 _gui.process_events()
-                i = i + 1
+                i = (i + 1) % (10*steps//self.speed)
                 if break_bool:
+                    self.stop_bool = False
                     self.animation_active = False
                     break
 
