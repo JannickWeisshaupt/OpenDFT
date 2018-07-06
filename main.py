@@ -2031,6 +2031,8 @@ class KsStateWindow(QtGui.QDialog):
 
         button_layout = QtGui.QHBoxLayout(button_frame)
 
+        button_layout.setAlignment(QtCore.Qt.AlignLeft)
+
         self.calculate_button = QtGui.QPushButton('Calculate KS State', button_frame)
         self.calculate_button.setFixedWidth(150)
         self.calculate_button.setFixedHeight(50)
@@ -2043,11 +2045,11 @@ class KsStateWindow(QtGui.QDialog):
         self.calculate_density_button.clicked.connect(self.calculate_electron_density)
         button_layout.addWidget(self.calculate_density_button)
 
-        self.choose_nk_button = QtGui.QPushButton(button_frame)
-        self.choose_nk_button.setFixedWidth(150)
-        self.choose_nk_button.setFixedHeight(50)
-        self.choose_nk_button.clicked.connect(self.choose_nk)
-        button_layout.addWidget(self.choose_nk_button)
+        # self.choose_nk_button = QtGui.QPushButton(button_frame)
+        # self.choose_nk_button.setFixedWidth(150)
+        # self.choose_nk_button.setFixedHeight(50)
+        # self.choose_nk_button.clicked.connect(self.choose_nk)
+        # button_layout.addWidget(self.choose_nk_button)
 
         self.plot_group = QtGui.QGroupBox(parent=self.main_widget)
         self.plot_group.setTitle('Plot Options')
@@ -2661,7 +2663,7 @@ class EditStructureWindow(QtGui.QMainWindow):
             from solid_state_tools import bohr
             lattice_vectors = crystal_structure.lattice_vectors
             volume = np.dot(np.cross(lattice_vectors[0, :], lattice_vectors[1, :]), lattice_vectors[2, :])
-            data['volume'] = volume
+            data['volume'] = volume*bohr**3
             density = crystal_structure.density(unit='g/cm^3')
             data['density'] = density
             data.update(crystal_structure.lattice_information())
