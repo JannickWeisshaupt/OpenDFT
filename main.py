@@ -12,7 +12,11 @@ import numpy as np
 import warnings
 from collections import OrderedDict
 
-DEBUG = False
+if os.path.exists(os.path.expanduser("~") + "/.OpenDFT"+'/DEBUG'):
+    DEBUG = True
+else:
+    DEBUG = False
+
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
 else:
