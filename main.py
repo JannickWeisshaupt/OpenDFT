@@ -2795,7 +2795,7 @@ class CentralWindow(QtGui.QWidget):
 
         if DEBUG:
             if sys.platform in ['linux', 'linux2']:
-                project_directory = r"/home/jannick/OpenDFT_projects/CH4_exciting/"
+                project_directory = r"/home/jannick/OpenDFT_projects/diamond3/"
                 # project_directory = r"/home/jannick/exciting_cluster/GaN"
             else:
                 project_directory = r'D:\OpenDFT_projects\test'
@@ -3347,7 +3347,7 @@ class CentralWindow(QtGui.QWidget):
                 self.band_structure_window.update_tree()
 
         if 'dos' in tasks:
-            dos = esc_handler.read_dos()
+            dos = esc_handler.read_dos(crystal_structure=self.crystal_structure)
             engine_information = {'scf': scf_info, 'bandstructure': {
                 'k path': copy.deepcopy(self.dft_engine_window.band_structure_points)}}
             dos.engine_information = engine_information

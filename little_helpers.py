@@ -190,6 +190,21 @@ def find_fraction(num):
     else:
         return '{0}/{1}'.format(frac.numerator, frac.denominator)
 
+
+def convert_to_bool(x,match_case = False):
+    if not match_case:
+        x = x.lower()
+    x = x.strip()
+
+    if x in ['true', '1']:
+        return True
+    elif x in ['false', '0']:
+        return False
+    else:
+        raise ValueError('Bad input to convert to bool with' + str(x))
+
+
+
 if __name__ == "__main__":
     # print(eval_expr('sind(45)'))
     print(find_fraction(6/32))

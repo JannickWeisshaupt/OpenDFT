@@ -329,10 +329,10 @@ class OpticalSpectrum:
 
 
 class DensityOfStates(object):
-    def __init__(self,data):
+    def __init__(self,data,proj_dos=None):
         self.array = np.array(data).astype(np.float)
         self.engine_information = None
-
+        self.proj_dos = proj_dos
 
 class PhononEigenvectors(object):
     def __init__(self,frequencies,modes,k_vectors):

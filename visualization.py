@@ -1236,6 +1236,14 @@ class DosVisualization(QtGui.QWidget):
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.Emax_entry)
 
+        self.show_proj_dos = QtGui.QCheckBox('Show proj. dos',self)
+        self.show_proj_dos.stateChanged.connect(lambda: self.plot(self.last_dos))
+        option_layout.addWidget(self.show_proj_dos)
+
+        self.l_max_entry = EntryWithLabel(option_widget, 'l max')
+        self.l_max_entry.connect_editFinished(lambda: self.plot(self.last_dos))
+        option_layout.addWidget(self.l_max_entry)
+
         # layout.addWidget(self.button)
         self.setLayout(layout)
         self.show()
@@ -1263,7 +1271,8 @@ class DosVisualization(QtGui.QWidget):
             title_color = 'black'
 
         for dos in dos_list:
-            self.ax.plot(dos.array[:,0],dos.array[:,1],linewidth=2)
+            self.plot_dos(dos)
+
 
         try:
             Emin = float(self.Emin_entry.get_text())
@@ -1291,6 +1300,27 @@ class DosVisualization(QtGui.QWidget):
 
     def export(self, filename, band_structure, code=False):
         pass
+
+    def plot_dos(self,dos):
+        self.ax.plot(dos.array[:, 0], dos.array[:, 1], linewidth=2,label='Total dos')
+        if hasattr(dos,'proj_dos') and dos.proj_dos and self.show_proj_dos.checkState():
+            l_labels = ['s','p','d','f']
+            l_max_str = self.l_max_entry.get_text()
+            if l_max_str.isdigit():
+                l_max = int(l_max_str)
+            elif l_max_str.strip().lower() in l_labels:
+                l_max = l_labels.index(l_max_str.strip().lower())
+            else:
+                l_max = 1000
+
+
+
+            for name,proj_dos in dos.proj_dos.items():
+                dos_shape = proj_dos.shape
+                l_loop = min([l_max+1,dos_shape[1]-1])
+                for i in range(l_loop):
+                    self.ax.plot(proj_dos[:, 0], proj_dos[:,i+1 ], linewidth=2,label=name+' '+l_labels[i])
+            self.ax.legend()
 
 
 class ScfVisualization(QtGui.QWidget):

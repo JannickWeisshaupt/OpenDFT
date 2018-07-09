@@ -743,7 +743,7 @@ Returns:
         self._write_input_file(tree)
         self._start_engine()
 
-    def read_dos(self):
+    def read_dos(self,crystal_structure=None):
         data = np.loadtxt(self.project_directory+self.working_dirctory+'/TDOS.OUT')
         data[:,0] = data[:,0]*hartree
         return sst.DensityOfStates(data)

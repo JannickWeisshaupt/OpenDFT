@@ -9,7 +9,7 @@ import re
 import threading
 from six import string_types
 from shutil import copyfile
-from little_helpers import find_data_file,convert_to_ordered
+from little_helpers import find_data_file,convert_to_ordered,convert_to_bool
 
 atomic_mass = pt.mass
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
@@ -110,7 +110,7 @@ However, a non-zero value for one such variable for one dataset will have preced
 "nstep":"Maximum number of scf steps"}
 
         self.general_options = {'title': 'title'}
-        self.bs_options = {}
+        self.bs_options = {'projected dos':'false','combine species':'true'}
         self.relax_options = {}
         self.relax_options_tooltip = {}
 
@@ -151,6 +151,7 @@ Returns:
     - None
         """
         pseudos = self._copy_default_pseudos(crystal_structure)
+        self._clear_results()
         self._make_files_file(pseudos)
         file = self._make_input_file()
         self._add_scf_to_file(file, crystal_structure,band_points=band_structure_points,dos=dos)
@@ -477,12 +478,41 @@ Returns:
         r_data = r_data/r_data.max()
         return sst.KohnShamDensity(r_data)
 
-    def read_dos(self):
-        data = np.loadtxt(self.project_directory+self.working_dirctory+'/scf_xo_DS3_DOS')
-        data[:,0] = data[:,0]*hartree
+    def read_dos(self,crystal_structure=None):
 
-        dos_data = data[:,:2]
-        return sst.DensityOfStates(dos_data)
+        dos_files = [filename for filename in os.listdir(self.project_directory+self.working_dirctory) if filename.startswith("scf_xo_DS3_DOS")]
+        proj_doses = {}
+
+        for filename in dos_files:
+            if filename == 'scf_xo_DS3_DOS' or filename.endswith('TOTAL'):
+                data = np.loadtxt(self.project_directory+self.working_dirctory+'/'+filename)
+                data[:,0] = data[:,0]*hartree
+                dos_data = data[:,:2]
+                total_dos = dos_data
+            else:
+                data = np.loadtxt(self.project_directory+self.working_dirctory+'/'+filename)
+                data[:,0] = data[:,0]*hartree
+                dos_data = data[:,:5]
+                name = filename.split('DOS_')[1]
+                proj_doses[name] = dos_data
+
+        if convert_to_bool(self.bs_options['combine species']) and proj_doses and crystal_structure:
+            species = set(crystal_structure.atoms[:,3])
+            converted_dos = {}
+            for name,proj_dos in proj_doses.items():
+                specie_dos = crystal_structure.atoms[int(name.split('AT')[1])-1,3]
+                if p_table[specie_dos] in converted_dos.keys():
+                    old_data = converted_dos[p_table[specie_dos]]
+                    data = old_data
+                    data[:,1:] = data[:,1:] + proj_dos[:,1:]
+                else:
+                    converted_dos[p_table[specie_dos]] = proj_dos
+
+        else:
+            converted_dos = proj_doses
+
+        dos = sst.DensityOfStates(total_dos,proj_dos=converted_dos)
+        return dos
 
     def calculate_ks_density(self, crystal_structure, bs_point):
         """This method starts a calculation of a specific electronic state in a subprocess.
@@ -672,9 +702,11 @@ getden2  -1
 iscf3    -3
 getden3  -1
 """)
-            file.write('prtdos3 1\n')
+            proj_dos = convert_to_bool(self.bs_options['projected dos'])
+            dos_mode = [2,3][proj_dos]
+            file.write('prtdos3 {}\n'.format(int(dos_mode)))
             file.write('occopt3 3\n')
-            file.write('tsmear3 0.005\n')
+            # file.write('tsmear3 {}\n'.format(self.bs_options['tsmear']))
             file.write('tolwfr3 1d-12')
 
     def _start_engine(self, filename='input.files',blocking=False):
@@ -706,7 +738,6 @@ getden3  -1
         version_int_list = [int(x) for x in version_list]
         return version_int_list
 
-
     def _copy_default_pseudos(self, crystal_structure):
         atoms = sorted(set(crystal_structure.atoms[:,3]))
         atoms_names = [p_table[atom] for atom in atoms]
@@ -734,7 +765,6 @@ getden3  -1
 
         return pseudo_files
 
-
     def _make_files_file(self,pseudos):
         if not os.path.isdir(self.project_directory + self.working_dirctory):
             os.mkdir(self.project_directory + self.working_dirctory)
@@ -747,6 +777,13 @@ getden3  -1
             for pseudo in pseudos:
                 f.write('../pseudos/'+pseudo+'\n')
 
+    def _clear_results(self):
+        if os.path.isdir(self.project_directory+self.working_dirctory):
+            dos_files = [filename for filename in os.listdir(self.project_directory + self.working_dirctory) if
+                         filename.startswith("scf_xo_DS3_DOS")]
+
+            for file in dos_files:
+                os.remove(self.project_directory+self.working_dirctory+'/'+file)
 
 if __name__ == '__main__':
     atoms = np.array([[0, 0, 0, 14], [0.25, 0.25, 0.25, 14]])
@@ -754,16 +791,20 @@ if __name__ == '__main__':
     crystal_structure = sst.CrystalStructure(unit_cell, atoms,scale=6.6)
 
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/Fe2O3"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond3"
     # handler.scf_options['ecutwfc'] = 20.0
+    handler.bs_options['projected dos'] = 'false'
     band_structure_points = ((np.array([0, 0, 0]), 'gamma'), (np.array([0.5, 0.5, 0.5]), 'W'), (np.array([0.0, 0.0, 0.5]), 'Z'), (np.array([0.5, 0.0, 0.0]), 'X'), (np.array([0.0, 0.5, 0.0]), 'Y'))
+
+    # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points,dos=True)
+    dos = handler.read_dos(crystal_structure=crystal_structure)
 
 
     # handler.start_ground_state(crystal_structure,band_structure_points=band_structure_points,dos=True)
 
     # dos = handler.read_dos()
 
-    bs = handler.read_bandstructure()
+    # bs = handler.read_bandstructure()
 
     # handler.calculate_electron_density(crystal_structure)
 
