@@ -44,6 +44,7 @@ import random
 _gui = GUI()
 
 bohr = 0.52917721
+from abinit_handler import hartree
 
 cov_radii = np.loadtxt(find_data_file('/data/cov_radii.dat')) / bohr
 
@@ -897,7 +898,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
 
     def broaden_spectrum(self, energy, epsilon, width, mode='lorentzian'):
 
-        if width is None or mode == 'none':
+        if width is None or mode == 'none' or width == 0:
             return energy, epsilon
         if mode == 'lorentzian':
             def broaden_function(x, width):
@@ -1229,10 +1230,14 @@ class DosVisualization(QtGui.QWidget):
         option_layout.setAlignment(QtCore.Qt.AlignLeft)
         layout.addWidget(option_widget)
         from main import EntryWithLabel
-        self.Emin_entry = EntryWithLabel(option_widget, 'Emin')
+
+        width_text = 70
+        width_label = 40
+
+        self.Emin_entry = EntryWithLabel(option_widget, 'Emin', width_text=width_text, width_label=width_label)
         self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.Emin_entry)
-        self.Emax_entry = EntryWithLabel(option_widget, 'Emax')
+        self.Emax_entry = EntryWithLabel(option_widget, 'Emax', width_text=width_text, width_label=width_label)
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.Emax_entry)
 
@@ -1240,9 +1245,23 @@ class DosVisualization(QtGui.QWidget):
         self.show_proj_dos.stateChanged.connect(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.show_proj_dos)
 
-        self.l_max_entry = EntryWithLabel(option_widget, 'l max')
+        self.l_max_entry = EntryWithLabel(option_widget, 'l max', width_text=width_text, width_label=width_label)
         self.l_max_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.l_max_entry)
+
+        self.broadening_entry = EntryWithLabel(option_widget, u"Γ", width_text=width_text, width_label=width_label)
+        self.broadening_entry.connect_editFinished(lambda: self.plot(self.last_dos))
+        option_layout.addWidget(self.broadening_entry)
+
+        self.broadening_mode_cb = QtGui.QComboBox(self)
+        option_layout.addWidget(self.broadening_mode_cb)
+        self.broadening_mode_cb.addItem('Lorentzian')
+        self.broadening_mode_cb.addItem('Gaussian')
+        self.broadening_mode_cb.addItem('None')
+
+        self.broadening_mode_cb.setCurrentIndex(0)
+        self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_dos))
+        self.broadening_mode_cb.setMaximumWidth(150)
 
         # layout.addWidget(self.button)
         self.setLayout(layout)
@@ -1289,20 +1308,32 @@ class DosVisualization(QtGui.QWidget):
         if Emax is not None:
             self.ax.set_xlim(right=Emax)
 
-        self.ax.set_ylim(bottom=0)
+        self.ax.set_xlabel('Energy [eV]')
 
-        self.ax.set_ylabel('Energy [eV]')
+        self.ax.set_ylim(bottom=0)
+        self.ax.set_ylabel('Density of states [electrons/eV]')
 
         if self.first_plot_bool:
             self.first_plot_bool = False
             self.figure.tight_layout()
         self.canvas.draw()
 
-    def export(self, filename, band_structure, code=False):
-        pass
+    def export(self, filename, dos, code=False):
+        try:
+            broaden_width = float(self.broadening_entry.get_text())
+        except:
+            broaden_width = None
 
-    def plot_dos(self,dos):
-        self.ax.plot(dos.array[:, 0], dos.array[:, 1], linewidth=2,label='Total dos')
+        mode = self.broadening_mode_cb.currentText().lower()
+
+        energy,dos_plot = self.broaden(dos.array[:, 0],dos.array[:, 1],broaden_width,mode=mode)
+
+        ex_dos = np.zeros((len(energy),2))
+        ex_dos[:,0] = energy
+        ex_dos[:,1] = dos_plot/hartree
+        np.savetxt(filename,ex_dos)
+        # self.ax.plot(energy,dos_plot/hartree, linewidth=2,label='Total dos')
+
         if hasattr(dos,'proj_dos') and dos.proj_dos and self.show_proj_dos.checkState():
             l_labels = ['s','p','d','f']
             l_max_str = self.l_max_entry.get_text()
@@ -1313,14 +1344,77 @@ class DosVisualization(QtGui.QWidget):
             else:
                 l_max = 1000
 
+            for name,proj_dos in dos.proj_dos.items():
+                dos_shape = proj_dos.shape
+                l_loop = min([l_max+1,dos_shape[1]-1])
+                for i in range(l_loop):
+                    energy, dos_plot = self.broaden(proj_dos[:, 0], proj_dos[:,i+1 ], broaden_width, mode=mode)
+                    if i == 0:
+                        ex_dos = np.zeros((len(energy),l_loop+1))
+                    ex_dos[:,0] = energy
+                    ex_dos[:,i+1] = dos_plot/hartree
 
+                filename_split = filename.split('.')
+                if len(filename_split) == 1:
+                    filename_split.append('txt')
+                np.savetxt(filename_split[0]+'_'+name+'.'+filename_split[1],ex_dos,header='Energy, dos s, dos p, dos d ...')
+
+
+                    # self.ax.plot(energy,dos_plot/hartree, linewidth=2,label=name+' '+l_labels[i])
+
+    def plot_dos(self,dos):
+        try:
+            broaden_width = float(self.broadening_entry.get_text())
+        except:
+            broaden_width = None
+
+        mode = self.broadening_mode_cb.currentText().lower()
+
+        energy,dos_plot = self.broaden(dos.array[:, 0],dos.array[:, 1],broaden_width,mode=mode)
+
+        self.ax.plot(energy,dos_plot/hartree, linewidth=2,label='Total dos')
+
+        if hasattr(dos,'proj_dos') and dos.proj_dos and self.show_proj_dos.checkState():
+            l_labels = ['s','p','d','f']
+            l_max_str = self.l_max_entry.get_text()
+            if l_max_str.isdigit():
+                l_max = int(l_max_str)
+            elif l_max_str.strip().lower() in l_labels:
+                l_max = l_labels.index(l_max_str.strip().lower())
+            else:
+                l_max = 1000
 
             for name,proj_dos in dos.proj_dos.items():
                 dos_shape = proj_dos.shape
                 l_loop = min([l_max+1,dos_shape[1]-1])
                 for i in range(l_loop):
-                    self.ax.plot(proj_dos[:, 0], proj_dos[:,i+1 ], linewidth=2,label=name+' '+l_labels[i])
+                    energy, dos_plot = self.broaden(proj_dos[:, 0], proj_dos[:,i+1 ], broaden_width, mode=mode)
+                    self.ax.plot(energy,dos_plot/hartree, linewidth=2,label=name+' '+l_labels[i])
             self.ax.legend()
+
+    def broaden(self, x, y, width, mode='lorentzian'):
+
+        if width is None or mode == 'none' or width == 0:
+            return x, y
+        if mode == 'lorentzian':
+            def broaden_function(x, width):
+                return width ** 2 / (x ** 2 + width ** 2)
+        elif mode == 'gaussian':
+            def broaden_function(x, width):
+                return np.exp(-x ** 2 / (2 * width ** 2))
+
+        E_range = x.max() - x.min()
+        dx = E_range / len(x)
+
+        conv_range = 50 * width
+        gx = np.arange(-conv_range / 2, conv_range / 2, dx)
+        broadenarray = broaden_function(gx, width)
+        broadenarray = broadenarray / np.sum(broadenarray)
+
+        epsilon_out = np.convolve(y, broadenarray, mode="full")
+        energy_out = np.linspace(x.min() - conv_range / 2, x.max() + conv_range / 2, len(epsilon_out))
+
+        return energy_out, epsilon_out
 
 
 class ScfVisualization(QtGui.QWidget):
