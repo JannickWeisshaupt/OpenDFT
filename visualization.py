@@ -495,6 +495,27 @@ class VolumeSlicer(HasTraits):
     show_bonds = Bool(True)
     show_atoms = Bool(True)
 
+    normal_x = Float(0)
+    normal_y = Float(0)
+    normal_z = Float(1)
+
+    origin = Range(0.02,1.0,0.2,mode='slider')
+
+
+    view = View(
+        Group(
+            Item('scene3d',
+                 editor=SceneEditor(scene_class=MayaviScene),
+                 height=250, width=300),
+            Group('_', 'show_unitcell', 'show_bonds', 'show_atoms',\
+                Item('normal_x',resizable=False,width=-40),Item('normal_y',resizable=False,width=-40),
+                  Item('normal_z',resizable=False,width=-40),'origin', orientation='horizontal'),
+            show_labels=False,
+        ),
+        resizable=True,
+        title='Volume Slicer',
+    )
+
     # ---------------------------------------------------------------------------
     def __init__(self, **traits):
         super(VolumeSlicer, self).__init__(**traits)
@@ -508,6 +529,22 @@ class VolumeSlicer(HasTraits):
     # def _ipw_3d_default(self):
     #     return self.make_ipw_3d()
 
+    @on_trait_change('normal_x,normal_y,normal_z,origin')
+    def update_plane(self):
+        normal = self.crystal_structure.lattice_vectors[0,:]*self.normal_x+self.crystal_structure.lattice_vectors[1,:]*self.normal_y+\
+                 self.crystal_structure.lattice_vectors[2,:]*self.normal_z
+
+
+        normal_length = np.linalg.norm(normal)
+        self.cut_plane.implicit_plane.normal = normal/normal_length
+        self.cut_plane.implicit_plane.origin = self.origin*normal/normal_length*self.data.shape
+
+        polydata = self.cut_plane.actor.actors[0].mapper.input
+        try:
+            self.rescale_polydata_points(polydata)
+        except:
+            pass
+
     def _data_src3d_default(self):
         return mlab.pipeline.scalar_field(self.data,
                                           figure=self.scene3d.mayavi_scene)
@@ -520,11 +557,19 @@ class VolumeSlicer(HasTraits):
     def make_ipw_3d(self):
         cut_plane = mlab.pipeline.scalar_cut_plane(self.data_src3d,
                                                    figure=self.scene3d.mayavi_scene, colormap=self.colormap)
-        # cut_plane.implicit_plane.origin = (1, 1, 1)
+        normal = self.crystal_structure.lattice_vectors[0,:]*self.normal_x+self.crystal_structure.lattice_vectors[1,:]*self.normal_y+\
+                 self.crystal_structure.lattice_vectors[2,:]*self.normal_z
+
+        normal_length = np.linalg.norm(normal)
+        cut_plane.implicit_plane.normal = normal/normal_length
+        cut_plane.implicit_plane.origin = self.origin*normal_length*normal
         cut_plane.implicit_plane.widget.enabled = False
 
         polydata = cut_plane.actor.actors[0].mapper.input
-        self.rescale_polydata_points(polydata)
+        try:
+            self.rescale_polydata_points(polydata)
+        except:
+            pass
 
         return cut_plane
 
@@ -594,7 +639,7 @@ class VolumeSlicer(HasTraits):
     def plot_unitcell(self):
         self.mayavi_unitcell = mlab.pipeline.outline(self.data_src3d,
                                                      figure=self.scene3d.mayavi_scene, reset_zoom=False,
-                                                     colormap=self.colormap
+                                                     color=(0.7,0.7,0.7),line_width=3
                                                      )
 
         polydata = self.mayavi_unitcell.actor.actors[0].mapper.input
@@ -640,18 +685,6 @@ class VolumeSlicer(HasTraits):
                                                    figure=self.scene3d.mayavi_scene)
             self.mayavi_bonds.append(mayavi_bond)
 
-
-    view = View(
-        Group(
-            Item('scene3d',
-                 editor=SceneEditor(scene_class=MayaviScene),
-                 height=250, width=300),
-            Group('_', 'show_unitcell', 'show_bonds', 'show_atoms', orientation='horizontal'),
-            show_labels=False,
-        ),
-        resizable=True,
-        title='Volume Slicer',
-    )
 
 
 class OpticalSpectrumVisualization(QtGui.QWidget):
