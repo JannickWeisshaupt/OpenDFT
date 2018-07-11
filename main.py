@@ -2604,7 +2604,7 @@ class EditStructureWindow(QtGui.QMainWindow):
     def update_info(self):
         crystal_structure = self.read_tables()
 
-        if crystal_structure is None:
+        if crystal_structure is None or len(crystal_structure.atoms)==0:
             self.clear_info()
             return
 
@@ -2616,10 +2616,18 @@ class EditStructureWindow(QtGui.QMainWindow):
             data['volume'] = volume*bohr**3
             density = crystal_structure.density(unit='g/cm^3')
             data['density'] = density
-            data.update(crystal_structure.lattice_information())
+            try:
+                data.update(crystal_structure.lattice_information())
+            except Exception as e:
+                if DEBUG:
+                    print(get_stacktrace_as_string(html=False))
 
         elif isinstance(crystal_structure,sst.MolecularStructure):
-            data.update(crystal_structure.symmetry_information())
+            try:
+                data.update(crystal_structure.symmetry_information())
+            except Exception as e:
+                if DEBUG:
+                    print(get_stacktrace_as_string(html=False))
 
         else:
             raise ValueError('Structure most be either CrystalStructure of MolecularStructure type but got {}'.format(type(crystal_structure))+' instead')

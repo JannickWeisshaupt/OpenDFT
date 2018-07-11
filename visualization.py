@@ -453,7 +453,7 @@ class StructureVisualization(HasTraits):
 
         self.mayavi_atom.mlab_source.dataset.lines = np.array(bonds)
 
-        tube = mlab.pipeline.tube(self.mayavi_atom, tube_radius=0.15)
+        tube = mlab.pipeline.tube(self.mayavi_atom, tube_radius=0.15,tube_sides=12)
         tube.filter.radius_factor = 1.
         # tube.filter.vary_radius = 'vary_radius_by_scalar'
         self.mayavi_bonds = self.scene.mlab.pipeline.surface(tube, color=(0.8, 0.8, 0.8))
@@ -684,7 +684,6 @@ class VolumeSlicer(HasTraits):
             mayavi_bond = self.scene3d.mlab.plot3d(x, y, z, tube_radius=0.125, tube_sides=18,
                                                    figure=self.scene3d.mayavi_scene)
             self.mayavi_bonds.append(mayavi_bond)
-
 
 
 class OpticalSpectrumVisualization(QtGui.QWidget):

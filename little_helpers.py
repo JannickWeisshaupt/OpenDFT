@@ -146,11 +146,16 @@ def find_data_file(filename):
     return datadir + filename
 
 
-def get_stacktrace_as_string():
+def get_stacktrace_as_string(html=True):
     exc_type, exc_value, exc_traceback = sys.exc_info()
     error = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    joined_error = '<br>'.join(error)
-    joined_error = joined_error.replace(' ', '&#160;')
+    if html:
+        page_break = '<br>'
+    else:
+        page_break = '\n'
+    joined_error = page_break.join(error)
+    if html:
+        joined_error = joined_error.replace(' ', '&#160;')
     return joined_error
 
 # supported operators

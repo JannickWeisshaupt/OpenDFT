@@ -76,7 +76,22 @@ At the same time continued development is needed to enable NWChem to effectively
         self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = convert_to_ordered({'basis': 'cc-pvdz', 'method': 'scf',
                                                'spin state': 'singlet', 'spin restriction': 'RHF', 'xc': 'pbe0','charge':'0'})
-        self.scf_options_tooltip = {}
+        self.scf_options_tooltip = {'basis':"""Basis set for the electronic wave function. 
+The basis set is a key factor both in accuracy 
+and runtime of the calculation.
+Available basis sets (among many others) are:
+Fast:
+    3-21g
+    6-31g
+Accurate:
+    cc-pvdz
+    cc-pvtz
+    cc-pvqz
+See https://bse.pnl.gov/bse/portal for a complete list.
+""",'charge':"""The charge of the system in elementary charges. 
+The electron charge is -1 so a singly ionized molecule would have charge 1""",'method':"""Method for solving the electronic many body problem. Can be:
+scf (Hartree-Fock-Approximation)
+dft (Density functional theory)""",'xc':"""Exchange correlation potential to be used. Only applies when method dft is chosen."""}
 
 
         self.general_options = {'title': 'title'}
