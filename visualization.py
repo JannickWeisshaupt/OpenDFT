@@ -639,7 +639,7 @@ class VolumeSlicer(HasTraits):
     def plot_unitcell(self):
         self.mayavi_unitcell = mlab.pipeline.outline(self.data_src3d,
                                                      figure=self.scene3d.mayavi_scene, reset_zoom=False,
-                                                     color=(0.7,0.7,0.7),line_width=3
+                                                     color=(0.7,0.7,0.7),line_width=3,colormap=self.colormap
                                                      )
 
         polydata = self.mayavi_unitcell.actor.actors[0].mapper.input
