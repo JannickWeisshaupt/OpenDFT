@@ -1568,17 +1568,19 @@ class PhononVisualization(StructureVisualization):
             return
         self.last_plot = [n_mode,n_k]
 
-        repeat = [self.n_x, self.n_y, self.n_z]
 
-        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
 
-        mode = self._calculate_phonon_mode(*self.last_plot, repeat=repeat)
         if isinstance(self.crystal_structure,sst.CrystalStructure):
             k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
                               self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+            repeat = [self.n_x, self.n_y, self.n_z]
+
         elif isinstance(self.crystal_structure,sst.MolecularStructure):
             k_vector = k_vector = np.array([0,0,0])
+            repeat = [1,1,1]
 
+        abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat, edges=self.edge_atoms)
+        mode = self._calculate_phonon_mode(*self.last_plot, repeat=repeat)
         mode_spatial = mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]), 3, axis=1)
 
         # mode_unit = mode/np.abs(mode).max()
@@ -1606,15 +1608,18 @@ class PhononVisualization(StructureVisualization):
             self.stop_bool = False
             self.animation_active = True
             break_bool = False
-            abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
-            mode = self._calculate_phonon_mode(*self.last_plot,repeat=repeat)
+
 
             if isinstance(self.crystal_structure, sst.CrystalStructure):
                 k_vector = np.dot(self.crystal_structure.inv_lattice_vectors.T,
                                   self.phonon_eigenvectors.k_vectors[self.last_plot[1], :])
+                repeat = [self.n_x, self.n_y, self.n_z]
+
             elif isinstance(self.crystal_structure, sst.MolecularStructure):
                 k_vector = np.array([0,0,0])
-
+                repeat = [1,1,1]
+            abs_coord_atoms = self.crystal_structure.calc_absolute_coordinates(repeat=repeat)
+            mode = self._calculate_phonon_mode(*self.last_plot,repeat=repeat)
             mode_spatial = mode*np.repeat(np.cos((abs_coord_atoms[:,:3]*k_vector).sum(axis=1)[:,None] ),3,axis=1)
             i = 0
 
@@ -1670,6 +1675,7 @@ class PhononVisualization(StructureVisualization):
     def _show_atoms_event(self):
         if not self.animation_active:
             super()._show_atoms_event()
+
 
 def set_dark_mode_matplotlib(f, ax, color):
     ax.tick_params(axis='x', colors='white')
