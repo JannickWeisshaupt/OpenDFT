@@ -440,6 +440,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         app_icon.addFile(find_data_file('icon.ico'), QtCore.QSize(238, 238))
         self.setWindowIcon(app_icon)
         self.error_widget = QtGui.QErrorMessage(parent=self)
+        self.error_widget.resize(500, 400)
 
         self.update_fields_timer = QtCore.QTimer()
         self.update_fields_timer.timeout.connect(self.check_queue_and_update)
@@ -854,7 +855,7 @@ plt.show()
 
         if self.contains_matplotlib(main_code):
             self.error_widget.showMessage(
-                'There seems to be matplotlib code in the main body. Please seperate them by using a #$matplotlib seperator')
+                'There seems to be matplotlib code in the main body. Please seperate them by using a $matplotlib seperator')
             return
 
         self.start_code_thread(lambda: self.run_code(code_text=main_code))
@@ -894,8 +895,8 @@ plt.show()
         code_lines = code.splitlines()
         matplotlib_found = False
         for line in code_lines:
-            line_wo_comments = line.split('#')
-            if 'matplotlib' in line_wo_comments:
+            # line_wo_comments = line.split('#')
+            if line.strip().startswith('import matplotlib'):
                 matplotlib_found = True
                 break
         return matplotlib_found
