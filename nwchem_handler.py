@@ -453,7 +453,7 @@ Returns:
                         freq_found = False
         k_points = np.array([0,0,0])
         k_points = k_points[np.newaxis,:]
-        freqs_conv = np.array(frequencies)[:,np.newaxis]
+        freqs_conv = 1.2398e-4*np.array(frequencies)[:,np.newaxis] # factor is conversion to eV
         eigs_conv = eigenvector_array[:,np.newaxis,:]
         phonon_eigenvectors = sst.PhononEigenvectors(freqs_conv,eigs_conv,k_points)
         vib = sst.VibrationalStructure(np.array(frequencies))

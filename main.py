@@ -411,7 +411,7 @@ class MayaviPhononWindow(QtGui.QMainWindow):
             return
         freqs = eigs.frequencies
         freq = freqs[mode,k]
-        data = {'frequency':'{0:1.1f} cm^-1'.format(freq)}
+        data = {'frequency':'{0:1.1f} cm^-1 / {1:1.0f} meV'.format(freq*8065.5,freq*1000)}
 
         for label,widget in self.info_labels.items():
             if label in data.keys():
@@ -1899,19 +1899,24 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget, label='Opacity', limits=[0, 1], value=0.5)
         self.verticalLayout.addWidget(self.opacity_slider)
 
-        self.contours_entry = EntryWithLabel(self, 'Contours:', '10')
+        plot_options_horizontal_widget = QtGui.QWidget(self)
+        self.verticalLayout.addWidget(plot_options_horizontal_widget)
+        horizontal_layout = QtGui.QHBoxLayout(plot_options_horizontal_widget)
+
+        self.contours_entry = EntryWithLabel(self, 'Contours:', '10',width_label=70,width_text=50)
         self.contours_entry.connect_editFinished(self.parent.handle_item_changed)
-        self.verticalLayout.addWidget(self.contours_entry)
+        horizontal_layout.addWidget(self.contours_entry)
 
         self.transparent_checkbox = QtGui.QCheckBox('Transparent')
         self.transparent_checkbox.toggle()
-        self.verticalLayout.addWidget(self.transparent_checkbox)
+        horizontal_layout.addWidget(self.transparent_checkbox)
 
         self.colormap_combobox = QtGui.QComboBox(self)
-        self.verticalLayout.addWidget(self.colormap_combobox)
+        self.colormap_combobox.setFixedWidth(150)
+        horizontal_layout.addWidget(self.colormap_combobox)
         for el in colormap_list:
             self.colormap_combobox.addItem(el)
-        index = self.colormap_combobox.findText('hot', QtCore.Qt.MatchFixedString)
+        index = self.colormap_combobox.findText('viridis', QtCore.Qt.MatchFixedString)
         if index >= 0:
             self.colormap_combobox.setCurrentIndex(index)
         self.colormap_combobox.currentIndexChanged.connect(self.parent.handle_item_changed)
@@ -1951,6 +1956,13 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
 
         # self.verticalLayoutWidget.show()
 
+    def export(self,filename,density,code=False):
+        data = density.density
+        with open(filename, 'w') as outfile:
+            outfile.write('# Array shape: {0}\n'.format(data.shape))
+            for data_slice in data:
+                np.savetxt(outfile, data_slice, fmt='%-7.2f')
+                outfile.write('# New slice\n')
 
 class KsStateWindow(QtGui.QDialog):
     def __init__(self, parent):
@@ -1966,14 +1978,27 @@ class KsStateWindow(QtGui.QDialog):
         self.layout.addWidget(self.calc_ks_group)
 
         self.sub_layout = QtGui.QGridLayout(self.calc_ks_group)
+        self.sub_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.k_point_entry = EntryWithLabel(self.calc_ks_group, 'k point')
+        self.k_point_entry = EntryWithLabel(self.calc_ks_group, 'k point',width_text=100,width_label=70)
+        self.k_point_entry.setToolTip("""Defines the k points that are going to be calculated. 
+The enumerated k points are usally found in some file, depending on the DFT engine that you chose.
+Typically 1 is the gamma point. Enter either:
+- a single number (e.g. 6)
+- a list with comma delimiter (e.g. 1,5,8)
+- a list from x to y with - (e.g. 1-10)""")
         self.sub_layout.addWidget(self.k_point_entry, 0, 0)
 
-        self.n_band_entry = EntryWithLabel(self.calc_ks_group, 'Band index')
+        self.n_band_entry = EntryWithLabel(self.calc_ks_group, 'Band index',width_text=100,width_label=70)
+        self.n_band_entry.setToolTip("""Defines the band that are going to be calculated. 
+The bands are sorted by energy from low to high.
+Enter either:
+- a single number (e.g. 6)
+- a list with comma delimiter (e.g. 1,5,8)
+- a list from x to y with - (e.g. 1-10)""")
         self.sub_layout.addWidget(self.n_band_entry, 0, 1)
 
-        self.label_entry = EntryWithLabel(self.calc_ks_group, 'Label')
+        self.label_entry = EntryWithLabel(self.calc_ks_group, 'Label',width_text=200,width_label=70)
         self.sub_layout.addWidget(self.label_entry, 0, 2)
 
         button_frame = QtGui.QWidget(self.calc_ks_group)
@@ -1995,6 +2020,12 @@ class KsStateWindow(QtGui.QDialog):
         self.calculate_density_button.clicked.connect(self.calculate_electron_density)
         button_layout.addWidget(self.calculate_density_button)
 
+        abort_button = QtGui.QPushButton('Abort\ncalculation', button_frame)
+        abort_button.setFixedWidth(150)
+        abort_button.setFixedHeight(50)
+        abort_button.clicked.connect(self.abort_calculation)
+        button_layout.addWidget(abort_button)
+
         # self.choose_nk_button = QtGui.QPushButton(button_frame)
         # self.choose_nk_button.setFixedWidth(150)
         # self.choose_nk_button.setFixedHeight(50)
@@ -2013,12 +2044,22 @@ class KsStateWindow(QtGui.QDialog):
         self.plot_widget.update_tree()
 
     def calculate_electron_density(self):
-        esc_handler.calculate_electron_density(self.parent.crystal_structure)
+        if esc_handler.is_engine_running():
+            self.parent.error_dialog.showMessage('Engine is already running')
+            return
+        try:
+            esc_handler.calculate_electron_density(self.parent.crystal_structure)
+        except Exception as e:
+            trace = get_stacktrace_as_string()
+            self.parent.error_dialog.showMessage(trace)
         self.current_calc_properties['type'] = 'density'
         self.current_calc_properties['label'] = self.label_entry.get_text()
         QtCore.QTimer.singleShot(100, self.check_engine)
 
     def calculate_ks_state(self):
+        if esc_handler.is_engine_running():
+            self.parent.error_dialog.showMessage('Engine is already running')
+            return
         n_band_str = self.n_band_entry.get_text()
         if ',' in n_band_str:
             tr = n_band_str.split(',')
@@ -2058,7 +2099,11 @@ class KsStateWindow(QtGui.QDialog):
     def start_ks_calculation(self):
         k, n_band, label = self.calc_queue.get()
         self.current_calc_properties = {'type': 'ks density', 'k': k, 'n_band': n_band, 'label': label}
-        esc_handler.calculate_ks_density(self.parent.crystal_structure, [k, n_band])
+        try:
+            esc_handler.calculate_ks_density(self.parent.crystal_structure, [k, n_band])
+        except Exception as e:
+            trace = get_stacktrace_as_string()
+            self.parent.error_dialog.showMessage(trace)
         QtCore.QTimer.singleShot(20, self.check_engine)
 
     def check_engine(self):
@@ -2097,6 +2142,11 @@ class KsStateWindow(QtGui.QDialog):
             if not self.calc_queue.empty():
                 self.start_ks_calculation()
 
+    def abort_calculation(self):
+        if esc_handler.is_engine_running():
+            esc_handler.kill_engine()
+        while not self.calc_queue.empty():
+            self.calc_queue.get()
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self, central_window, *args, **kwargs):
@@ -3139,8 +3189,8 @@ class CentralWindow(QtGui.QWidget):
 
         self.vis_menu = self.menu_bar.addMenu('&Visualize')
 
-        ks_vis_action = QtGui.QAction("Visualize KS state", self.window)
-        ks_vis_action.setStatusTip('Visualize a Kohn-Sham state in the structure window')
+        ks_vis_action = QtGui.QAction("States/Densities", self.window)
+        ks_vis_action.setStatusTip('Visualize a Kohn-Sham or electron density state in the structure window')
         ks_vis_action.triggered.connect(self.open_state_vis_window)
         self.vis_menu.addAction(ks_vis_action)
 

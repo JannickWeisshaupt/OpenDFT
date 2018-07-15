@@ -612,7 +612,8 @@ Returns:
                 k_points.append(np.array(k2))
 
             elif line.strip().endswith('frequency'):
-                frequencies.append(float(line.split()[1]))
+                freqency = float(line.split()[1])*hartree # frequency in eV
+                frequencies.append(freqency)
                 if len(mode)>0:
                     modes.append(mode)
                     mode = []

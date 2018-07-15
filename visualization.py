@@ -1171,7 +1171,8 @@ class BandStructureVisualization(QtGui.QWidget):
             title_color = 'black'
 
         for i,freq in enumerate(band_structure.frequencies):
-            self.ax.plot([-.3, .3],[freq,freq])
+            freq_conv = freq * 8065.5 # conversion from eV to cm^-1
+            self.ax.plot([-.3, .3],[freq_conv,freq_conv])
 
         self.ax.set_ylabel(r'Frequncy $\left[\mathrm{cm}^{-1}\right]$')
         self.ax.set_xticks([])
@@ -1626,7 +1627,7 @@ class PhononVisualization(StructureVisualization):
                 if self.standing: # use cos(kr)cos(t) formula for standing wave
                     phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode_spatial*np.sin(self.speed*2*np.pi*i/steps/10)
                 else: # use cos(kr-wt) formula for propagating wave
-                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode * np.repeat(np.cos((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]-self.speed*2*np.pi*i/steps/10), 3, axis=1)
+                    phonon_coords = abs_coord_atoms[:,:3] + self.arrow*mode * np.repeat(np.sin((abs_coord_atoms[:, :3] * k_vector).sum(axis=1)[:, None]-self.speed*2*np.pi*i/steps/10), 3, axis=1)
 
                 if self.stop_bool:
                     break_bool = True
