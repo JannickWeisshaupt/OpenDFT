@@ -2,7 +2,7 @@ from pyface.qt import QtGui, QtCore
 
 
 class EntryWithLabel(QtGui.QWidget):
-    def __init__(self, parent, label, value=None, width_text=200, width_label=90):
+    def __init__(self, parent, label, value=None, width_text=200, width_label=90,tooltip=None):
         QtGui.QWidget.__init__(self, parent)
         self.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
         self.layout = QtGui.QHBoxLayout(self)
@@ -19,6 +19,9 @@ class EntryWithLabel(QtGui.QWidget):
 
         if value is not None:
             self.textbox.setText(value)
+
+        if tooltip is not None:
+            self.textbox.setToolTip(tooltip)
 
     def get_text(self):
         return self.textbox.text()

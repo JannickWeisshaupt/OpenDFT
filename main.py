@@ -1857,7 +1857,7 @@ class SliderWithEntry(QtGui.QWidget):
         self.horizontalLayout.addWidget(self.horizontalSlider, 0, counter)
 
         self.lineEdit = QtGui.QLineEdit(self)
-        self.lineEdit.setText("{0:1.1f}".format(self.value))
+        self.lineEdit.setText("{0:1.2f}".format(self.value))
         self.lineEdit.textChanged.connect(self.change_slider)
         self.horizontalLayout.addWidget(self.lineEdit, 0, 1 + counter)
         self.horizontalLayout.setColumnStretch(0 + counter, 3)
@@ -1866,7 +1866,7 @@ class SliderWithEntry(QtGui.QWidget):
     def change_text(self):
         val = self.horizontalSlider.value() * (self.limits[1] - self.limits[0]) / 100 + self.limits[0]
         self.lineEdit.textChanged.disconnect()
-        self.lineEdit.setText("{0:1.1f}".format(val))
+        self.lineEdit.setText("{0:1.2f}".format(val))
         self.lineEdit.textChanged.connect(self.change_slider)
 
         self.value = val
@@ -1888,6 +1888,9 @@ class SliderWithEntry(QtGui.QWidget):
             val = self.value
         return val
 
+    def connect_released(self,f):
+        self.horizontalSlider.sliderReleased.connect(f)
+        self.lineEdit.editingFinished.connect(f)
 
 class KsStatePlotOptionWidget(QtGui.QWidget):
     def __init__(self, parent):
@@ -1898,6 +1901,7 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.verticalLayout = QtGui.QVBoxLayout(self.verticalLayoutWidget)
 
         self.opacity_slider = SliderWithEntry(self.verticalLayoutWidget, label='Opacity', limits=[0, 1], value=0.5)
+        self.opacity_slider.connect_released(self.parent.handle_item_changed)
         self.verticalLayout.addWidget(self.opacity_slider)
 
         plot_options_horizontal_widget = QtGui.QWidget(self)
@@ -1910,6 +1914,7 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
 
         self.transparent_checkbox = QtGui.QCheckBox('Transparent')
         self.transparent_checkbox.toggle()
+        self.transparent_checkbox.stateChanged.connect(self.parent.handle_item_changed)
         horizontal_layout.addWidget(self.transparent_checkbox)
 
         self.colormap_combobox = QtGui.QComboBox(self)
@@ -1927,12 +1932,12 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.verticalLayout.addWidget(button_frame)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.apply_button = QtGui.QPushButton('Apply')
+        self.apply_button = QtGui.QPushButton('Apply', default=False, autoDefault=False)
         self.apply_button.setFixedSize(100, 50)
         self.apply_button.clicked.connect(self.parent.handle_item_changed)
         self.button_layout.addWidget(self.apply_button)
 
-        self.slice_button = QtGui.QPushButton('Slice')
+        self.slice_button = QtGui.QPushButton('Slice', default=False, autoDefault=False)
         self.slice_button.setFixedSize(100, 50)
         self.slice_button.clicked.connect(self.parent.open_slice_widget)
         self.button_layout.addWidget(self.slice_button)
@@ -2009,19 +2014,19 @@ Enter either:
 
         button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.calculate_button = QtGui.QPushButton('Calculate KS State', button_frame)
+        self.calculate_button = QtGui.QPushButton('Calculate KS State', button_frame, default=False, autoDefault=False)
         self.calculate_button.setFixedWidth(150)
         self.calculate_button.setFixedHeight(50)
         self.calculate_button.clicked.connect(self.calculate_ks_state)
         button_layout.addWidget(self.calculate_button)
 
-        self.calculate_density_button = QtGui.QPushButton('Calculate\nelectron density', button_frame)
+        self.calculate_density_button = QtGui.QPushButton('Calculate\nelectron density', button_frame, default=False, autoDefault=False)
         self.calculate_density_button.setFixedWidth(150)
         self.calculate_density_button.setFixedHeight(50)
         self.calculate_density_button.clicked.connect(self.calculate_electron_density)
         button_layout.addWidget(self.calculate_density_button)
 
-        abort_button = QtGui.QPushButton('Abort\ncalculation', button_frame)
+        abort_button = QtGui.QPushButton('Abort\ncalculation', button_frame, default=False, autoDefault=False)
         abort_button.setFixedWidth(150)
         abort_button.setFixedHeight(50)
         abort_button.clicked.connect(self.abort_calculation)
@@ -2204,7 +2209,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.unit_cell_option_layout.setAlignment(QtCore.Qt.AlignLeft)
         self.unit_cell_layout.addWidget(unit_cell_option_widget)
 
-        self.scale_entry = EntryWithLabel(self, 'Scale')
+        self.scale_entry = EntryWithLabel(self, 'Scale',tooltip='The scale of the unit vectors in bohr.\nCan also be set to 1 to determine the unit cell directly by the unit vectors')
         self.scale_entry.setFixedHeight(50)
         self.unit_cell_option_layout.addWidget(self.scale_entry)
         self.scale_entry.set_text('1.0')

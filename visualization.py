@@ -1018,10 +1018,10 @@ class BandStructureVisualization(QtGui.QWidget):
         option_layout.setAlignment(QtCore.Qt.AlignLeft)
         layout.addWidget(option_widget)
         from main import EntryWithLabel
-        self.Emin_entry = EntryWithLabel(option_widget, 'Emin')
+        self.Emin_entry = EntryWithLabel(option_widget, 'Emin',width_label=100,width_text=70)
         self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
         option_layout.addWidget(self.Emin_entry)
-        self.Emax_entry = EntryWithLabel(option_widget, 'Emax')
+        self.Emax_entry = EntryWithLabel(option_widget, 'Emax',width_label=100,width_text=70)
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
         option_layout.addWidget(self.Emax_entry)
 
