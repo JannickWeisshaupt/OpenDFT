@@ -453,10 +453,11 @@ Returns:
                         freq_found = False
         k_points = np.array([0,0,0])
         k_points = k_points[np.newaxis,:]
-        freqs_conv = 1.2398e-4*np.array(frequencies)[:,np.newaxis] # factor is conversion to eV
-        eigs_conv = eigenvector_array[:,np.newaxis,:]
-        phonon_eigenvectors = sst.PhononEigenvectors(freqs_conv,eigs_conv,k_points)
-        vib = sst.VibrationalStructure(np.array(frequencies))
+        frequencies_conv = 1.2398e-4*np.array(frequencies) # factor is conversion to eV
+        freqs_2d = frequencies_conv[:,np.newaxis] # the additional axis is the k vectors, which is just 0 0 0 in the molecular case
+        eigs_2d = eigenvector_array[:,np.newaxis,:]
+        phonon_eigenvectors = sst.PhononEigenvectors(freqs_2d,eigs_2d,k_points)
+        vib = sst.VibrationalStructure(frequencies_conv)
         vib.phonon_eigenvectors = phonon_eigenvectors
         return vib
 

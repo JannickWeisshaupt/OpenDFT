@@ -1932,12 +1932,12 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
         self.verticalLayout.addWidget(button_frame)
         self.button_layout.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.apply_button = QtGui.QPushButton('Apply', default=False, autoDefault=False)
-        self.apply_button.setFixedSize(100, 50)
-        self.apply_button.clicked.connect(self.parent.handle_item_changed)
-        self.button_layout.addWidget(self.apply_button)
+        # self.apply_button = QtGui.QPushButton('Apply', default=False, autoDefault=False)
+        # self.apply_button.setFixedSize(100, 50)
+        # self.apply_button.clicked.connect(self.parent.handle_item_changed)
+        # self.button_layout.addWidget(self.apply_button)
 
-        self.slice_button = QtGui.QPushButton('Slice', default=False, autoDefault=False)
+        self.slice_button = QtGui.QPushButton('2D slice', default=False, autoDefault=False)
         self.slice_button.setFixedSize(100, 50)
         self.slice_button.clicked.connect(self.parent.open_slice_widget)
         self.button_layout.addWidget(self.slice_button)
