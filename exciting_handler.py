@@ -639,7 +639,6 @@ Returns:
 
         return sst.PhononEigenvectors(frequencies,modes,k_points)
 
-
     def calculate_ks_density(self, crystal_structure, bs_point, grid='40 40 40'):
         """This method starts a calculation of a specific electronic state in a subprocess.
 
@@ -676,8 +675,12 @@ Keyword Args:
 Returns:
     - None
                 """
-        # TODO the total energy density calculation for exciting (if possible)
-        raise NotImplementedError
+        self._read_timestamps()
+        tree = self._make_tree()
+        self._add_scf_to_tree(tree, crystal_structure, skip=True)
+        self._add_electron_density_to_tree(tree, grid,only_valence=True)
+        self._write_input_file(tree)
+        self._start_engine()
 
     def kill_engine(self):
         """Stops the execution of the engine process. Only possible for local execution and not in case of cluster calculation"""
@@ -949,7 +952,25 @@ Returns:
 
     def _convert_3d_plot(self):
         os.chdir(self.project_directory + self.working_dirctory)
-        command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl WF3D.xml > WF3D.xsf'
+        ks_file_exists = os.path.isfile(self.project_directory+self.working_dirctory+'/WF3D.xml')
+        density_file_exists = os.path.isfile(self.project_directory+self.working_dirctory+'/RHO3D.xml')
+
+        if ks_file_exists and density_file_exists:
+            density_timestamp = os.path.getmtime(self.project_directory+self.working_dirctory+'/RHO3D.xml')
+            ks_timestamp = os.path.getmtime(self.project_directory+self.working_dirctory+'/WF3D.xml')
+            if density_timestamp > ks_timestamp:
+                filename = 'RHO3D.xml'
+            else:
+                filename = 'WF3D.xml'
+        elif ks_file_exists:
+            filename = 'WF3D.xml'
+        elif density_file_exists:
+            filename = 'RHO3D.xml'
+        else:
+            raise ValueError("No density file exists")
+
+
+        command = 'xsltproc $EXCITINGVISUAL/plot3d2xsf.xsl '+filename+' > WF3D.xsf'
         self.helper_process = subprocess.call(command, shell=True)
 
     def _add_ks_density_to_tree(self, tree, bs_point, grid):
@@ -958,6 +979,26 @@ Returns:
         wfplot = ET.SubElement(properties, "wfplot")
         kstlist = ET.SubElement(wfplot, "kstlist")
         pointstatepair = ET.SubElement(kstlist, "pointstatepair").text = '{0} {1}'.format(*bs_point)
+
+        plot3d = ET.SubElement(wfplot, "plot3d")
+        box = ET.SubElement(plot3d, "box", grid=grid)
+
+        p0 = np.array([0.0, 0.0, 0.0])
+        p1 = np.array([1.0, 0.0, 0.0])
+        p2 = np.array([0.0, 1.0, 0.0])
+        p3 = np.array([0.0, 0.0, 1.0])
+
+        origin = ET.SubElement(box, "origin", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p0))
+        p1 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p1))
+        p2 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p2))
+        p3 = ET.SubElement(box, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*p3))
+
+    def _add_electron_density_to_tree(self,tree,grid,only_valence=True):
+        only_valence_string = ['false','true'][only_valence]
+
+        root = tree.getroot()
+        properties = ET.SubElement(root, "properties")
+        wfplot = ET.SubElement(properties, "chargedensityplot",nocore=only_valence_string)
 
         plot3d = ET.SubElement(wfplot, "plot3d")
         box = ET.SubElement(plot3d, "box", grid=grid)
