@@ -561,74 +561,9 @@ class ConsoleWindow(QtGui.QMainWindow):
 
         self.python_interpreter = PythonTerminal({})
 
-        self.welcome_text = """# Welcome to the OpenDFT scripting console
-#
-# You can normally(*) use python to script here in addition to OpenDFT objects that can be
-# used to calculate electronic properties and visualize them. The structure, engine options etc. are loaded, when the
-# scripting window is opened and can be changed within the script. 
-#
-# Predefined variables:
-# 
-# engine:           Dft engine object that can be used to calculate electronic properties. 
-#
-# structure:        crystal or molecular structure from the main application. 
-#                   If you defined a structure with the main window you can directly use it here.
-#
-# plot_structure:   Function that updates the plot in the main window.
-#
-# plot_scf:         Function that plots the current scf convergence in the main window.
-#
-# Use the help function to learn more about the variables, 
-# e.g. help(engine) and help(engine.start_ground_state) should be quite helpful
-#
-# (*) For technical reasons matplotlib can be used but has to be put at the end of the script after a special seperator,
-# namely [dollarsign]matplotlib (see example below)
-#
-# Following is an runnable (press f5) example of how to find the optimal cell scale (with very few steps for faster run-time)
-#
-import numpy as np
-
-atoms = structure.atoms # Save the current atom information for future use
-lattice_vectors = structure.lattice_vectors # save the lattice vectors
-
-energies = []
-scales = np.linspace(0.8,1.2,5) # scale factor for unit cell
-scales_succes = []
-
-for scale in scales:
-  structure_temp = CrystalStructure(scale*lattice_vectors,atoms)
-  plot_structure(structure_temp) # plot the structure in the main window
-  engine.start_ground_state(structure_temp,blocking=True) # start the calculation
-  try:
-    scf_list = engine.read_scf_status() # Read the full list of scf energies
-    plot_scf(scf_list)
-    energies.append(scf_list[-1,1]) # append only the last to the energies list
-    scales_succes.append(scale)
-  except Exception as e:
-    print(repr(e))
-
-print('Emin = {0:1.2f}'.format(min(energies)))
-optimal_scale = scales_succes[energies.index(min(energies))]
-print('Optimal cell scale = {0:1.2f}'.format(optimal_scale))
-
-plot_structure(structure) 
- 
-## Plot with matplotlib
-
-$matplotlib
-
-import matplotlib.pyplot as plt
-
-plt.figure(1)
-plt.clf()
-plt.plot(scales_succes,energies,'k',linewidth=2)
-plt.show()
-        """
-        self.input_text_widget.setPlainText(self.welcome_text)
-
         self.last_history = None
 
-        self.saved_code = self.welcome_text
+        self.saved_code = ''
         self.saved_code_filename = None
         self.interactive_history = []
         self.current_history_element = -1
@@ -687,6 +622,15 @@ plt.show()
         run_selection_action.setShortcut("F9")
         run_selection_action.triggered.connect(self.run_selection)
         self.run_menu.addAction(run_selection_action)
+
+        examples_menu = self.menu_bar.addMenu('&Examples')
+        structure_optimization_action = QtGui.QAction("Structure optimization", self)
+        structure_optimization_action.triggered.connect(lambda: self.load_file(file_name=find_data_file('/examples/scripting/structure_optimization.py'),example_file=True))
+        examples_menu.addAction(structure_optimization_action)
+
+        convergence_test_action = QtGui.QAction("Convergence tests", self)
+        convergence_test_action.triggered.connect(lambda: self.load_file(file_name=find_data_file('/examples/scripting/convergence_tests.py'),example_file=True))
+        examples_menu.addAction(convergence_test_action)
 
         # terminate_execution_action = QtGui.QAction("Terminate execution", self)
         # terminate_execution_action.setShortcut("F12")
@@ -815,23 +759,31 @@ plt.show()
                 self.save_code()
         return True
 
-    def load_file(self):
+    def load_file(self,file_name=None,example_file=False):
         if not self.check_saved_progress():
             return
 
-        file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')[0]
+        if file_name is None:
+            file_name = QtGui.QFileDialog.getOpenFileName(self, 'Load File')[0]
         if not file_name:
             return
+
         with open(file_name, 'r') as f:
             text = f.read()
         self.input_text_widget.setPlainText(text)
-        self.saved_code = text
-        self.saved_code_filename = file_name
-        self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
+
+        if not example_file:
+            self.saved_code = text
+            self.saved_code_filename = file_name
+            self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
 
     def save_code(self, ask_filename=False):
         if self.saved_code_filename is None or ask_filename:
-            file_name = QtGui.QFileDialog.getSaveFileName(self, 'Save File')[0]
+            file_names = QtGui.QFileDialog.getSaveFileName(self, 'Save File')
+            if file_names:
+                file_name = file_names[0]
+            else:
+                return
         else:
             file_name = self.saved_code_filename
 
