@@ -24,7 +24,7 @@ scipy_path = os.path.dirname(scipy.__file__) #use this if you are also using sci
 
 build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyface.ui.wx", "matplotlib.backends.backend_qt4",'pkg_resources._vendor','pkg_resources.extern','pygments.lexers',
                                   'tvtk.pyface.ui.qt4','pyface.qt','pyface.qt.QtGui','pyface.qt.QtCore','numpy','matplotlib','mayavi'],
-                     "include_files": [(str(scipy_path), "scipy"), #for scipy
+                     "include_files": [(str(scipy_path), "scipy"),'./examples/', #for scipy
                     (matplotlib.get_data_path(), "mpl-data"),'/home/jannick/python_programs/OpenDFT/data','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/bond_lengths.json',
                                        '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/func_groups.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/libxc_docs.json',
                                        '/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/periodic_table.json','/home/jannick/.local/lib/python3.4/site-packages/pymatgen/core/reconstructions_archive.json',
@@ -37,7 +37,7 @@ build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyfa
 
                      "includes":['PyQt4.QtCore','PyQt4.QtGui','pymatgen','pymatgen.symmetry.bandstructure','mayavi','PyQt4'],
                      'excludes':'Tkinter',
-                    "namespace_packages": ['mayavi']
+                    "namespace_packages": ['mayavi','mpl_toolkits']
                     }
 
 

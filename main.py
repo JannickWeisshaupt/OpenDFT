@@ -751,9 +751,9 @@ class ConsoleWindow(QtGui.QMainWindow):
         if self.saved_code != self.input_text_widget.toPlainText():
             msg = "There is unsaved progress. Do you want to save before starting a new file?"
             reply = QtGui.QMessageBox.question(self, 'Unsaved progress',
-                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                                               msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No,QtGui.QMessageBox.Cancel)
 
-            if reply == QtGui.QMessageBox.No:
+            if reply == QtGui.QMessageBox.Cancel:
                 return False
             elif reply == QtGui.QMessageBox.Yes:
                 self.save_code()
