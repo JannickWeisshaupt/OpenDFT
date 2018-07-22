@@ -632,6 +632,10 @@ class ConsoleWindow(QtGui.QMainWindow):
         convergence_test_action.triggered.connect(lambda: self.load_file(file_name=find_data_file('/examples/scripting/convergence_tests.py'),example_file=True))
         examples_menu.addAction(convergence_test_action)
 
+        band_structure_example_action = QtGui.QAction("Band structures", self)
+        band_structure_example_action.triggered.connect(lambda: self.load_file(file_name=find_data_file('/examples/scripting/band_structures.py'),example_file=True))
+        examples_menu.addAction(band_structure_example_action)
+
         # terminate_execution_action = QtGui.QAction("Terminate execution", self)
         # terminate_execution_action.setShortcut("F12")
         # terminate_execution_action.triggered.connect(self.terminate_execution)
@@ -3392,12 +3396,19 @@ class CentralWindow(QtGui.QWidget):
             self.queue.put(q_item)
             time.sleep(0.3)
 
+        def add_data_to_queue(data,name):
+            """Adds the result of a calculation, which can be bandstructure,optical spectrum, dos, phonon bandstructure, or the respective molecular results"""
+            if type(data) not in [sst.BandStructure,sst.DensityOfStates,sst.EnergyDiagram,sst.VibrationalStructure,sst.KohnShamDensity,sst.MolecularDensity,sst.OpticalSpectrum]:
+                raise ValueError('Bad type for data')
+            q_item = {'task': 'add data', 'data': data,'name':name}
+            self.queue.put(q_item)
+
         shared_vars = {'structure': self.crystal_structure, 'engine': esc_handler, 'plot_structure': add_plot_to_queue,
                        'CrystalStructure': sst.CrystalStructure,
                        'MolecularStructure': sst.MolecularStructure, 'OpticalSpectrum': sst.OpticalSpectrum,
                        'BandStructure': sst.BandStructure, 'EnergyDiagram': sst.EnergyDiagram,
                        'KohnShamDensity': sst.KohnShamDensity, 'MolecularDensity': sst.MolecularDensity,
-                       'plot_scf': add_scf_to_queue}
+                       'plot_scf': add_scf_to_queue,'add_data':add_data_to_queue}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def open_phonon_window(self):
@@ -3439,6 +3450,27 @@ class CentralWindow(QtGui.QWidget):
             if scf_data is not None:
                 self.scf_window.scf_widget.plot(scf_data)
             QtGui.QApplication.processEvents()
+        elif taskname == 'add data':
+            data = queue_item['data']
+            name = queue_item['name']
+            data_type = type(data)
+            if data_type in [sst.BandStructure,sst.EnergyDiagram,sst.VibrationalStructure]:
+                self.band_structures[name] = data
+            elif data_type in [sst.DensityOfStates]:
+                self.dos[name] = data
+            elif data_type in [sst.OpticalSpectrum]:
+                self.optical_spectra[name] = data
+            elif data_type in [sst.MolecularDensity,sst.KohnShamDensity]:
+                self.ks_densities[name] = data
+            else:
+                if DEBUG:
+                    raise ValueError('Bad type ' + str(data_type) + ' for data from scripting console.'  )
+
+
+
+        else:
+            if DEBUG:
+                raise ValueError('Bad task for main queue')
 
     def check_integrety(self):
         scf_check = self.dft_engine_window.scf_option_widget.options == esc_handler.scf_options

@@ -334,6 +334,7 @@ class DensityOfStates(object):
         self.engine_information = None
         self.proj_dos = proj_dos
 
+
 class PhononEigenvectors(object):
     def __init__(self,frequencies,modes,k_vectors):
         if frequencies.shape != modes.shape[0:2] or len(modes.shape)!=3 or len(frequencies.shape)!=2:
@@ -358,6 +359,7 @@ class PhononEigenvectors(object):
 
         mode_out = repeated_mode.reshape((n_repeat*n_atoms ,3))
         return mode_out
+
 
 class StructureParser:
     def __init__(self):
