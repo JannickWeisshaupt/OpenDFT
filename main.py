@@ -3403,12 +3403,26 @@ class CentralWindow(QtGui.QWidget):
             q_item = {'task': 'add data', 'data': data,'name':name}
             self.queue.put(q_item)
 
+        try:
+            alt_help = help
+        except Exception:
+            def alt_help(x):
+                print(type(x))
+                print(x.__doc__)
+                print()
+                elements = [method_name for method_name in dir(x) if
+                            callable(getattr(x, method_name)) and not method_name.startswith('_')]
+                if elements:
+                    print('Available methods:\n')
+                    for element in elements:
+                        print('    ' + element + '\n')
+
         shared_vars = {'structure': self.crystal_structure, 'engine': esc_handler, 'plot_structure': add_plot_to_queue,
                        'CrystalStructure': sst.CrystalStructure,'k_path':self.dft_engine_window.band_structure_points,
                        'MolecularStructure': sst.MolecularStructure, 'OpticalSpectrum': sst.OpticalSpectrum,
                        'BandStructure': sst.BandStructure, 'EnergyDiagram': sst.EnergyDiagram,
                        'KohnShamDensity': sst.KohnShamDensity, 'MolecularDensity': sst.MolecularDensity,
-                       'plot_scf': add_scf_to_queue,'add_data':add_data_to_queue}
+                       'plot_scf': add_scf_to_queue,'add_data':add_data_to_queue,'help':alt_help}
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def open_phonon_window(self):
