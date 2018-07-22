@@ -3404,7 +3404,7 @@ class CentralWindow(QtGui.QWidget):
             self.queue.put(q_item)
 
         shared_vars = {'structure': self.crystal_structure, 'engine': esc_handler, 'plot_structure': add_plot_to_queue,
-                       'CrystalStructure': sst.CrystalStructure,
+                       'CrystalStructure': sst.CrystalStructure,'k_path':self.dft_engine_window.band_structure_points,
                        'MolecularStructure': sst.MolecularStructure, 'OpticalSpectrum': sst.OpticalSpectrum,
                        'BandStructure': sst.BandStructure, 'EnergyDiagram': sst.EnergyDiagram,
                        'KohnShamDensity': sst.KohnShamDensity, 'MolecularDensity': sst.MolecularDensity,
@@ -3466,6 +3466,8 @@ class CentralWindow(QtGui.QWidget):
                 if DEBUG:
                     raise ValueError('Bad type ' + str(data_type) + ' for data from scripting console.'  )
 
+            for tab in self.list_of_tabs:
+                tab.do_select_event()
 
 
         else:
