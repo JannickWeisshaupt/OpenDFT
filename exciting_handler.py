@@ -561,15 +561,28 @@ Returns:
 Returns:
     - optical_spectrum:       A OpticalSpectrum object with the latest optical spectrum result found.
         """
-        eps_11 = np.loadtxt(
-            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
-                'bsetype'] + '_SCRfull_OC11.OUT')
-        eps_22 = np.loadtxt(
-            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
-                'bsetype'] + '_SCRfull_OC22.OUT')
-        eps_33 = np.loadtxt(
-            self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
-                'bsetype'] + '_SCRfull_OC33.OUT')
+
+        if os.path.isdir(self.project_directory+self.working_dirctory+'/EPSILON'):
+            if self.optical_spectrum_options['bsetype'] == 'IP':
+                add_string1 = ''
+            else:
+                add_string1 = '-TDA-BAR'
+
+            eps_11 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON/EPSILON_BSE-' + self.optical_spectrum_options['bsetype'] + add_string1 + '_SCR-full_OC11.OUT')
+            eps_22 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON/EPSILON_BSE-' + self.optical_spectrum_options['bsetype'] + add_string1 + '_SCR-full_OC22.OUT')
+            eps_33 = np.loadtxt(self.project_directory + self.working_dirctory + 'EPSILON/EPSILON_BSE-' + self.optical_spectrum_options['bsetype'] + add_string1 + '_SCR-full_OC33.OUT')
+
+
+        else:
+            eps_11 = np.loadtxt(
+                self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                    'bsetype'] + '_SCRfull_OC11.OUT')
+            eps_22 = np.loadtxt(
+                self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                    'bsetype'] + '_SCRfull_OC22.OUT')
+            eps_33 = np.loadtxt(
+                self.project_directory + self.working_dirctory + 'EPSILON_BSE' + self.optical_spectrum_options[
+                    'bsetype'] + '_SCRfull_OC33.OUT')
 
         list_of_eps2 = [eps_11[:, 2], eps_22[:, 2], eps_33[:, 2]]
         list_of_eps1 = [eps_11[:, 1], eps_22[:, 1], eps_33[:, 1]]
@@ -1037,10 +1050,12 @@ Returns:
 
 if __name__ == '__main__':
     handler = Handler()
-    handler.project_directory = "/home/jannick/OpenDFT_projects/diamond3"
+    handler.project_directory = "/home/jannick/OpenDFT_projects/how_exciting"
 
-    dos = handler.read_dos()
-    eig = handler.read_phonon_eigenvectors()
+    eps = handler.read_optical_spectrum()
+
+    # dos = handler.read_dos()
+    # eig = handler.read_phonon_eigenvectors()
 
     # trash_bs_points = np.array([[0, 0, 0], [0.50, 0.500, 0.0], [0.500, 0.500, 0.500]
     #                                , [0.000, 0.000, 0.000], [0.500, 0.500, 0.000], [0.750, 0.500, 0.250],
