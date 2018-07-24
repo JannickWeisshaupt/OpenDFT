@@ -2712,7 +2712,7 @@ class MainWindow(QtGui.QMainWindow):
         self.info_window = InfoWindow(parent=self)
 
         self.tabWidget = QtGui.QTabWidget()
-        self.tabWidget.currentChanged.connect(self.tab_is_changed)
+        self.tabWidget.currentChanged.connect(lambda: self.tabWidget.currentWidget().do_select_event())
         self.layout.addWidget(self.tabWidget)
 
         self.status_bar = StatusBar()
@@ -2790,9 +2790,6 @@ class MainWindow(QtGui.QMainWindow):
                 self.error_dialog.showMessage(str(e)+'<br>A standard non structure specific path will be loaded. Use with care!')
 
             self.brillouin_window.set_path(self.dft_engine_window.band_structure_points)
-
-    def tab_is_changed(self, i):
-        self.list_of_tabs[i].do_select_event()
 
     def make_new_project(self):
         folder_name = QtGui.QFileDialog().getExistingDirectory(parent=self,options=QtGui.QFileDialog.ShowDirsOnly)
@@ -2887,7 +2884,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.error_dialog.showMessage(err_msg)
             else:
                 self.dft_engine_window.update_all()
-                self.tab_is_changed(self.tabWidget.currentIndex())
+                self.tabWidget.currentWidget().do_select_event()
                 self.setWindowTitle("OpenDFT - " + self.project_directory)
                 self.project_loaded = True
                 self.configure_buttons()
@@ -3206,12 +3203,12 @@ class MainWindow(QtGui.QMainWindow):
             self.dft_engine_window.abort_bool = False
             return
         elif esc_handler.is_engine_running(tasks=tasks):
-            selected_tab_index = self.tabWidget.currentIndex()
-            if self.list_of_tabs[selected_tab_index] == self.scf_window:
+            current_widget = self.tabWidget.currentWidget()
+            if current_widget == self.scf_window:
                 self.scf_data = esc_handler.read_scf_status()
                 if self.scf_data is not None:
                     self.scf_window.scf_widget.plot(self.scf_data)
-            elif self.list_of_tabs[selected_tab_index] == self.info_window:
+            elif current_widget == self.info_window:
                 self.info_window.do_select_event()
             QtCore.QTimer.singleShot(500, lambda: self.check_engine(tasks))
             self.status_bar.set_engine_status(True, tasks=tasks)
