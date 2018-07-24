@@ -723,15 +723,17 @@ getden3  -1
         os.chdir(self.project_directory + self.working_dirctory)
         if self.custom_command_active:
             command = ['bash', self.custom_command]
+            self.engine_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             command = self._engine_command
 
-        outname = filename.split('.')[0] + '.log'
-        final_command = [None]
-        final_command[0] = command[0] + ' <' + filename + ' >' + outname
+            outname = filename.split('.')[0] + '.log'
+            final_command = [None]
+            final_command[0] = command[0] + ' <' + filename + ' >' + outname
 
-        self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE, shell=True)
+            self.engine_process = subprocess.Popen("exec " + final_command[0], stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE, shell=True)
+
         os.chdir(self.project_directory)
         if blocking:
             while self.is_engine_running():
