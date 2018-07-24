@@ -1854,6 +1854,7 @@ class SliderWithEntry(QtGui.QWidget):
         self.horizontalSlider.sliderReleased.connect(f)
         self.lineEdit.editingFinished.connect(f)
 
+
 class KsStatePlotOptionWidget(QtGui.QWidget):
     def __init__(self, parent):
         super(KsStatePlotOptionWidget, self).__init__(parent)
@@ -1931,6 +1932,7 @@ class KsStatePlotOptionWidget(QtGui.QWidget):
             for data_slice in data:
                 np.savetxt(outfile, data_slice, fmt='%-7.2f')
                 outfile.write('# New slice\n')
+
 
 class KsStateWindow(QtGui.QDialog):
     def __init__(self, parent):
@@ -2116,14 +2118,6 @@ Enter either:
         while not self.calc_queue.empty():
             self.calc_queue.get()
 
-class MainWindow(QtGui.QMainWindow):
-    def __init__(self, central_window, *args, **kwargs):
-        super(MainWindow, self).__init__(*args, **kwargs)
-        self.central_window = central_window
-
-    def closeEvent(self, event):
-        self.central_window.close_application()
-        event.ignore()
 
 
 class EditStructureWindow(QtGui.QMainWindow):
@@ -2661,9 +2655,9 @@ class EditStructureWindow(QtGui.QMainWindow):
             dic['widget'].text('')
 
 
-class CentralWindow(QtGui.QWidget):
+class MainWindow(QtGui.QMainWindow):
     def __init__(self, parent=None, *args, **kwargs):
-        super(CentralWindow, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.project_loaded = False
         self.project_directory = None
         self.parent = parent
@@ -2699,7 +2693,9 @@ class CentralWindow(QtGui.QWidget):
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
 
-        self.layout = QtGui.QGridLayout(self)
+        self.main_widget = QtGui.QWidget(self)
+
+        self.layout = QtGui.QVBoxLayout(self.main_widget)
 
         self.mayavi_widget = MayaviQWidget(self.crystal_structure, parent=self)
         self.band_structure_window = PlotWithTreeview(Visualizer=BandStructureVisualization,
@@ -2749,15 +2745,13 @@ class CentralWindow(QtGui.QWidget):
         self.tabWidget.show()
 
         self.show()
-        self.window = MainWindow(self)
-        self.window.setWindowTitle("OpenDFT")
-        self.window.setWindowIcon(QtGui.QIcon('icon.ico'))
-        self.window.setMinimumSize(700, 700)
-        self.window.resize(1300, 1100)
-        self.window.setCentralWidget(self)
+        self.setWindowTitle("OpenDFT")
+        self.setWindowIcon(QtGui.QIcon('icon.ico'))
+        self.setMinimumSize(700, 700)
+        self.resize(1300, 1100)
+        self.setCentralWidget(self.main_widget)
         self.make_menu_bar()
 
-        self.window.show()
 
         self.configure_buttons(disable_all=True)
 
@@ -2829,7 +2823,7 @@ class CentralWindow(QtGui.QWidget):
         self.project_properties.update(
             {'title': '', 'dft engine': '', 'custom command': '', 'custom command active': False,
              'custom dft folder': ''})
-        self.window.setWindowTitle("OpenDFT - " + self.project_directory)
+        self.setWindowTitle("OpenDFT - " + self.project_directory)
         os.chdir(self.project_directory)
         if (esc_handler.pseudo_directory is not None) and (
                 not os.path.isdir(self.project_directory + esc_handler.pseudo_directory)):
@@ -2856,7 +2850,7 @@ class CentralWindow(QtGui.QWidget):
         self.optical_spectra_window.plot_widget.clear_plot()
         self.optical_spectra_window.clear_treeview()
         self.dft_engine_window.update_all()
-        self.window.setWindowTitle("OpenDFT")
+        self.setWindowTitle("OpenDFT")
 
     def load_project(self, *args, **kwargs):
 
@@ -2894,7 +2888,7 @@ class CentralWindow(QtGui.QWidget):
             else:
                 self.dft_engine_window.update_all()
                 self.tab_is_changed(self.tabWidget.currentIndex())
-                self.window.setWindowTitle("OpenDFT - " + self.project_directory)
+                self.setWindowTitle("OpenDFT - " + self.project_directory)
                 self.project_loaded = True
                 self.configure_buttons()
         elif not folder_name:
@@ -3071,23 +3065,23 @@ class CentralWindow(QtGui.QWidget):
             self.update_structure_plot()
 
     def make_menu_bar(self):
-        self.menu_bar = self.window.menuBar()
+        self.menu_bar = self.menuBar()
         self.menu_bar.setNativeMenuBar(False)
         self.file_menu = self.menu_bar.addMenu('&File')
 
-        new_project_action = QtGui.QAction("New project", self.window)
+        new_project_action = QtGui.QAction("New project", self)
         new_project_action.setShortcut("Ctrl+n")
         new_project_action.setStatusTip('Start new project')
         new_project_action.triggered.connect(self.make_new_project)
         self.file_menu.addAction(new_project_action)
 
-        load_project_action = QtGui.QAction("Load project", self.window)
+        load_project_action = QtGui.QAction("Load project", self)
         load_project_action.setShortcut("Ctrl+o")
         load_project_action.setStatusTip('Load project')
         load_project_action.triggered.connect(self.load_project)
         self.file_menu.addAction(load_project_action)
 
-        self.save_project_action = QtGui.QAction("Save project", self.window)
+        self.save_project_action = QtGui.QAction("Save project", self)
         self.save_project_action.setShortcut("Ctrl+s")
         self.save_project_action.setStatusTip('Save project')
         self.save_project_action.triggered.connect(self.save_results)
@@ -3095,13 +3089,13 @@ class CentralWindow(QtGui.QWidget):
 
         self.file_menu.addSeparator()
 
-        self.new_structure_action = QtGui.QAction("New structure", self.window)
+        self.new_structure_action = QtGui.QAction("New structure", self)
         self.new_structure_action.setShortcut('Ctrl+Shift+n')
         self.new_structure_action.setStatusTip('Make new structure by hand')
         self.new_structure_action.triggered.connect(lambda: self.open_structure_window(new=True))
         self.file_menu.addAction(self.new_structure_action)
 
-        self.edit_structure_action = QtGui.QAction("Edit structure", self.window)
+        self.edit_structure_action = QtGui.QAction("Edit structure", self)
         self.edit_structure_action.setShortcut('Ctrl+Shift+e')
         self.edit_structure_action.setStatusTip('Edit existing structure by hand')
         self.edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
@@ -3109,18 +3103,18 @@ class CentralWindow(QtGui.QWidget):
 
         self.import_structure_menu = self.file_menu.addMenu('Import structure from')
 
-        open_structure_action_exciting = QtGui.QAction("exciting input file", self.window)
+        open_structure_action_exciting = QtGui.QAction("exciting input file", self)
         open_structure_action_exciting.setStatusTip('Load crystal structure from exciting xml')
         open_structure_action_exciting.triggered.connect(lambda: self.load_crystal_structure('exciting'))
         self.import_structure_menu.addAction(open_structure_action_exciting)
 
-        open_structure_action_quantum_espresso = QtGui.QAction("quantum_espresso input file", self.window)
+        open_structure_action_quantum_espresso = QtGui.QAction("quantum_espresso input file", self)
         open_structure_action_quantum_espresso.setStatusTip('Load crystal structure from quantum espresso input file')
         open_structure_action_quantum_espresso.triggered.connect(
             lambda: self.load_crystal_structure('quantum espresso'))
         self.import_structure_menu.addAction(open_structure_action_quantum_espresso)
 
-        open_structure_action_cif = QtGui.QAction("cif", self.window)
+        open_structure_action_cif = QtGui.QAction("cif", self)
         open_structure_action_cif.setShortcut('Ctrl+Shift+c')
         open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
@@ -3130,61 +3124,61 @@ class CentralWindow(QtGui.QWidget):
 
         self.import_results_menu = self.file_menu.addMenu('Import results')
 
-        import_result_action_bandstructure = QtGui.QAction("bandstructure", self.window)
+        import_result_action_bandstructure = QtGui.QAction("bandstructure", self)
         import_result_action_bandstructure.triggered.connect(lambda: self.open_load_result_window(['bandstructure']))
         self.import_results_menu.addAction(import_result_action_bandstructure)
 
-        import_result_action_gw_bandstructure = QtGui.QAction("gw bandstructure", self.window)
+        import_result_action_gw_bandstructure = QtGui.QAction("gw bandstructure", self)
         import_result_action_gw_bandstructure.triggered.connect(lambda: self.open_load_result_window(['g0w0']))
         self.import_results_menu.addAction(import_result_action_gw_bandstructure)
 
-        import_result_action_optical_spectrum = QtGui.QAction("optical spectrum", self.window)
+        import_result_action_optical_spectrum = QtGui.QAction("optical spectrum", self)
         import_result_action_optical_spectrum.triggered.connect(
             lambda: self.open_load_result_window(['optical spectrum']))
         self.import_results_menu.addAction(import_result_action_optical_spectrum)
 
-        import_result_action_phonon_bandstructure = QtGui.QAction("phonon bandstructure", self.window)
+        import_result_action_phonon_bandstructure = QtGui.QAction("phonon bandstructure", self)
         import_result_action_phonon_bandstructure.triggered.connect(lambda: self.open_load_result_window(['phonons']))
         self.import_results_menu.addAction(import_result_action_phonon_bandstructure)
 
-        import_result_action_dos = QtGui.QAction("density of states", self.window)
+        import_result_action_dos = QtGui.QAction("density of states", self)
         import_result_action_dos.triggered.connect(lambda: self.open_load_result_window(['dos']))
         self.import_results_menu.addAction(import_result_action_dos)
 
 
         self.file_menu.addSeparator()
 
-        close_app_action = QtGui.QAction("Exit", self.window)
+        close_app_action = QtGui.QAction("Exit", self)
         close_app_action.setShortcut("Ctrl+Q")
         close_app_action.setStatusTip('Leave The App')
-        close_app_action.triggered.connect(self.close_application)
+        close_app_action.triggered.connect(self.closeEvent)
         self.file_menu.addAction(close_app_action)
 
         self.vis_menu = self.menu_bar.addMenu('&Visualize')
 
-        ks_vis_action = QtGui.QAction("States/Densities", self.window)
+        ks_vis_action = QtGui.QAction("States/Densities", self)
         ks_vis_action.setStatusTip('Visualize a Kohn-Sham or electron density state in the structure window')
         ks_vis_action.triggered.connect(self.open_state_vis_window)
         self.vis_menu.addAction(ks_vis_action)
 
-        phonon_action = QtGui.QAction("Phonons", self.window)
+        phonon_action = QtGui.QAction("Phonons", self)
         phonon_action.triggered.connect(self.open_phonon_window)
         self.vis_menu.addAction(phonon_action)
 
         self.dft_menu = self.menu_bar.addMenu('&DFT Engine')
 
-        dft_options_action = QtGui.QAction("Options", self.window)
+        dft_options_action = QtGui.QAction("Options", self)
         dft_options_action.setStatusTip('Options for dft engine')
         dft_options_action.triggered.connect(self.open_engine_option_window)
         self.dft_menu.addAction(dft_options_action)
 
         self.scripting_menu = self.menu_bar.addMenu('&Scripting')
 
-        open_console_action = QtGui.QAction("Open console", self.window)
+        open_console_action = QtGui.QAction("Open console", self)
         open_console_action.triggered.connect(self.open_scripting_console)
         self.scripting_menu.addAction(open_console_action)
 
-    def close_application(self):
+    def closeEvent(self, event):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
                                                "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
@@ -3194,7 +3188,7 @@ class CentralWindow(QtGui.QWidget):
             if self.project_loaded:
                 self.save_results()
                 self.release_lock()
-            self.parent.quit()
+            app.quit()
             logging.info('Program stopped normally')
             sys.exit()
 
@@ -3564,6 +3558,6 @@ if __name__ == "__main__":
     set_procname(b'OpenDFT')
 
     app = QtGui.QApplication.instance()
-    main = CentralWindow(parent=app)
+    main = MainWindow(parent=app)
 
     app.exec_()
