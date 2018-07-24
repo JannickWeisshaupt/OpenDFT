@@ -64,7 +64,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self._filenames_tasks = {'scf': '/STATE.OUT', 'bandstructure': '/bandstructure.xml',
                                  'g0w0 bands': '/BAND-QP.OUT',
                                  'relax': '/geometry_opt.xml', 'g0w0': '/EIGVAL_GW.OUT', 'ks density': '/WF3D.xml',
-                                 'optical spectrum': None}
+                                 'optical spectrum': None,'dos':"/TDOS.OUT"}
 
         self.supported_methods = sst.ComputationalMethods(
             ['periodic', 'scf', 'g0w0', 'optical spectrum', 'phonons', 'relax', 'bandstructure','dos'])
