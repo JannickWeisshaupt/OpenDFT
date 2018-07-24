@@ -513,13 +513,13 @@ Returns:
             converted_dos = proj_doses
 
         if total_dos is None:
-            for name,proj_dos in proj_doses.items():
-                if total_dos is None:
-                    total_dos = proj_dos
-                else:
-                    total_dos += proj_dos
-
-
+            summed_dos = None
+            for name,proj_dos in converted_dos.items():
+                if summed_dos is None:
+                    summed_dos = np.zeros((proj_dos.shape[0],2))
+                    summed_dos[:,0] = proj_dos[:,0]
+                summed_dos[:,1] = proj_dos[:,1:].sum(axis=1)
+            total_dos = summed_dos
 
         dos = sst.DensityOfStates(total_dos,proj_dos=converted_dos)
         return dos

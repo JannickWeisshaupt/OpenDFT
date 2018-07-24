@@ -935,7 +935,13 @@ class LoadResultsWindow(QtGui.QDialog):
         self.buttonBox.rejected.connect(self.reject_own)
 
     def accept_own(self):
-        self.parent.load_results_from_engine(self.tasks, title=self.result_name_entry.get_text())
+        try:
+            self.parent.load_results_from_engine(self.tasks, title=self.result_name_entry.get_text())
+        except Exception as e:
+            stacktrace = get_stacktrace_as_string()
+            error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
+            self.error_dialog.showMessage(error_message_load)
+
         self.close()
 
     def reject_own(self):
