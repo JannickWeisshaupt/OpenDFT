@@ -3141,6 +3141,11 @@ class CentralWindow(QtGui.QWidget):
         import_result_action_phonon_bandstructure.triggered.connect(lambda: self.open_load_result_window(['phonons']))
         self.import_results_menu.addAction(import_result_action_phonon_bandstructure)
 
+        import_result_action_dos = QtGui.QAction("density of states", self.window)
+        import_result_action_dos.triggered.connect(lambda: self.open_load_result_window(['dos']))
+        self.import_results_menu.addAction(import_result_action_dos)
+
+
         self.file_menu.addSeparator()
 
         close_app_action = QtGui.QAction("Exit", self.window)

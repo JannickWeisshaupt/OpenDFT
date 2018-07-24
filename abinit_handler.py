@@ -52,7 +52,7 @@ class Handler:
         DFT+U and Dynamical mean-field theory are available for strongly correlated materials. In addition to the main ABINIT code, different utility programs are provided.
 ABINIT keywords are : capabilities, reliability, portability, documentation, with a "free software license" (short presentation of the ABINIT project - pdf document)."""
 
-        self._filenames_tasks = {}
+        self._filenames_tasks = {'bandstructure':'/scf_xo_DS2_EIG','dos': None}
         self._timestamp_tasks = {}
 
         try:
@@ -482,6 +482,7 @@ Returns:
 
         dos_files = [filename for filename in os.listdir(self.project_directory+self.working_dirctory) if filename.startswith("scf_xo_DS3_DOS")]
         proj_doses = {}
+        total_dos = None
 
         for filename in dos_files:
             if filename == 'scf_xo_DS3_DOS' or filename.endswith('TOTAL'):
@@ -510,6 +511,15 @@ Returns:
 
         else:
             converted_dos = proj_doses
+
+        if total_dos is None:
+            for name,proj_dos in proj_doses.items():
+                if total_dos is None:
+                    total_dos = proj_dos
+                else:
+                    total_dos += proj_dos
+
+
 
         dos = sst.DensityOfStates(total_dos,proj_dos=converted_dos)
         return dos
@@ -728,7 +738,51 @@ getden3  -1
                 time.sleep(0.1)
 
     def _is_engine_running_custom_command(self, tasks):
-        raise NotImplementedError
+        bool_list = []
+
+        for task in tasks:
+            if task == 'scf':
+                continue
+            filename = self._filenames_tasks[task]
+
+            if filename is None:
+                continue
+
+            # filenames[task] = filename
+            file_exists = os.path.isfile(self.project_directory + self.working_dirctory + filename)
+            # files_exists[task] = file_exists
+            if file_exists:
+                timestamp = os.path.getmtime(self.project_directory + self.working_dirctory + filename)
+                try:
+                    file_is_old_bool = timestamp == self._timestamp_tasks[task]
+                except KeyError:
+                    file_is_old_bool = False
+
+            file_exist_and_new = file_exists and not file_is_old_bool
+            bool_list.append(file_exist_and_new)
+
+        if 'scf' in tasks:
+            bool_list.append(self._check_if_scf_is_finished())
+
+        finished_bool = all(bool_list)
+        if finished_bool:
+            return False
+        else:
+            return True
+
+    def _check_if_scf_is_finished(self):
+        try:
+            f = open(self.project_directory + self.working_dirctory + self.info_file, 'r')
+        except IOError:
+            return False
+        info_text = f.read()
+        f.close()
+        scf_list = []
+        matches = re.findall(r"Calculation completed", info_text)
+        if len(matches) == 0:
+            return False
+        else:
+            return True
 
     def _get_engine_version(self):
         p = subprocess.Popen(['abinit','--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell_bool)
