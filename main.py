@@ -1760,9 +1760,11 @@ class OptionWithTreeview(PlotWithTreeview):
 
         plot_options = self.plot_widget.get_options()
 
-        main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density, main.crystal_structure)
-        main.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
-        main.volume_slicer_window.show()
+        self.emit(QtCore.SIGNAL('openSliceWidget'),self.data_dictionary[bs_name].density,plot_options)
+
+        # main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density, main.crystal_structure)
+        # main.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
+        # main.volume_slicer_window.show()
 
     def handle_item_changed(self):
         indexes = self.treeview.selectedIndexes()
@@ -1776,10 +1778,12 @@ class OptionWithTreeview(PlotWithTreeview):
         if main.mayavi_widget.visualization.cp is not None:
             main.mayavi_widget.update_plot(keep_view=True)
         if bs_name != 'None':
-            main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]), **plot_options)
-            main.information_window.show_information(self.data_dictionary[bs_name].engine_information, bs_name)
-            if main.volume_slicer_window.isVisible():
-                self.open_slice_widget()  # this forces a replot and does not do any other harm
+            self.emit(QtCore.SIGNAL('DensityChanged'),self.data_dictionary[bs_name],bs_name,plot_options)
+        # if bs_name != 'None':
+        #     main.mayavi_widget.visualization.plot_density((self.data_dictionary[bs_name]), **plot_options)
+        #     main.information_window.show_information(self.data_dictionary[bs_name].engine_information, bs_name)
+        #     if main.volume_slicer_window.isVisible():
+        #         self.open_slice_widget()  # this forces a replot and does not do any other harm
 
     def update_tree(self):
         self.treeview.clear()
@@ -2752,6 +2756,7 @@ class MainWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
         self.make_menu_bar()
 
+        self.connect_signals()
 
         self.configure_buttons(disable_all=True)
 
@@ -3527,6 +3532,22 @@ class MainWindow(QtGui.QMainWindow):
         if os.path.isfile(lock_path):
             os.remove(lock_path)
 
+    def connect_signals(self):
+
+        def update_density_plot(density,bs_name,plot_options):
+            self.mayavi_widget.visualization.plot_density((density), **plot_options)
+            self.information_window.show_information(density.engine_information, bs_name)
+            if self.volume_slicer_window.isVisible():
+                self.ks_state_window.plot_widget.open_slice_widget()  # this forces a replot and does not do any other harm
+
+        self.connect(self.ks_state_window.plot_widget,QtCore.SIGNAL('DensityChanged'),update_density_plot)
+
+        def open_slice_widget(density,plot_options):
+            self.volume_slicer_window.mayavi_widget.set_data(density, self.crystal_structure)
+            self.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
+            self.volume_slicer_window.show()
+
+        self.connect(self.ks_state_window.plot_widget,QtCore.SIGNAL('openSliceWidget'),open_slice_widget)
 
 if __name__ == "__main__":
 
