@@ -1760,7 +1760,12 @@ class OptionWithTreeview(PlotWithTreeview):
 
         plot_options = self.plot_widget.get_options()
 
-        self.emit(QtCore.SIGNAL('openSliceWidget'),self.data_dictionary[bs_name].density,plot_options)
+        if bs_name.lower() == 'none':
+            density = np.zeros((50,50,50))
+        else:
+            density = self.data_dictionary[bs_name].density
+
+        self.emit(QtCore.SIGNAL('openSliceWidget'),density,plot_options)
 
         # main.volume_slicer_window.mayavi_widget.set_data(self.data_dictionary[bs_name].density, main.crystal_structure)
         # main.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
