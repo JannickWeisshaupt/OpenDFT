@@ -3158,7 +3158,7 @@ class MainWindow(QtGui.QMainWindow):
         close_app_action = QtGui.QAction("Exit", self)
         close_app_action.setShortcut("Ctrl+Q")
         close_app_action.setStatusTip('Leave The App')
-        close_app_action.triggered.connect(self.closeEvent)
+        close_app_action.triggered.connect(self.close)
         self.file_menu.addAction(close_app_action)
 
         self.vis_menu = self.menu_bar.addMenu('&Visualize')
@@ -3542,7 +3542,7 @@ class MainWindow(QtGui.QMainWindow):
     def connect_signals(self):
 
         def update_density_plot(density,bs_name,plot_options):
-            self.mayavi_widget.visualization.plot_density((density), **plot_options)
+            self.mayavi_widget.visualization.plot_density(density, **plot_options)
             self.information_window.show_information(density.engine_information, bs_name)
             if self.volume_slicer_window.isVisible():
                 self.ks_state_window.plot_widget.open_slice_widget()  # this forces a replot and does not do any other harm
