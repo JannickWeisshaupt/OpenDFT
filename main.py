@@ -3183,7 +3183,7 @@ class MainWindow(QtGui.QMainWindow):
     def closeEvent(self, event):
         if not DEBUG:
             reply = QtGui.QMessageBox.question(self, 'Message',
-                                               "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                                               "Are you sure to quit?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
 
         if DEBUG or reply == QtGui.QMessageBox.Yes:
             self.save_defaults()
@@ -3193,6 +3193,8 @@ class MainWindow(QtGui.QMainWindow):
             app.quit()
             logging.info('Program stopped normally')
             sys.exit()
+        else:
+            event.ignore()
 
     def check_relax(self):
         new_struc = esc_handler.load_relax_structure()

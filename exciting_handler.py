@@ -628,7 +628,8 @@ Returns:
                 freqency = float(line.split()[1])*hartree # frequency in eV
                 frequencies.append(freqency)
                 if len(mode)>0:
-                    modes.append(mode)
+                    mode_norm = mode/np.linalg.norm(mode)
+                    modes.append(mode_norm)
                     mode = []
             else:
                 if len(line.strip()) == 0:
@@ -815,6 +816,7 @@ Returns:
             ET.SubElement(path, "point", coord="{0:1.6f} {1:1.6f} {2:1.6f}".format(*cords), label=label)
 
     def _add_dos_to_tree(self,tree):
+        root = tree.getroot()
         tree_search = tree.findall('properties')
         if tree_search:
             properties = tree_search[0]
