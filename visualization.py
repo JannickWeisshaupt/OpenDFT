@@ -751,26 +751,33 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         width_label = 40
 
         self.Emin_entry = EntryWithLabel(option_widget, 'Emin', width_text=width_text, width_label=width_label)
+        self.Emin_entry.setValidator(QtGui.QDoubleValidator())
         self.Emin_entry.connect_editFinished(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emin_entry)
 
         self.Emax_entry = EntryWithLabel(option_widget, 'Emax', width_text=width_text, width_label=width_label)
+        self.Emax_entry.setValidator(QtGui.QDoubleValidator())
         self.Emax_entry.connect_editFinished(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.Emax_entry)
 
         self.eps_min_entry = EntryWithLabel(option_widget, u"ε min", width_text=width_text, width_label=width_label)
+        self.eps_min_entry.setValidator(QtGui.QDoubleValidator())
         self.eps_min_entry.connect_editFinished(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_min_entry)
 
         self.eps_max_entry = EntryWithLabel(option_widget, u"ε max", width_text=width_text, width_label=width_label)
+        self.eps_max_entry.setValidator(QtGui.QDoubleValidator())
         self.eps_max_entry.connect_editFinished(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.eps_max_entry)
 
         self.broadening_entry = EntryWithLabel(option_widget, u"Γ", width_text=width_text, width_label=width_label)
+        self.broadening_entry.setValidator(QtGui.QDoubleValidator())
+        self.broadening_entry.setToolTip('Broadening width in eV. If Gaussian or Lorentzian broadening is selected '
+                                         'the respective convolution kernel is used to broaden the spectrum.')
         self.broadening_entry.connect_editFinished(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         option_layout.addWidget(self.broadening_entry)
@@ -785,6 +792,8 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
         self.broadening_mode_cb.currentIndexChanged.connect(
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         self.broadening_mode_cb.setMaximumWidth(150)
+
+        option_layout.addStretch(100)
 
         self.setLayout(layout)
         self.show()
@@ -1016,14 +1025,21 @@ class BandStructureVisualization(QtGui.QWidget):
         option_widget.setFixedHeight(60)
         option_layout = QtGui.QHBoxLayout(option_widget)
         option_layout.setAlignment(QtCore.Qt.AlignLeft)
+
         layout.addWidget(option_widget)
+
         from main import EntryWithLabel
         self.Emin_entry = EntryWithLabel(option_widget, 'Emin',width_label=100,width_text=70)
         self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
+        self.Emin_entry.setValidator(QtGui.QDoubleValidator())
         option_layout.addWidget(self.Emin_entry)
         self.Emax_entry = EntryWithLabel(option_widget, 'Emax',width_label=100,width_text=70)
+        self.Emax_entry.setValidator(QtGui.QDoubleValidator())
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
         option_layout.addWidget(self.Emax_entry)
+
+        option_layout.addStretch(100)
+
 
         # layout.addWidget(self.button)
         self.setLayout(layout)
@@ -1268,21 +1284,28 @@ class DosVisualization(QtGui.QWidget):
         width_label = 40
 
         self.Emin_entry = EntryWithLabel(option_widget, 'Emin', width_text=width_text, width_label=width_label)
+        self.Emin_entry.setValidator(QtGui.QDoubleValidator())
         self.Emin_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.Emin_entry)
         self.Emax_entry = EntryWithLabel(option_widget, 'Emax', width_text=width_text, width_label=width_label)
+        self.Emax_entry.setValidator(QtGui.QDoubleValidator())
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.Emax_entry)
 
         self.show_proj_dos = QtGui.QCheckBox('Show proj. dos',self)
+        self.show_proj_dos.setToolTip('Determines whether the site and state projected DoS is shown.')
         self.show_proj_dos.stateChanged.connect(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.show_proj_dos)
 
         self.l_max_entry = EntryWithLabel(option_widget, 'l max', width_text=width_text, width_label=width_label)
+        self.l_max_entry.setToolTip('Maximum angular momentum shown in the plot if projected DoS is activated.')
         self.l_max_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.l_max_entry)
 
         self.broadening_entry = EntryWithLabel(option_widget, u"Γ", width_text=width_text, width_label=width_label)
+        self.broadening_entry.setValidator(QtGui.QDoubleValidator())
+        self.broadening_entry.setToolTip('Broadening width in eV. If Gaussian or Lorentzian broadening is selected '
+                                         'the respective convolution kernel is used to broaden the DoS.')
         self.broadening_entry.connect_editFinished(lambda: self.plot(self.last_dos))
         option_layout.addWidget(self.broadening_entry)
 
@@ -1295,6 +1318,8 @@ class DosVisualization(QtGui.QWidget):
         self.broadening_mode_cb.setCurrentIndex(0)
         self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_dos))
         self.broadening_mode_cb.setMaximumWidth(150)
+
+        option_layout.addStretch(100)
 
         # layout.addWidget(self.button)
         self.setLayout(layout)

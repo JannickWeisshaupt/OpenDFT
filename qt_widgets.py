@@ -38,6 +38,8 @@ class EntryWithLabel(QtGui.QWidget):
             self.editFinished_command()
         self.textbox.setModified(False)
 
+    def setValidator(self,validator):
+        self.textbox.setValidator(validator)
 
 class LabeledLabel(QtGui.QWidget):
     def __init__(self,label,value='',width_label=None):
