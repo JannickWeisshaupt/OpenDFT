@@ -1174,7 +1174,7 @@ class DftEngineWindow(QtGui.QWidget):
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
-            self.parent.status_bar.set_engine_status(True)
+            self.parent.status_text.set_engine_status(True)
 
     def start_relax(self):
         tasks = ['relax']
@@ -1185,7 +1185,7 @@ class DftEngineWindow(QtGui.QWidget):
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
-            self.parent.status_bar.set_engine_status(True)
+            self.parent.status_text.set_engine_status(True)
 
     def start_gw(self):
         tasks = []
@@ -1201,7 +1201,7 @@ class DftEngineWindow(QtGui.QWidget):
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
-            self.parent.status_bar.set_engine_status(True)
+            self.parent.status_text.set_engine_status(True)
 
     def start_phonons(self):
         tasks = ['phonons']
@@ -1212,7 +1212,7 @@ class DftEngineWindow(QtGui.QWidget):
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
-            self.parent.status_bar.set_engine_status(True)
+            self.parent.status_text.set_engine_status(True)
 
     def start_optical_spectrum_calculation(self):
         tasks = ['optical spectrum']
@@ -1223,7 +1223,7 @@ class DftEngineWindow(QtGui.QWidget):
         except Exception as e:
             self.show_stacktrace_in_error_dialog()
         else:
-            self.parent.status_bar.set_engine_status(True)
+            self.parent.status_text.set_engine_status(True)
 
     def abort_calculation(self):
         self.abort_bool = True
@@ -2088,10 +2088,10 @@ Enter either:
     def check_engine(self):
         tasks = ['ks density']
         if esc_handler.is_engine_running(tasks=tasks):
-            self.parent.status_bar.set_engine_status(True, tasks=tasks)
+            self.parent.status_text.set_engine_status(True, tasks=tasks)
             QtCore.QTimer.singleShot(100, self.check_engine)
         else:
-            self.parent.status_bar.set_engine_status(False)
+            self.parent.status_text.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
             if type(message) == bytes:
                 message, err = message.decode(), err.decode()
@@ -2128,7 +2128,6 @@ Enter either:
             self.calc_queue.get()
 
 
-
 class EditStructureWindow(QtGui.QMainWindow):
     def __init__(self, parent):
         super(EditStructureWindow, self).__init__(parent)
@@ -2137,8 +2136,8 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setWindowTitle('Edit Structure')
-        self.resize(1300, 800)
-        self.setFixedHeight(800)
+        self.resize(1400, 800)
+        # self.setFixedHeight(800)
         self.parent = parent
         self.anything_changed = False
 
@@ -2185,10 +2184,12 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.periodic_checkbox.stateChanged.connect(self.handle_change)
         self.unit_cell_option_layout.addWidget(self.periodic_checkbox)
 
+        self.unit_cell_option_layout.addStretch(100)
+
         self.unit_cell_table = QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
         self.unit_cell_table.setRowCount(3)
-        self.unit_cell_table.setFixedWidth(328)
+        self.unit_cell_table.setMaximumWidth(328)
         self.unit_cell_table.setFixedHeight(128)
 
         # copy_action_unit = CopySelectedCellsAction(self.unit_cell_table)
@@ -2246,7 +2247,7 @@ class EditStructureWindow(QtGui.QMainWindow):
 
         self.atom_table.setColumnCount(4)
         self.atom_table.setRowCount(1)
-        self.atom_table.setFixedWidth(450)
+        self.atom_table.setMaximumWidth(450)
         self.atom_table.setFixedHeight(300)
         self.make_header()
         self.atom_layout.addWidget(self.atom_table)
@@ -2258,12 +2259,12 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.atom_table_buttons_layout.setAlignment(QtCore.Qt.AlignLeft)
 
         self.add_atom_button = QtGui.QPushButton('Add atom', self)
-        self.add_atom_button.setFixedWidth(150)
+        # self.add_atom_button.setFixedWidth(150)
         self.add_atom_button.clicked.connect(self.add_atom)
         self.atom_table_buttons_layout.addWidget(self.add_atom_button)
 
         self.remove_atom_button = QtGui.QPushButton('Remove atoms', self)
-        self.remove_atom_button.setFixedWidth(150)
+        # self.remove_atom_button.setFixedWidth(150)
         self.remove_atom_button.clicked.connect(self.remove_atoms)
         self.atom_table_buttons_layout.addWidget(self.remove_atom_button)
 
@@ -2702,6 +2703,8 @@ class MainWindow(QtGui.QMainWindow):
         self.error_dialog = QtGui.QErrorMessage(parent=self)
         self.error_dialog.resize(700, 600)
 
+        self.status_bar = self.statusBar()
+
         self.main_widget = QtGui.QWidget(self)
 
         self.layout = QtGui.QVBoxLayout(self.main_widget)
@@ -2724,8 +2727,10 @@ class MainWindow(QtGui.QMainWindow):
         self.tabWidget.currentChanged.connect(lambda: self.tabWidget.currentWidget().do_select_event())
         self.layout.addWidget(self.tabWidget)
 
-        self.status_bar = StatusBar()
-        self.layout.addWidget(self.status_bar)
+        self.status_text = StatusBar()
+        # self.layout.addWidget(self.status_bar)
+
+        self.status_bar.addPermanentWidget(self.status_text)
 
         self.engine_option_window = EngineOptionsDialog(self)
         self.ks_state_window = KsStateWindow(self)
@@ -3211,7 +3216,8 @@ class MainWindow(QtGui.QMainWindow):
 
         tasks = [x.lower() for x in tasks]
         if self.dft_engine_window.abort_bool:
-            self.status_bar.set_engine_status(False)
+            self.status_text.set_engine_status(False)
+            self.status_bar.showMessage('Calculation was aborted',5000)
             self.dft_engine_window.abort_bool = False
             return
         elif esc_handler.is_engine_running(tasks=tasks):
@@ -3223,14 +3229,14 @@ class MainWindow(QtGui.QMainWindow):
             elif current_widget == self.info_window:
                 self.info_window.do_select_event()
             QtCore.QTimer.singleShot(500, lambda: self.check_engine(tasks))
-            self.status_bar.set_engine_status(True, tasks=tasks)
+            self.status_text.set_engine_status(True, tasks=tasks)
             if 'relax' in tasks:
                 self.check_relax()
         else:
             self.scf_data = esc_handler.read_scf_status()
             if self.scf_data is not None:
                 self.scf_window.scf_widget.plot(self.scf_data)
-            self.status_bar.set_engine_status(False)
+            self.status_text.set_engine_status(False)
             message, err = esc_handler.engine_process.communicate()
             if type(message) == bytes:
                 message, err = message.decode(), err.decode()
@@ -3247,10 +3253,12 @@ class MainWindow(QtGui.QMainWindow):
             try:
                 self.load_results_from_engine(tasks)
                 self.update_run_information(tasks)
+                self.status_bar.showMessage('Calculation finished succesfully and results for tasks: '+' '.join(tasks)+' were read',5000)
             except Exception as e:
                 stacktrace = get_stacktrace_as_string()
                 error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
                 self.error_dialog.showMessage(error_message_load)
+                self.status_bar.showMessage('Calculation stopped but some results from tasks:'+' '.join(tasks)+' could not be read',5000)
 
     def update_run_information(self, tasks):
         if 'scf' in tasks:
