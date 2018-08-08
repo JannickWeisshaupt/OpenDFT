@@ -10,6 +10,7 @@ if not sys.getfilesystemencoding():
 import os
 import numpy as np
 import warnings
+import datetime
 from collections import OrderedDict
 
 if os.path.exists(os.path.expanduser("~") + "/.OpenDFT"+'/DEBUG'):
@@ -941,6 +942,8 @@ class LoadResultsWindow(QtGui.QDialog):
             stacktrace = get_stacktrace_as_string()
             error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
             self.error_dialog.showMessage(error_message_load)
+        else:
+            self.parent.status_bar.showMessage('Imported '+' '.join(self.tasks)+' successfully',5000)
 
         self.close()
 
@@ -1175,6 +1178,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_text.set_engine_status(True)
+            self.show_status_bar_message(tasks)
 
     def start_relax(self):
         tasks = ['relax']
@@ -1186,6 +1190,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_text.set_engine_status(True)
+            self.show_status_bar_message(tasks)
 
     def start_gw(self):
         tasks = []
@@ -1202,6 +1207,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_text.set_engine_status(True)
+            self.show_status_bar_message(tasks)
 
     def start_phonons(self):
         tasks = ['phonons']
@@ -1213,6 +1219,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_text.set_engine_status(True)
+            self.show_status_bar_message(tasks)
 
     def start_optical_spectrum_calculation(self):
         tasks = ['optical spectrum']
@@ -1224,6 +1231,7 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_stacktrace_in_error_dialog()
         else:
             self.parent.status_text.set_engine_status(True)
+            self.show_status_bar_message(tasks)
 
     def abort_calculation(self):
         self.abort_bool = True
@@ -1264,6 +1272,10 @@ class DftEngineWindow(QtGui.QWidget):
                                                                                                               '2. Check if the input file was correctly parsed into the respective folder (e.g. input.xml in exciting_files for exciting)'
         self.execute_error_dialog.showMessage(error_message)
 
+    def show_status_bar_message(self,tasks):
+        time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        msg = 'Calculation with tasks: '+', '.join(tasks)+' stated at '+time
+        self.parent.status_bar.showMessage(msg)
 
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -1577,6 +1589,7 @@ class VolumeSlicerWidget(QtGui.QDialog):
 class StatusBar(QtGui.QWidget):
     def __init__(self, parent=None, running_text='Engine is running', not_running_text='Engine inactive'):
         QtGui.QWidget.__init__(self)
+        self.setFixedHeight(40)
         # self.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         self.running_text = running_text
         self.not_running_text = not_running_text
@@ -3217,7 +3230,7 @@ class MainWindow(QtGui.QMainWindow):
         tasks = [x.lower() for x in tasks]
         if self.dft_engine_window.abort_bool:
             self.status_text.set_engine_status(False)
-            self.status_bar.showMessage('Calculation was aborted',5000)
+            self.status_bar.showMessage('Calculation was aborted')
             self.dft_engine_window.abort_bool = False
             return
         elif esc_handler.is_engine_running(tasks=tasks):
@@ -3253,12 +3266,12 @@ class MainWindow(QtGui.QMainWindow):
             try:
                 self.load_results_from_engine(tasks)
                 self.update_run_information(tasks)
-                self.status_bar.showMessage('Calculation finished succesfully and results for tasks: '+' '.join(tasks)+' were read',5000)
+                self.status_bar.showMessage('Calculation finished succesfully and results for tasks: '+', '.join(tasks)+' were read')
             except Exception as e:
                 stacktrace = get_stacktrace_as_string()
                 error_message_load = 'Reading of the results of the calculation failed with error<br>' + stacktrace
                 self.error_dialog.showMessage(error_message_load)
-                self.status_bar.showMessage('Calculation stopped but some results from tasks:'+' '.join(tasks)+' could not be read',5000)
+                self.status_bar.showMessage('Calculation stopped but some results from tasks:'+' '.join(tasks)+' could not be read')
 
     def update_run_information(self, tasks):
         if 'scf' in tasks:
