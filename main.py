@@ -1234,8 +1234,14 @@ class DftEngineWindow(QtGui.QWidget):
             self.show_status_bar_message(tasks)
 
     def abort_calculation(self):
-        self.abort_bool = True
-        esc_handler.kill_engine()
+        if not DEBUG:
+            reply = QtGui.QMessageBox.question(self, 'Abort calculation',
+                                               "Are you sure to abort the calculation?\nAll progress will be lost", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No)
+
+        if DEBUG or reply == QtGui.QMessageBox.Yes:
+            self.abort_bool = True
+            esc_handler.kill_engine()
+
 
     def configure_buttons(self, disable_all=False):
         button_list = [self.start_ground_state_calculation_button, self.start_gw_button,
@@ -2717,6 +2723,8 @@ class MainWindow(QtGui.QMainWindow):
         self.error_dialog.resize(700, 600)
 
         self.status_bar = self.statusBar()
+        self.status_bar.setStyleSheet(
+            "QStatusBar{color:black;font-weight:bold;font-size:14px;}")
 
         self.main_widget = QtGui.QWidget(self)
 
