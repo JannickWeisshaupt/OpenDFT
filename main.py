@@ -4,12 +4,13 @@ import six
 import sys
 from pathlib import Path
 import psutil
+import os
+import warnings
+from pathlib import Path
 
 if not sys.getfilesystemencoding():
     sys.getfilesystemencoding = lambda: 'UTF-8'
-import os
 import numpy as np
-import warnings
 import datetime
 from collections import OrderedDict
 
@@ -20,8 +21,10 @@ else:
 
 if DEBUG:
     warnings.simplefilter('always', UserWarning)
+    warnings.simplefilter('always', RuntimeWarning)
 else:
     warnings.simplefilter('ignore', UserWarning)
+    warnings.simplefilter('ignore', RuntimeWarning)
 
 os.environ['ETS_TOOLKIT'] = 'qt4'
 
@@ -978,6 +981,7 @@ class OptionFrame(QtGui.QGroupBox):
             button = QtGui.QPushButton(text)
             button.clicked.connect(function)
             button.setFixedHeight(30)
+            button.setFixedWidth(150)
             self.buttons.append(button)
             self.layout.addWidget(button, counter // self.widgets_per_line, counter % self.widgets_per_line)
             counter += 1
@@ -993,6 +997,7 @@ class OptionFrame(QtGui.QGroupBox):
             self.layout.addWidget(entry, counter // self.widgets_per_line, counter % self.widgets_per_line)
             self.entry_dict[option_key] = entry
             counter += 1
+
 
     def read_all_entries(self):
         for key, entry in self.entry_dict.items():
@@ -1279,8 +1284,8 @@ class DftEngineWindow(QtGui.QWidget):
         self.execute_error_dialog.showMessage(error_message)
 
     def show_status_bar_message(self,tasks):
-        time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        msg = 'Calculation with tasks: '+', '.join(tasks)+' stated at '+time
+        time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        msg = 'Calculation with tasks: '+', '.join(tasks)+' stated on '+time
         self.parent.status_bar.showMessage(msg)
 
 class ScfWindow(QtGui.QWidget):
@@ -2869,7 +2874,7 @@ class MainWindow(QtGui.QMainWindow):
             esc_handler.project_directory = self.project_directory
             self.initialize_project()
             self.configure_buttons()
-            self.recent_projects.appendleft(self.project_directory)
+            self.recent_projects.appendleft(Path(self.project_directory))
 
     def initialize_project(self):
         self.project_properties.update(
@@ -2942,7 +2947,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.tabWidget.currentWidget().do_select_event()
                 self.setWindowTitle("OpenDFT - " + self.project_directory)
                 self.project_loaded = True
-                self.recent_projects.appendleft(self.project_directory)
+                self.recent_projects.appendleft(Path(self.project_directory))
                 self.configure_buttons()
         elif not folder_name:
             return
@@ -3147,9 +3152,9 @@ class MainWindow(QtGui.QMainWindow):
             recent_projects_menu = self.file_menu.addMenu('Recent projects')
 
             for recent_project in self.recent_projects:
-                if recent_project != self.project_directory:
-                    action = QtGui.QAction(recent_project, self)
-                    action.triggered.connect(lambda a,x=recent_project: self.load_project(folder_name=x))
+                if str(recent_project) != self.project_directory:
+                    action = QtGui.QAction(str(recent_project), self)
+                    action.triggered.connect(lambda a,x=str(recent_project): self.load_project(folder_name=x))
                     recent_projects_menu.addAction(action)
 
         self.save_project_action = QtGui.QAction("Save project", self)

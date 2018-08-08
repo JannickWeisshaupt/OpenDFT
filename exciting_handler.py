@@ -81,8 +81,7 @@ The interface with pre- and post-processing tools integrates the capabilities of
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
         self.scf_options = convert_to_ordered(
-            {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5',
-             'frozencore': 'false', 'xctype': 'GGA_PBE'})
+            {'do': 'fromscratch', 'nempty': '5', 'gmaxvr': '12.0', 'rgkmax': '5.0', 'ngridk': '5 5 5', 'xctype': 'GGA_PBE'})
         self.scf_options_tooltip = {'do': """Decides if the ground state is calculated starting from scratch, using the densities from file, or if its calculation is skipped and only the associated input parameters are read in.
 Type: 	choose from:
 fromscratch
