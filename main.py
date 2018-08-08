@@ -38,7 +38,7 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
-    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction
+    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
 from qt_widgets import EntryWithLabel, LabeledLabel
 from TerminalClass import PythonTerminal
 import pickle
@@ -2708,6 +2708,7 @@ class MainWindow(QtGui.QMainWindow):
         self.project_directory = None
         self.parent = parent
         self._crystal_structure = None
+        self.recent_projects = DequeSet([],6)
         self.band_structures = {}
         self.dos = {}
         self.optical_spectra = {}
@@ -2868,6 +2869,7 @@ class MainWindow(QtGui.QMainWindow):
             esc_handler.project_directory = self.project_directory
             self.initialize_project()
             self.configure_buttons()
+            self.recent_projects.appendleft(self.project_directory)
 
     def initialize_project(self):
         self.project_properties.update(
@@ -2940,6 +2942,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.tabWidget.currentWidget().do_select_event()
                 self.setWindowTitle("OpenDFT - " + self.project_directory)
                 self.project_loaded = True
+                self.recent_projects.appendleft(self.project_directory)
                 self.configure_buttons()
         elif not folder_name:
             return
@@ -3075,10 +3078,22 @@ class MainWindow(QtGui.QMainWindow):
         default_engine = b.pop('default engine', None)
 
         self.defaults['default engine'] = default_engine
+        recent_projects = b.pop('recent projects',None)
+        if recent_projects is not None:
+            for r in recent_projects:
+                self.recent_projects.append(r)
 
     def save_defaults(self):
+
+        def merge_two_dicts(x, y):
+            z = x.copy()  # start with x's keys and values
+            z.update(y)  # modifies z with y's keys and values & returns None
+            return z
+
         with open(self.temp_folder + '/defaults.pkl', 'wb') as handle:
-            pickle.dump(self.defaults, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            other_defaults = {'recent projects':self.recent_projects}
+            saved_defaults = merge_two_dicts(self.defaults,other_defaults)
+            pickle.dump(saved_defaults, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def update_structure_plot(self):
         self.mayavi_widget.update_crystal_structure(self.crystal_structure)
@@ -3114,11 +3129,8 @@ class MainWindow(QtGui.QMainWindow):
 
             self.update_structure_plot()
 
-    def make_menu_bar(self):
-        self.menu_bar = self.menuBar()
-        self.menu_bar.setNativeMenuBar(False)
-        self.file_menu = self.menu_bar.addMenu('&File')
-
+    def update_file_menu(self):
+        self.file_menu.clear()
         new_project_action = QtGui.QAction("New project", self)
         new_project_action.setShortcut("Ctrl+n")
         new_project_action.setStatusTip('Start new project')
@@ -3130,6 +3142,15 @@ class MainWindow(QtGui.QMainWindow):
         load_project_action.setStatusTip('Load project')
         load_project_action.triggered.connect(self.load_project)
         self.file_menu.addAction(load_project_action)
+
+        if self.recent_projects and len(self.recent_projects)>1:
+            recent_projects_menu = self.file_menu.addMenu('Recent projects')
+
+            for recent_project in self.recent_projects:
+                if recent_project != self.project_directory:
+                    action = QtGui.QAction(recent_project, self)
+                    action.triggered.connect(lambda a,x=recent_project: self.load_project(folder_name=x))
+                    recent_projects_menu.addAction(action)
 
         self.save_project_action = QtGui.QAction("Save project", self)
         self.save_project_action.setShortcut("Ctrl+s")
@@ -3195,7 +3216,6 @@ class MainWindow(QtGui.QMainWindow):
         import_result_action_dos.triggered.connect(lambda: self.open_load_result_window(['dos']))
         self.import_results_menu.addAction(import_result_action_dos)
 
-
         self.file_menu.addSeparator()
 
         close_app_action = QtGui.QAction("Exit", self)
@@ -3203,6 +3223,15 @@ class MainWindow(QtGui.QMainWindow):
         close_app_action.setStatusTip('Leave The App')
         close_app_action.triggered.connect(self.close)
         self.file_menu.addAction(close_app_action)
+
+    def make_menu_bar(self):
+        self.menu_bar = self.menuBar()
+        self.menu_bar.setNativeMenuBar(False)
+        self.file_menu = self.menu_bar.addMenu('&File')
+        self.update_file_menu()
+
+        self.connect(self.file_menu,QtCore.SIGNAL('aboutToShow()'),self.update_file_menu)
+
 
         self.vis_menu = self.menu_bar.addMenu('&Visualize')
 
@@ -3629,6 +3658,9 @@ if __name__ == "__main__":
     set_procname(b'OpenDFT')
 
     app = QtGui.QApplication.instance()
+    app.setApplicationName('OpenDFT')
+    app.setWindowIcon(QtGui.QIcon('icon.ico'))
+
     main = MainWindow(parent=app)
 
     app.exec_()

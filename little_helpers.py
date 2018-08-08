@@ -7,7 +7,7 @@ from collections import OrderedDict
 import ast
 import operator as op
 from fractions import Fraction
-
+from collections import deque
 
 
 
@@ -87,6 +87,33 @@ class PasteIntoTable(QtGui.QAction):
         self.parent.connect_tables()
         self.parent.handle_change()
 
+
+class DequeSet(deque):
+    def __init__(self,iterable=(), maxlen=None):
+        iterable_new = []
+        for x in iterable:
+            if x not in iterable_new:
+                iterable_new.append(x)
+
+        super().__init__(iterable_new,maxlen)
+
+    def append(self, x):
+        if x in self:
+          self.remove(x)
+        super().append(x)
+
+    def appendleft(self, x):
+        if x in self:
+          self.remove(x)
+        super().appendleft(x)
+
+    def extend(self, x):
+        for el in x:
+            self.append(el)
+
+    def extendleft(self, x):
+        for el in x[::-1]:
+            self.appendleft(el)
 
 def find_possible_sums(repeat):
     possible_sums = set()
