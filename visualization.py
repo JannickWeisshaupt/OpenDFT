@@ -793,7 +793,7 @@ class OpticalSpectrumVisualization(QtGui.QWidget):
             lambda: self.plot(self.last_optical_spectrum[0], name_list=self.last_optical_spectrum[1]))
         self.broadening_mode_cb.setMaximumWidth(150)
 
-        option_layout.addStretch(100)
+        option_layout.addStretch(1)
 
         self.setLayout(layout)
         self.show()
@@ -1038,7 +1038,7 @@ class BandStructureVisualization(QtGui.QWidget):
         self.Emax_entry.connect_editFinished(lambda: self.plot(self.last_bandstructure))
         option_layout.addWidget(self.Emax_entry)
 
-        option_layout.addStretch(100)
+        option_layout.addStretch(1)
 
 
         # layout.addWidget(self.button)
@@ -1319,7 +1319,7 @@ class DosVisualization(QtGui.QWidget):
         self.broadening_mode_cb.currentIndexChanged.connect(lambda: self.plot(self.last_dos))
         self.broadening_mode_cb.setMaximumWidth(150)
 
-        option_layout.addStretch(100)
+        option_layout.addStretch(1)
 
         # layout.addWidget(self.button)
         self.setLayout(layout)

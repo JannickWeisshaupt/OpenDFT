@@ -2155,7 +2155,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setWindowTitle('Edit Structure')
-        self.resize(1400, 800)
+        self.resize(1250, 800)
         # self.setFixedHeight(800)
         self.parent = parent
         self.anything_changed = False
@@ -2168,6 +2168,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.main_layout = QtGui.QVBoxLayout(self.main_widget)
         # self.make_menubar()
 
+
         self.sub_main_widget = QtGui.QWidget(self)
         self.main_layout.addWidget(self.sub_main_widget)
         self.sub_main_layout = QtGui.QHBoxLayout(self.sub_main_widget)
@@ -2175,8 +2176,19 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.structure_visualization = MayaviQWidget(self.crystal_structure, parent=self)
         self.sub_main_layout.addWidget(self.structure_visualization)
 
+        self.right_widget = QtGui.QWidget()
+        self.right_layout = QtGui.QVBoxLayout(self.right_widget)
+        self.sub_main_layout.addWidget(self.right_widget)
+
         self.structure_widget = QtGui.QWidget(self)
-        self.sub_main_layout.addWidget(self.structure_widget)
+
+        self.tab_widget = QtGui.QTabWidget()
+        # self.tab_widget.setTabPosition(QtGui.QTabWidget.West)
+        self.right_layout.addWidget(self.tab_widget)
+
+        # self.sub_main_layout.addWidget(self.structure_widget)
+        self.tab_widget.addTab(self.structure_widget,'Set structure')
+
 
         self.verticalLayout = QtGui.QVBoxLayout(self.structure_widget)
         self.unit_cell_box = QtGui.QGroupBox(self.structure_widget)
@@ -2203,7 +2215,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.periodic_checkbox.stateChanged.connect(self.handle_change)
         self.unit_cell_option_layout.addWidget(self.periodic_checkbox)
 
-        self.unit_cell_option_layout.addStretch(100)
+        self.unit_cell_option_layout.addStretch(1)
 
         self.unit_cell_table = QtGui.QTableWidget(self.unit_cell_box)
         self.unit_cell_table.setColumnCount(3)
@@ -2291,7 +2303,7 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(
             QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Apply)
-        self.verticalLayout.addWidget(self.buttonBox)
+        self.right_layout.addWidget(self.buttonBox)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -2310,6 +2322,9 @@ class EditStructureWindow(QtGui.QMainWindow):
         self.unit_cell_table.itemChanged.connect(self.handle_change)
 
         self.info_widget = QtGui.QWidget(self)
+
+        self.tab_widget.addTab(self.info_widget,'Info')
+
         self.info_sub_layout = QtGui.QHBoxLayout(self.info_widget)
         self.info_box = QtGui.QGroupBox(self.info_widget)
         self.info_box.setFixedWidth(240)
@@ -2318,7 +2333,9 @@ class EditStructureWindow(QtGui.QMainWindow):
 
         self.info_layout = QtGui.QVBoxLayout(self.info_box)
         self.info_layout.setAlignment(QtCore.Qt.AlignTop)
-        self.sub_main_layout.addWidget(self.info_widget)
+        self.info_sub_layout.addStretch(1)
+
+        # self.sub_main_layout.addWidget(self.info_widget)
 
         self.info_items = OrderedDict([('volume',{'format':'{0:1.1f} Angstrom<sup>3</sup>','widget':None}),('density',{'format':'{0:1.2f} g/cm<sup>3</sup>','widget':None}),
                                        ('crystal system', {'format': '{0}', 'widget': None}),
