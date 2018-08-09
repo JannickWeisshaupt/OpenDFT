@@ -807,11 +807,16 @@ class ConsoleWindow(QtGui.QMainWindow):
     def start_code_execution(self):
         code_text = self.input_text_widget.toPlainText()
         splitted_code = re.split(r'[\s\t\n]+\$matplotlib[\s\t]*\n', code_text, 1)
+
         main_code = splitted_code[0]
         if len(splitted_code) > 1:
             matplotlib_code = splitted_code[1]
         else:
             matplotlib_code = None
+
+        if code_text.startswith('$matplotlib'):
+            main_code = ''
+            matplotlib_code = code_text.replace('$matplotlib','')
 
         if self.contains_matplotlib(main_code):
             self.error_widget.showMessage(

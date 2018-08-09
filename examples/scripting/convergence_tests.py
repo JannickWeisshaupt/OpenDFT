@@ -67,6 +67,8 @@ xv, yv = np.meshgrid(basis_parameters,k_vecs)
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+plt.ion()
+
 fig = plt.figure(1,figsize=(10,8))
 fig.clf()
 ax = fig.add_subplot(111, projection='3d')

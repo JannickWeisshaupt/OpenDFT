@@ -7,3 +7,9 @@ defaults.pkl
 /build
 /dist
 main.spec
+/debian
+*.pyc
+*.egg-info
+/trial_and_error
+/papers
+/tutorials

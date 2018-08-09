@@ -60,6 +60,7 @@ plot_structure(structure)
 $matplotlib
 
 import matplotlib.pyplot as plt
+plt.ion()
 
 plt.figure(1)
 plt.clf()
