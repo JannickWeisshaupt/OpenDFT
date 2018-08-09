@@ -12,7 +12,7 @@ OpenDFT is designed to be DFT engine agnostic so that you can easily switch betw
 
 We are working on supporting more open source packages such as for example siesta.
 
-### Installing
+### Installation
 
 OpenDFT runs on windows and linux and python versions 2 and 3. In order to be able to run it you need to install its dependencies.
 
