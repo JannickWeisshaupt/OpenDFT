@@ -71,7 +71,7 @@ ABINIT keywords are : capabilities, reliability, portability, documentation, wit
         self.custom_command = ''
         self.custom_command_active = False
         self.dft_installation_folder = self.find_engine_folder()
-        self.scf_options = convert_to_ordered({'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30','chksymbreak':'0'})
+        self.scf_options = convert_to_ordered({'ecut':'30.0','nstep':'30','toldfe1':'0.000001','ngkpt1':'5 5 5','nband':'10','ndivk':'30','chksymbreak':'0','ixc1':'1'})
 
         self.scf_options_tooltip = {'ecut':""" Used for kinetic energy cutoff (in Hartree) which controls number of planewaves at given k point by:
 (1/2)[(2 Pi)*(k+Gmax)] 2 =ecut for Gmax.
@@ -107,7 +107,51 @@ When the geometry is optimized (relaxation of atomic positions or primitive vect
 Since toldfe, toldff, tolrff, tolvrs and tolwfr are aimed at the same goal (causing the SCF cycle to stop), they are seen as a unique input variable at reading. 
 Hence, it is forbidden that two of these input variables have non-zero values for the same dataset, or generically (for all datasets). 
 However, a non-zero value for one such variable for one dataset will have precedence on the non-zero value for another input variable defined generically. """,
-"nstep":"Maximum number of scf steps"}
+"nstep":"Maximum number of scf steps",
+'ixc1':"""Controls the choice of exchange and correlation (xc). The list of XC functionals is given below. Positive values are for ABINIT native library of XC functionals, while negative values are for calling the much wider set of functionals from the ETSF LibXC library (by M. Marques), available at the LibXC home page Note that the choice made here should preferably agree with the choice made in generating the original pseudopotential, except for ixc=0 (usually only used for debugging). A warning is issued if this is not the case. Unfortunately, pseudopotential (or PAW) generators for hybrid functionals and mGGA are currently under development, so that one usually uses GGA or LDA pseudopotentials instead. The error should be limited when GGA or LDA pseudopotentials with semi-core states are used. Still this is a non- controlled error.. Moreover, the choices ixc=1, 2, 3 and 7 are fits to the same data, from Ceperley-Alder, and are rather similar, at least for spin- unpolarized systems. The choice between the non-spin-polarized and spin-polarized case is governed by the value of nsppol (see below).
+
+Native ABINIT XC functionals
+
+NOTE: in the implementation of the spin-dependence of these functionals, and in order to avoid divergences in their derivatives, the interpolating function between spin-unpolarized and fully-spin-polarized function has been slightly modified, by including a zeta rescaled by 1.d0-1.d-6. This should affect total energy at the level of 1.d-6Ha, and should have an even smaller effect on differences of energies, or derivatives. The value ixc=10 is used internally: gives the difference between ixc=7 and ixc=9, for use with an accurate RPA correlation energy.
+
+    0 → NO xc;
+
+    1 → LDA or LSD, Teter Pade parametrization (4/93, published in [Goedecker1996], which reproduces Perdew-Wang (which reproduces Ceperley-Alder!).
+    2 → LDA, Perdew-Zunger-Ceperley-Alder (no spin-polarization) [Perdew1981]
+    3 → LDA, old Teter rational polynomial parametrization (4/91) fit to Ceperley-Alder data (no spin-polarization)
+    4 → LDA, Wigner functional (no spin-polarization)
+    5 → LDA, Hedin-Lundqvist functional (no spin-polarization)
+    6 → LDA, “X-alpha” functional (no spin-polarization)
+    7 → LDA or LSD, Perdew-Wang 92 functional
+    8 → LDA or LSD, x-only part of the Perdew-Wang 92 functional
+
+    9 → LDA or LSD, x- and RPA correlation part of the Perdew-Wang 92 functional
+
+    11 → GGA, Perdew-Burke-Ernzerhof GGA functional
+    12 → GGA, x-only part of Perdew-Burke-Ernzerhof GGA functional
+    13 → GGA potential of van Leeuwen-Baerends, while for energy, Perdew-Wang 92 functional
+    14 → GGA, revPBE of Y. Zhang and W. Yang, Phys. Rev. Lett. 80, 890 (1998)
+    15 → GGA, RPBE of B. Hammer, L.B. Hansen and J.K. Norskov, Phys. Rev. B 59, 7413 (1999)
+    16 → GGA, HTCH93 of F.A. Hamprecht, A.J. Cohen, D.J. Tozer, N.C. Handy, J. Chem. Phys. 109, 6264 (1998)
+    17 → GGA, HTCH120 of A.D. Boese, N.L. Doltsinis, N.C. Handy, and M. Sprik, J. Chem. Phys 112, 1670 (1998) - The usual HCTH functional.
+    18 → (NOT AVAILABLE: used internally for GGA BLYP pseudopotentials from M. Krack, see Theor. Chem. Acc. 114, 145 (2005), available from the CP2K repository - use the LibXC instead, with ixc=-106131.
+
+    19 → (NOT AVAILABLE: used internally for GGA BP86 pseudopotentials from M. Krack, see Theor. Chem. Acc. 114, 145 (2005), available from the CP2K repository - use the LibXC instead, with ixc=-106132.
+
+    20 → Fermi-Amaldi xc ( -1/N Hartree energy, where N is the number of electrons per cell; G=0 is not taken into account however), for TDDFT tests. No spin-pol. Does not work for RF.
+    21 → same as 20, except that the xc-kernel is the LDA (ixc=1) one, for TDDFT tests.
+    22 → same as 20, except that the xc-kernel is the Burke-Petersilka-Gross hybrid, for TDDFT tests.
+    23 → GGA of Z. Wu and R.E. Cohen, Phys. Rev. 73, 235116 (2006).
+    24 → GGA, C09x exchange of V. R. Cooper, PRB 81, 161104(R) (2010).
+    26 → GGA, HTCH147 of A.D. Boese, N.L. Doltsinis, N.C. Handy, and M. Sprik, J. Chem. Phys 112, 1670 (1998).
+    27 → GGA, HTCH407 of A.D. Boese, and N.C. Handy, J. Chem. Phys 114, 5497 (2001).
+
+    28 → (NOT AVAILABLE: used internally for GGA OLYP pseudopotentials from M. Krack, see Theor. Chem. Acc. 114, 145 (2005), available from the CP2K repository - use the LibXC instead, with ixc=-110131.
+
+    40 → Hartree-Fock
+    41 → PBE0, J.P. Perdew, M. Ernzerhof and K. Burke, J. Chem. Phys. 105, 9982 (1996)
+    42 → PBE0-⅓, C.A. Guido, E. Bremond, C. Adamo and P. Cortona, J. Chem. Phys. 138, 021104 (2013)
+"""}
 
         self.general_options = {'title': 'title'}
         self.bs_options = {'projected dos':'false','combine species':'true'}

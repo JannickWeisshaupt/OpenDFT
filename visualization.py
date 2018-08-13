@@ -499,7 +499,7 @@ class VolumeSlicer(HasTraits):
     normal_y = Float(0)
     normal_z = Float(1)
 
-    origin = Range(0.02,1.0,0.2,mode='slider')
+    origin = Range(-1.0,1.0,0.2,mode='slider')
 
 
     view = View(
