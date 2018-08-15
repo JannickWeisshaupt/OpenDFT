@@ -3159,7 +3159,7 @@ class MainWindow(QtGui.QMainWindow):
             for recent_project in self.recent_projects:
                 if str(recent_project) != self.project_directory:
                     action = QtGui.QAction(str(recent_project), self)
-                    action.triggered.connect(lambda a,x=str(recent_project): self.load_project(folder_name=x))
+                    action.triggered.connect(lambda a=False,x=str(recent_project): self.load_project(folder_name=x))
                     recent_projects_menu.addAction(action)
 
         self.save_project_action = QtGui.QAction("Save project", self)
