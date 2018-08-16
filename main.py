@@ -764,7 +764,8 @@ class ConsoleWindow(QtGui.QMainWindow):
             if reply == QtGui.QMessageBox.Cancel:
                 return False
             elif reply == QtGui.QMessageBox.Yes:
-                self.save_code()
+                if not self.save_code():
+                    self.check_saved_progress()
         return True
 
     def load_file(self,file_name=None,example_file=False):
@@ -796,13 +797,14 @@ class ConsoleWindow(QtGui.QMainWindow):
             file_name = self.saved_code_filename
 
         if not file_name:
-            return
+            return False
         code = self.input_text_widget.toPlainText()
         with open(file_name, 'w') as f:
             f.write(code)
         self.saved_code_filename = file_name
         self.saved_code = code
         self.setWindowTitle(self.custom_window_title + ' - ' + file_name)
+        return True
 
     def start_code_execution(self):
         code_text = self.input_text_widget.toPlainText()
@@ -2731,8 +2733,6 @@ class MainWindow(QtGui.QMainWindow):
 
         self.temp_folder = os.path.expanduser("~") + "/.OpenDFT"
 
-        self.queue = queue.Queue()
-
         self.load_defaults()
 
         if self.defaults['default engine'] is None:
@@ -2844,6 +2844,7 @@ class MainWindow(QtGui.QMainWindow):
     @crystal_structure.setter
     def crystal_structure(self, value):
         self._crystal_structure = value
+        self.emit(QtCore.SIGNAL('StructureChanged'),value)
 
         if self.dft_engine_window.band_structure_points is None and isinstance(value,sst.CrystalStructure):
             try:
@@ -3487,20 +3488,17 @@ class MainWindow(QtGui.QMainWindow):
         self.console_window.show()
 
         def add_plot_to_queue(structure):
-            q_item = {'task': 'plot structure', 'structure': structure}
-            self.queue.put(q_item)
+            self.emit(QtCore.SIGNAL('ConsoleStructurePlot'),structure)
 
         def add_scf_to_queue(scf_data):
-            q_item = {'task': 'plot scf', 'scf data': scf_data}
-            self.queue.put(q_item)
-            time.sleep(0.3)
+            self.emit(QtCore.SIGNAL('ConsoleScfPlot'),scf_data)
 
         def add_data_to_queue(data,name):
             """Adds the result of a calculation, which can be bandstructure,optical spectrum, dos, phonon bandstructure, or the respective molecular results"""
             if type(data) not in [sst.BandStructure,sst.DensityOfStates,sst.EnergyDiagram,sst.VibrationalStructure,sst.KohnShamDensity,sst.MolecularDensity,sst.OpticalSpectrum]:
                 raise ValueError('Bad type for data')
-            q_item = {'task': 'add data', 'data': data,'name':name}
-            self.queue.put(q_item)
+            self.emit(QtCore.SIGNAL('ConsoleAddData'),data,name)
+
 
         try:
             alt_help = help
@@ -3546,46 +3544,8 @@ class MainWindow(QtGui.QMainWindow):
             self.import_structure_menu.setEnabled(True)
             self.vis_menu.setEnabled(True)
 
-    def handle_queue(self):
-        if self.queue.empty():
-            return
-
-        queue_item = self.queue.get()
-        taskname = queue_item['task']
-
-        if taskname == 'plot structure':
-            structure = queue_item['structure']
-            self.mayavi_widget.update_crystal_structure(structure)
-            self.mayavi_widget.update_plot()
-            QtGui.QApplication.processEvents()
-        elif taskname == 'plot scf':
-            scf_data = queue_item['scf data']
-            if scf_data is not None:
-                self.scf_window.scf_widget.plot(scf_data)
-            QtGui.QApplication.processEvents()
-        elif taskname == 'add data':
-            data = queue_item['data']
-            name = queue_item['name']
-            data_type = type(data)
-            if data_type in [sst.BandStructure,sst.EnergyDiagram,sst.VibrationalStructure]:
-                self.band_structures[name] = data
-            elif data_type in [sst.DensityOfStates]:
-                self.dos[name] = data
-            elif data_type in [sst.OpticalSpectrum]:
-                self.optical_spectra[name] = data
-            elif data_type in [sst.MolecularDensity,sst.KohnShamDensity]:
-                self.ks_densities[name] = data
-            else:
-                if DEBUG:
-                    raise ValueError('Bad type ' + str(data_type) + ' for data from scripting console.'  )
-
-            for tab in self.list_of_tabs:
-                tab.do_select_event()
 
 
-        else:
-            if DEBUG:
-                raise ValueError('Bad task for main queue')
 
     def check_integrety(self):
         scf_check = self.dft_engine_window.scf_option_widget.options == esc_handler.scf_options
@@ -3605,7 +3565,6 @@ class MainWindow(QtGui.QMainWindow):
 
     def update_program(self):
         self.check_integrety()
-        self.handle_queue()
 
     def check_and_set_lock(self,folder_name):
         lock_path = folder_name+'/.lock'
@@ -3640,6 +3599,40 @@ class MainWindow(QtGui.QMainWindow):
             self.volume_slicer_window.show()
 
         self.connect(self.ks_state_window.plot_widget,QtCore.SIGNAL('openSliceWidget'),open_slice_widget)
+
+        def handle_console_plot(structure):
+            self.mayavi_widget.update_crystal_structure(structure)
+            self.mayavi_widget.update_plot()
+            QtGui.QApplication.processEvents()
+
+        self.connect(self,QtCore.SIGNAL('ConsoleStructurePlot'),handle_console_plot)
+
+        def handle_scf_console_plot(scf_data):
+            if scf_data is not None:
+                self.scf_window.scf_widget.plot(scf_data)
+            QtGui.QApplication.processEvents()
+
+        self.connect(self,QtCore.SIGNAL('ConsoleScfPlot'),handle_scf_console_plot)
+
+        def handle_console_data(data,name):
+            data_type = type(data)
+            if data_type in [sst.BandStructure,sst.EnergyDiagram,sst.VibrationalStructure]:
+                self.band_structures[name] = data
+            elif data_type in [sst.DensityOfStates]:
+                self.dos[name] = data
+            elif data_type in [sst.OpticalSpectrum]:
+                self.optical_spectra[name] = data
+            elif data_type in [sst.MolecularDensity,sst.KohnShamDensity]:
+                self.ks_densities[name] = data
+            else:
+                if DEBUG:
+                    raise ValueError('Bad type ' + str(data_type) + ' for data from scripting console.'  )
+
+            for tab in self.list_of_tabs:
+                tab.do_select_event()
+
+            self.connect(self, QtCore.SIGNAL('ConsoleAddData'), handle_console_data)
+
 
 if __name__ == "__main__":
 
