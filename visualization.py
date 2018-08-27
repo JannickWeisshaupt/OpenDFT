@@ -360,8 +360,10 @@ class StructureVisualization(HasTraits):
         atom_size = 0.4 * np.log(abs_coord_atoms[:, 3]) + 0.6
 
         pts = self.scene.mlab.points3d(abs_coord_atoms[:, 0], abs_coord_atoms[:, 1], abs_coord_atoms[:, 2],
-                                       scale_factor=0.6, vmin=1, vmax=256, figure=self.scene.mayavi_scene,
-                                       resolution=self.atom_resolution)
+                                       scale_factor=0.6, vmin=1, vmax=256, figure=self.scene.mayavi_scene)
+
+        pts.glyph.glyph_source.glyph_source.phi_resolution = self.atom_resolution
+        pts.glyph.glyph_source.glyph_source.theta_resolution = self.atom_resolution
 
         pts.module_manager.scalar_lut_manager.lut.table = lut
 
@@ -664,8 +666,12 @@ class VolumeSlicer(HasTraits):
             except KeyError:
                 atomic_color = (0.8, 0.8, 0.8)
             mayavi_atom = self.scene3d.mlab.points3d(sub_coords[:, 0], sub_coords[:, 1], sub_coords[:, 2],
-                                                     scale_factor=atom_size, resolution=150,
+                                                     scale_factor=atom_size,
                                                      color=atomic_color, figure=self.scene3d.mayavi_scene)
+
+            mayavi_atom.glyph.glyph_source.glyph_source.phi_resolution = 50
+            mayavi_atom.glyph.glyph_source.glyph_source.theta_resolution = 50
+
             self.mayavi_atoms.append(mayavi_atom)
 
     def plot_bonds(self, repeat=[1, 1, 1]):

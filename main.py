@@ -1295,6 +1295,7 @@ class DftEngineWindow(QtGui.QWidget):
         msg = 'Calculation with tasks: '+', '.join(tasks)+' stated on '+time
         self.parent.status_bar.showMessage(msg)
 
+
 class ScfWindow(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
@@ -3543,9 +3544,6 @@ class MainWindow(QtGui.QMainWindow):
             self.new_structure_action.setEnabled(True)
             self.import_structure_menu.setEnabled(True)
             self.vis_menu.setEnabled(True)
-
-
-
 
     def check_integrety(self):
         scf_check = self.dft_engine_window.scf_option_widget.options == esc_handler.scf_options
