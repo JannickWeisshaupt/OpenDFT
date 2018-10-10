@@ -11,7 +11,7 @@ if not sys.getfilesystemencoding():
 import numpy as np
 import datetime
 from collections import OrderedDict
-
+from little_helpers import fix_requests_if_frozen
 fix_requests_if_frozen()
 
 if os.path.exists(os.path.expanduser("~") + "/.OpenDFT"+'/DEBUG'):
@@ -41,7 +41,7 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
-    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet,fix_requests_if_frozen
+    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
 from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit
 from TerminalClass import PythonTerminal
 import pickle
