@@ -954,7 +954,7 @@ class MaterialsApiWindow(QtGui.QDialog):
         self.search_bar.setToolTip('Search the material api database for structures.\nEnter either a chemical formula, e.g. Fe2O3 or LiBH4,\nor a list of elements of the material, e.g. Fe-O or Li-B-H')
         self.search_bar.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         search_layout.addWidget(self.search_bar)
-        self.search_bar.returnPressed.connect(self.search)
+        # self.search_bar.returnPressed.connect(self.search)
 
         self.table = QtGui.QTableWidget(self)
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
@@ -1103,6 +1103,11 @@ class MaterialsApiWindow(QtGui.QDialog):
         self.apply()
         self.close()
 
+    def keyPressEvent(self,event):
+        if event.key() in [QtCore.Qt.Key_Enter,QtCore.Qt.Key_Return]:
+            return
+        else:
+            super().keyPressEvent(event)
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self, parent, tasks):
@@ -3367,7 +3372,7 @@ class MainWindow(QtGui.QMainWindow):
         self.edit_structure_action.triggered.connect(lambda: self.open_structure_window(new=False))
         self.file_menu.addAction(self.edit_structure_action)
 
-        self.import_structure_menu = self.file_menu.addMenu('Import structure from')
+        self.import_structure_menu = self.file_menu.addMenu('&Import structure from')
 
         open_structure_action_exciting = QtGui.QAction("exciting input file", self)
         open_structure_action_exciting.setStatusTip('Load crystal structure from exciting xml')
@@ -3380,7 +3385,7 @@ class MainWindow(QtGui.QMainWindow):
             lambda: self.load_crystal_structure('quantum espresso'))
         self.import_structure_menu.addAction(open_structure_action_quantum_espresso)
 
-        open_structure_action_cif = QtGui.QAction("cif", self)
+        open_structure_action_cif = QtGui.QAction("&cif", self)
         open_structure_action_cif.setShortcut('Ctrl+Shift+c')
         open_structure_action_cif.setStatusTip('Load crystal structure from cif file')
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
@@ -3727,14 +3732,15 @@ class MainWindow(QtGui.QMainWindow):
             self.save_project_action.setEnabled(False)
             self.edit_structure_action.setEnabled(False)
             self.new_structure_action.setEnabled(False)
-            self.import_structure_menu.setEnabled(False)
             self.vis_menu.setEnabled(False)
+            self.import_structure_menu.setEnabled(False)
+
         else:
             self.save_project_action.setEnabled(True)
             self.edit_structure_action.setEnabled(True)
             self.new_structure_action.setEnabled(True)
-            self.import_structure_menu.setEnabled(True)
             self.vis_menu.setEnabled(True)
+            self.import_structure_menu.setEnabled(True)
 
     def check_integrety(self):
         scf_check = self.dft_engine_window.scf_option_widget.options == esc_handler.scf_options
