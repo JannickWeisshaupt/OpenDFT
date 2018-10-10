@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import division, absolute_import, print_function, unicode_literals
-import six
 import sys
 from pathlib import Path
 import psutil
@@ -13,6 +11,8 @@ if not sys.getfilesystemencoding():
 import numpy as np
 import datetime
 from collections import OrderedDict
+
+fix_requests_if_frozen()
 
 if os.path.exists(os.path.expanduser("~") + "/.OpenDFT"+'/DEBUG'):
     DEBUG = True
@@ -41,8 +41,8 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
-    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
-from qt_widgets import EntryWithLabel, LabeledLabel
+    find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet,fix_requests_if_frozen
+from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -923,6 +923,184 @@ class CodeInformationWindow(QtGui.QDialog):
 
         self.text_view.setPlainText(text)
 
+
+class MaterialsApiWindow(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(MaterialsApiWindow, self).__init__(parent)
+
+        self.structure_visualization = MayaviQWidget(None, parent=self)
+
+        self.resize(1400,800)
+
+        self.data = []
+        self.structures = {}
+        self.selected_structure = None
+        self.workThread = None
+        self.structureThread = None
+
+        layout = QtGui.QHBoxLayout(self)
+        layout.addWidget(self.structure_visualization)
+
+        table_widget = QtGui.QWidget(self)
+        layout.addWidget(table_widget)
+
+        table_layout = QtGui.QVBoxLayout(table_widget)
+
+        search_widget = QtGui.QWidget(self)
+        search_layout = QtGui.QHBoxLayout(search_widget)
+        search_layout.addStretch(1)
+        table_layout.addWidget(search_widget)
+
+        self.search_bar = MySearchLineEdit(parent=self,callback=self.search)
+        self.search_bar.setFixedWidth(200)
+        self.search_bar.setToolTip('Search the material api database for structures.\nEnter either a chemical formula, e.g. Fe2O3 or LiBH4,\nor a list of elements of the material, e.g. Fe-O or Li-B-H')
+        self.search_bar.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        search_layout.addWidget(self.search_bar)
+        self.search_bar.returnPressed.connect(self.search)
+
+        self.table = QtGui.QTableWidget(self)
+        self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table.clicked.connect(self.row_clicked)
+        table_layout.addWidget(self.table)
+        self.headers = ['material_id','pretty_formula','volume','density', 'spacegroup', 'band_gap','tags']
+        self.table.setColumnCount(len(self.headers))
+
+        for i, label in enumerate(self.headers):
+            item = QtGui.QTableWidgetItem()
+            self.table.setHorizontalHeaderItem(i, item)
+            item.setText(label)
+
+        bottom_widget = QtGui.QWidget(self)
+        table_layout.addWidget(bottom_widget)
+        bottom_layout = QtGui.QHBoxLayout(bottom_widget)
+
+        self.status_indicator = QtGui.QLabel(self)
+        self.status_indicator.setMaximumWidth(500)
+        bottom_layout.addWidget(self.status_indicator)
+
+        bottom_layout.addStretch(1)
+        self.buttonBox = QtGui.QDialogButtonBox(self)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(
+            QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Apply)
+
+        self.buttonBox.accepted.connect(self.accept_own)
+        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Apply).clicked.connect(self.apply)
+        bottom_layout.addWidget(self.buttonBox)
+
+    @QtCore.pyqtSlot()
+    def search(self,text=None):
+        self.status_indicator.setText('Querying materials api database')
+        class WorkThread(QtCore.QThread):
+            def __init__(self,search_string):
+                QtCore.QThread.__init__(self)
+                self.search_string = search_string
+            def run(self):
+                try:
+                    data = sst.query_materials_database(self.search_string)
+                    self.emit(QtCore.SIGNAL('update'), data)
+                except Exception as e:
+                    self.emit(QtCore.SIGNAL('update_failed'),e)
+                return
+
+        search_string = self.search_bar.text()
+        if search_string:
+
+            if self.workThread is not None:
+                self.workThread.terminate()
+                self.workThread.wait()
+
+
+            self.workThread = WorkThread(search_string)
+            self.connect(self.workThread, QtCore.SIGNAL("update"), self.fill_table)
+            self.connect(self.workThread, QtCore.SIGNAL("update_failed"), self.search_failed)
+            self.workThread.start()
+
+    @QtCore.pyqtSlot()
+    def fill_table(self,data=None):
+        if data is None:
+            return
+        self.data = data
+
+        self.status_indicator.setText("Search found {} items".format(len(data)))
+
+        while self.table.rowCount() > 1:
+            self.table.removeRow(0)
+        self.table.setRowCount(len(data))
+        items = {}
+
+        for i,res in enumerate(data):
+
+            for j,head in enumerate(self.headers):
+                item = QtGui.QTableWidgetItem()
+                items[head] = item
+                self.table.setItem(i, j, item)
+                entry_data = res[head]
+                if head == 'spacegroup':
+                    entry_data = ':'.join([entry_data['crystal_system'],entry_data['symbol']])
+                elif head == 'tags':
+                    entry_data = ', '.join(entry_data)
+
+                if type(entry_data) in [float]:
+                    entry_data = '{0:1.2f}'.format(entry_data)
+                elif type(entry_data) in [int]:
+                    entry_data = '{}'.format(entry_data)
+                item.setText(entry_data)
+
+    @QtCore.pyqtSlot()
+    def search_failed(self,exception):
+        print(exception)
+        error_string = str(exception)
+        if 'Content' in error_string:
+            error_string = error_string.split('Content')[0]
+
+        self.status_indicator.setText('Search failed with: ' + error_string)
+
+    @QtCore.pyqtSlot()
+    def row_clicked(self):
+        self.status_indicator.setText('Fetching structure from materials api')
+        index = self.table.selectionModel().selectedRows()[0].row()
+
+        class WorkThread(QtCore.QThread):
+            def __init__(self,search_string):
+                QtCore.QThread.__init__(self)
+                self.search_string = search_string
+            def run(self):
+                structure = sst.get_materials_structure_from_id(self.search_string)
+                self.emit(QtCore.SIGNAL('structure'), structure,self.search_string)
+                return
+
+        search_string = self.data[index]['material_id']
+        if search_string in self.structures.keys():
+            self.update_structure(self.structures[search_string],search_string)
+        else:
+            if self.structureThread is not None:
+                self.workThread.terminate()
+                self.structureThread.wait()
+            self.structureThread = WorkThread(search_string)
+            self.connect( self.structureThread, QtCore.SIGNAL("structure"), self.update_structure)
+            self.structureThread.start()
+
+    def update_structure(self,structure=None,material_id=None):
+        if structure is None or material_id is None:
+            return
+
+        self.status_indicator.setText('Structure successfully loaded')
+        self.selected_structure = structure
+        self.structures[material_id] = structure
+        self.structure_visualization.update_crystal_structure(structure)
+        self.structure_visualization.update_plot(keep_view=False)
+
+    def apply(self):
+        if self.selected_structure is not None:
+            main.crystal_structure = self.selected_structure
+            main.update_structure_plot()
+
+    def accept_own(self):
+        self.apply()
+        self.close()
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self, parent, tasks):
@@ -2790,6 +2968,7 @@ class MainWindow(QtGui.QMainWindow):
         self.information_window = CodeInformationWindow(self)
         self.volume_slicer_window = VolumeSlicerWidget(self)
         self.phonon_window = MayaviPhononWindow(self.crystal_structure,self.band_structures,parent=self)
+        self.materials_api_window = MaterialsApiWindow(self)
 
 
         self.tab_layout = QtGui.QVBoxLayout()
@@ -3203,6 +3382,11 @@ class MainWindow(QtGui.QMainWindow):
         open_structure_action_cif.triggered.connect(lambda: self.load_crystal_structure('cif'))
         self.import_structure_menu.addAction(open_structure_action_cif)
 
+        open_structure_from_materials_api = QtGui.QAction("Search materials api", self)
+        open_structure_from_materials_api.setShortcut('Ctrl+Shift+m')
+        open_structure_from_materials_api.triggered.connect(self.open_materials_api_window)
+        self.import_structure_menu.addAction(open_structure_from_materials_api)
+
         self.file_menu.addSeparator()
 
         self.import_results_menu = self.file_menu.addMenu('Import results')
@@ -3466,6 +3650,9 @@ class MainWindow(QtGui.QMainWindow):
         self.structure_window.update_info()
         self.structure_window.show()
 
+    def open_materials_api_window(self):
+        self.materials_api_window.show()
+
     def open_brillouin_window(self):
         if type(self.crystal_structure) is not sst.CrystalStructure:
             return
@@ -3660,7 +3847,7 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     app.setApplicationName('OpenDFT')
-    app.setWindowIcon(QtGui.QIcon('icon.ico'))
+    app.setWindowIcon(QtGui.QIcon(find_data_file('data/icons/icon.ico')))
 
     main = MainWindow(parent=app)
 

@@ -1,5 +1,5 @@
 from pyface.qt import QtGui, QtCore
-
+from little_helpers import find_data_file
 
 class EntryWithLabel(QtGui.QWidget):
     def __init__(self, parent, label, value=None, width_text=200, width_label=90,tooltip=None):
@@ -41,6 +41,7 @@ class EntryWithLabel(QtGui.QWidget):
     def setValidator(self,validator):
         self.textbox.setValidator(validator)
 
+
 class LabeledLabel(QtGui.QWidget):
     def __init__(self,label,value='',width_label=None):
         super(LabeledLabel,self).__init__()
@@ -60,3 +61,37 @@ class LabeledLabel(QtGui.QWidget):
 
     def change_label(self,label):
         self.label_label.setText(label)
+
+
+class MySearchLineEdit(QtGui.QLineEdit):
+    def __init__(self, parent=None, delay=500, callback=None):
+        super(MySearchLineEdit, self).__init__(parent)
+        self.delay = delay
+        self.callback = callback
+        self.timer = QtCore.QTimer(self)
+        self.timer.setSingleShot(True)
+        self.setTextMargins(20, 0, 0, 0)
+        self.connect(self, QtCore.SIGNAL("textEdited(QString)"),
+                self.eventDelay)
+        self.connect(self.timer, QtCore.SIGNAL("timeout()"),
+                self.startCallback)
+
+    def eventDelay(self, text):
+        self.timer.stop()
+        self.timer.start(self.delay)
+
+    def startCallback(self):
+        text = self.text()
+        if self.callback:
+            self.callback(text)
+
+    def paintEvent(self, event=None):
+        super(MySearchLineEdit, self).paintEvent(event)
+        pixmap = QtGui.QPixmap(find_data_file("/data/icons/search-icon.png")).scaled(16, 16, QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation)
+        painter = QtGui.QPainter(self)
+        pixmap_width = pixmap.width()
+        pixmap_height = pixmap.height()
+        left_border = 6
+        painter.drawPixmap((left_border),
+                           (self.height() - pixmap.height()) / 2,
+                           pixmap)

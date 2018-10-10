@@ -14,6 +14,9 @@ import itertools
 from pymatgen.symmetry.bandstructure import HighSymmKpath,SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
 import pymatgen as mg
+from pymatgen.ext.matproj import MPRester
+
+API_KEY = "4m1ieH0XhKw2AzSL"
 
 bohr = 0.52917721067
 unit_mass = 1.660539040e-27
@@ -769,25 +772,54 @@ def calculate_mass_matrix(structure,repeat=(1,1,1),edges=False,phonon_conv=False
     np.fill_diagonal(mass_matrix,mass_list_coll)
     return mass_matrix
 
+def convert_pymatgen_structure(structure):
+    cart_coords = structure.cart_coords
+    atoms_cart = np.zeros((cart_coords.shape[0],4))
+    atoms_cart[:,:3] = structure.cart_coords/bohr
+    for i,specie in enumerate(structure.species):
+        atoms_cart[i,3] = specie.Z
+
+    crystal_structure = CrystalStructure(structure.lattice.matrix/bohr, atoms_cart,relative_coords=False)
+    return crystal_structure
+
+def query_materials_database(structure_formula):
+    with MPRester(API_KEY) as m:
+        data = m.get_data(structure_formula)
+    return data
+
+def get_materials_structure_from_id(id):
+    with MPRester(API_KEY) as m:
+        structure = m.get_structure_by_material_id(id)
+    return convert_pymatgen_structure(structure)
+
 if __name__ == "__main__":
-    atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 10]])
-    unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
-    # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
+    data = query_materials_database('LiBH4')
+    structure = get_materials_structure_from_id(data[0]['material_id'])
+
+    coords = structure.calc_absolute_coordinates()
+
+    import mayavi.mlab as mlab
+
+    mlab.points3d(coords[:, 0], coords[:, 1], coords[:, 2], color=(0.7, 0.7, 0.7), scale_factor=1, )
+    mlab.show()
+    # atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 10]])
+    # unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
+    # # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])
+    # #
     #
-
-
-    # phi = 60/180*np.pi
-    # unit_cell = 6.719 * np.array([ [1,0,0], [np.cos(phi),np.sin(phi),0], [0, 0, 3]])
-
-    p = StructureParser()
-    data = p.parse_cif_file('/home/jannick/OpenDFT_projects/libh4_theo/theo.cif')
-
-    crystal_structure = CrystalStructure(unit_cell, atoms)
-    mass_matrix = calculate_mass_matrix(crystal_structure)
-    coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
-
-    density = crystal_structure.density(unit='g/cm^3')
-    print(density)
+    #
+    # # phi = 60/180*np.pi
+    # # unit_cell = 6.719 * np.array([ [1,0,0], [np.cos(phi),np.sin(phi),0], [0, 0, 3]])
+    #
+    # p = StructureParser()
+    # data = p.parse_cif_file('/home/jannick/OpenDFT_projects/libh4_theo/theo.cif')
+    #
+    # crystal_structure = CrystalStructure(unit_cell, atoms)
+    # mass_matrix = calculate_mass_matrix(crystal_structure)
+    # coords = crystal_structure.calc_absolute_coordinates(repeat=[2, 1, 1],edges=True)
+    #
+    # density = crystal_structure.density(unit='g/cm^3')
+    # print(density)
 
     # bonds = crystal_structure.find_bonds(coords)
     # print(crystal_structure.find_bonds(coords))
