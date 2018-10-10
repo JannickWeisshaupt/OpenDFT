@@ -42,7 +42,7 @@ build_exe_options = {"packages": ["pyface.ui.qt4", "tvtk.vtk_module", "tvtk.pyfa
 
 
 executables = [
-    Executable('main.py', targetName="OpenDFT",icon="icon.ico")
+    Executable('main.py', targetName="OpenDFT",icon="./data/icons/icon.ico")
 ]
 
 setup(name='OpenDFT',

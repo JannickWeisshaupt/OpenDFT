@@ -42,7 +42,7 @@ import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
     find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
-from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit
+from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit, QFloatTableWidgetItem
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -243,6 +243,7 @@ class MayaviPhononWindow(QtGui.QMainWindow):
         super(MayaviPhononWindow, self).__init__(parent)
 
         self.resize(1000, 600)
+        self.setWindowIcon(QtGui.QIcon(find_data_file('/data/icons/icon.ico')))
 
         self.data_dictionary = data_dictionary
         self.setWindowTitle('Phonon visualization')
@@ -440,9 +441,7 @@ class ConsoleWindow(QtGui.QMainWindow):
         self.make_menubar()
         self.custom_window_title = 'OpenDFT Python scripting '
         self.setWindowTitle(self.custom_window_title)
-        app_icon = QtGui.QIcon()
-        app_icon.addFile(find_data_file('icon.ico'), QtCore.QSize(238, 238))
-        self.setWindowIcon(app_icon)
+        self.setWindowIcon(QtGui.QIcon(find_data_file('/data/icons/icon.ico')))
         self.error_widget = QtGui.QErrorMessage(parent=self)
         self.error_widget.resize(500, 400)
 
@@ -932,7 +931,6 @@ class MaterialsApiWindow(QtGui.QDialog):
 
         self.resize(1400,800)
 
-        self.data = []
         self.structures = {}
         self.selected_structure = None
         self.workThread = None
@@ -961,6 +959,8 @@ class MaterialsApiWindow(QtGui.QDialog):
         self.table = QtGui.QTableWidget(self)
         self.table.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.table.setSortingEnabled(True)
+        self.table.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.table.clicked.connect(self.row_clicked)
         table_layout.addWidget(self.table)
         self.headers = ['material_id','pretty_formula','volume','density', 'spacegroup', 'band_gap','tags']
@@ -1012,7 +1012,7 @@ class MaterialsApiWindow(QtGui.QDialog):
                 self.workThread.terminate()
                 self.workThread.wait()
 
-
+            self.table.clearSelection()
             self.workThread = WorkThread(search_string)
             self.connect(self.workThread, QtCore.SIGNAL("update"), self.fill_table)
             self.connect(self.workThread, QtCore.SIGNAL("update_failed"), self.search_failed)
@@ -1022,36 +1022,33 @@ class MaterialsApiWindow(QtGui.QDialog):
     def fill_table(self,data=None):
         if data is None:
             return
-        self.data = data
 
+        self.table.setSortingEnabled(False)
+        self.table.clearSelection()
         self.status_indicator.setText("Search found {} items".format(len(data)))
 
-        while self.table.rowCount() > 1:
-            self.table.removeRow(0)
         self.table.setRowCount(len(data))
-        items = {}
 
         for i,res in enumerate(data):
 
             for j,head in enumerate(self.headers):
-                item = QtGui.QTableWidgetItem()
-                items[head] = item
-                self.table.setItem(i, j, item)
-                entry_data = res[head]
-                if head == 'spacegroup':
-                    entry_data = ':'.join([entry_data['crystal_system'],entry_data['symbol']])
-                elif head == 'tags':
-                    entry_data = ', '.join(entry_data)
 
-                if type(entry_data) in [float]:
-                    entry_data = '{0:1.2f}'.format(entry_data)
-                elif type(entry_data) in [int]:
-                    entry_data = '{}'.format(entry_data)
-                item.setText(entry_data)
+                if head in ['density','volume','band_gap']:
+                    item = QFloatTableWidgetItem(res[head])
+                else:
+                    item = QtGui.QTableWidgetItem()
+
+                    entry_data = res[head]
+                    if head == 'spacegroup':
+                        entry_data = ':'.join([entry_data['crystal_system'],entry_data['symbol']])
+                    elif head == 'tags':
+                        entry_data = ', '.join(entry_data)
+                    item.setText(entry_data)
+                self.table.setItem(i, j, item)
+        self.table.setSortingEnabled(True)
 
     @QtCore.pyqtSlot()
     def search_failed(self,exception):
-        print(exception)
         error_string = str(exception)
         if 'Content' in error_string:
             error_string = error_string.split('Content')[0]
@@ -1068,11 +1065,14 @@ class MaterialsApiWindow(QtGui.QDialog):
                 QtCore.QThread.__init__(self)
                 self.search_string = search_string
             def run(self):
-                structure = sst.get_materials_structure_from_id(self.search_string)
-                self.emit(QtCore.SIGNAL('structure'), structure,self.search_string)
+                try:
+                    structure = sst.get_materials_structure_from_id(self.search_string)
+                    self.emit(QtCore.SIGNAL('structure'), structure, self.search_string)
+                except Exception as e:
+                    self.emit(QtCore.SIGNAL('structure_failed'), e)
                 return
 
-        search_string = self.data[index]['material_id']
+        search_string = self.table.item(index,0).text()
         if search_string in self.structures.keys():
             self.update_structure(self.structures[search_string],search_string)
         else:
@@ -1081,6 +1081,7 @@ class MaterialsApiWindow(QtGui.QDialog):
                 self.structureThread.wait()
             self.structureThread = WorkThread(search_string)
             self.connect( self.structureThread, QtCore.SIGNAL("structure"), self.update_structure)
+            self.connect(self.structureThread, QtCore.SIGNAL("structure_failed"), self.search_failed)
             self.structureThread.start()
 
     def update_structure(self,structure=None,material_id=None):
@@ -1101,6 +1102,7 @@ class MaterialsApiWindow(QtGui.QDialog):
     def accept_own(self):
         self.apply()
         self.close()
+
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self, parent, tasks):
@@ -2994,6 +2996,8 @@ class MainWindow(QtGui.QMainWindow):
         self.resize(1300, 1100)
         self.setCentralWidget(self.main_widget)
         self.make_menu_bar()
+        self.parent.setWindowIcon(QtGui.QIcon(find_data_file('/data/icons/icon.ico')))
+        self.setWindowIcon(QtGui.QIcon(find_data_file('/data/icons/icon.ico')))
 
         self.connect_signals()
 
@@ -3847,7 +3851,6 @@ if __name__ == "__main__":
 
     app = QtGui.QApplication.instance()
     app.setApplicationName('OpenDFT')
-    app.setWindowIcon(QtGui.QIcon(find_data_file('data/icons/icon.ico')))
 
     main = MainWindow(parent=app)
 

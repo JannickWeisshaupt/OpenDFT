@@ -95,3 +95,17 @@ class MySearchLineEdit(QtGui.QLineEdit):
         painter.drawPixmap((left_border),
                            (self.height() - pixmap.height()) / 2,
                            pixmap)
+
+
+class QFloatTableWidgetItem(QtGui.QTableWidgetItem):
+    def __init__ (self, value):
+        super(QFloatTableWidgetItem, self).__init__()
+        self.setText('{0:1.2f}'.format(value))
+
+    def __lt__ (self, other):
+        if (isinstance(other, QFloatTableWidgetItem)):
+            selfDataValue  = float(self.text())
+            otherDataValue = float(other.text())
+            return selfDataValue < otherDataValue
+        else:
+            return QtGui.QTableWidgetItem.__lt__(self, other)
