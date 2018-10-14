@@ -11,6 +11,7 @@ from little_helpers import find_data_file
 from collections import OrderedDict
 import itertools
 
+from pymatgen.electronic_structure.bandstructure import BandStructure,BandStructureSymmLine
 from pymatgen.symmetry.bandstructure import HighSymmKpath,SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
 import pymatgen as mg
@@ -676,15 +677,7 @@ def construct_convex_hull(w_points):
     # return shortest_connections
 
 
-def calculate_standard_path(structure):
-    lattice = mg.Lattice(structure.lattice_vectors)
-    atoms = structure.atoms
-    structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
-    hs_path = HighSymmKpath(structure_mg, symprec=0.1)
-
-    if not hs_path.kpath: # fix for bug in pymatgen that for certain structures no path is returned
-        raise Exception('High symmetry path generation failed.')
-
+def convert_hs_path_to_own(hs_path):
     kpoints = hs_path.kpath['kpoints']
     path = hs_path.kpath['path']
 
@@ -701,6 +694,18 @@ def calculate_standard_path(structure):
         return conv_path
 
     conv_path = convert_path(path, kpoints)
+    return conv_path
+
+def calculate_standard_path(structure):
+    lattice = mg.Lattice(structure.lattice_vectors)
+    atoms = structure.atoms
+    structure_mg = mg.Structure(lattice, atoms[:, 3], atoms[:, :3])
+    hs_path = HighSymmKpath(structure_mg, symprec=0.1)
+
+    if not hs_path.kpath: # fix for bug in pymatgen that for certain structures no path is returned
+        raise Exception('High symmetry path generation failed.')
+
+    conv_path = convert_hs_path_to_own(path)
     return conv_path
 
 
@@ -792,16 +797,48 @@ def get_materials_structure_from_id(id):
         structure = m.get_structure_by_material_id(id)
     return convert_pymatgen_structure(structure)
 
+def get_materials_band_structure_from_id(id):
+    with MPRester(API_KEY) as m:
+        band_structure = m.get_bandstructure_by_material_id(id)
+        structure = m.get_structure_by_material_id(id)
+    conv_structure = convert_pymatgen_structure(structure)
+    bands = []
+    for key,band in band_structure.bands.items():
+        bands.append(band)
+    conv_bands = []
+
+    k = []
+    for kpoint in band_structure.kpoints:
+        k.append([kpoint.frac_coords,''])
+    k_scalar = np.array(calculate_path_length(conv_structure,k))[:,0]
+
+    for band in bands:
+        for i in range(band.shape[0]):
+            array = np.zeros((len(band[i,:]),2))
+            array[:,0] = k_scalar
+            array[:,1] = band[i,:]
+            conv_bands.append(array)
+
+    sorted_bands = sorted(conv_bands,key=np.mean)
+    high_sym_path = HighSymmKpath(structure)
+    path = convert_hs_path_to_own(high_sym_path)
+    return BandStructure(sorted_bands,special_k_points=path)
+
 if __name__ == "__main__":
     data = query_materials_database('LiBH4')
-    structure = get_materials_structure_from_id(data[0]['material_id'])
-
+    id = data[0]['material_id']
+    structure = get_materials_structure_from_id(id)
+    bs = get_materials_band_structure_from_id(id)
     coords = structure.calc_absolute_coordinates()
 
-    import mayavi.mlab as mlab
 
-    mlab.points3d(coords[:, 0], coords[:, 1], coords[:, 2], color=(0.7, 0.7, 0.7), scale_factor=1, )
-    mlab.show()
+
+    # import mayavi.mlab as mlab
+    #
+    # mlab.points3d(coords[:, 0], coords[:, 1], coords[:, 2], color=(0.7, 0.7, 0.7), scale_factor=1, )
+    # mlab.show()
+
+
     # atoms = np.array([[0, 0, 0, 6], [0.333333333333333, 0.3333333333333333333, 0.0, 10]])
     # unit_cell = 4.650000* np.array([[0.5, 0.866025, 0], [-0.5, 0.866025, 0.0], [0, 0.0, 6.0]])
     # # unit_cell = 6.719 * np.array([[0.5, 0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5]])

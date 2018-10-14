@@ -42,7 +42,7 @@ import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
 from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
     find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
-from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit, QFloatTableWidgetItem
+from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit, QFloatTableWidgetItem,make_splash_screen
 from TerminalClass import PythonTerminal
 import pickle
 import time
@@ -932,7 +932,8 @@ class MaterialsApiWindow(QtGui.QDialog):
         self.resize(1400,800)
 
         self.structures = {}
-        self.selected_structure = None
+        self.bandstructures = {}
+        self.selected_id = None
         self.workThread = None
         self.structureThread = None
 
@@ -1070,6 +1071,11 @@ class MaterialsApiWindow(QtGui.QDialog):
                     self.emit(QtCore.SIGNAL('structure'), structure, self.search_string)
                 except Exception as e:
                     self.emit(QtCore.SIGNAL('structure_failed'), e)
+                try:
+                    bs = sst.get_materials_band_structure_from_id(self.search_string)
+                    self.emit(QtCore.SIGNAL('bandstructure'), bs, self.search_string)
+                except Exception as e:
+                    print(e)
                 return
 
         search_string = self.table.item(index,0).text()
@@ -1081,23 +1087,35 @@ class MaterialsApiWindow(QtGui.QDialog):
                 self.structureThread.wait()
             self.structureThread = WorkThread(search_string)
             self.connect( self.structureThread, QtCore.SIGNAL("structure"), self.update_structure)
+            self.connect( self.structureThread, QtCore.SIGNAL("bandstructure"), self.update_bandstructure)
             self.connect(self.structureThread, QtCore.SIGNAL("structure_failed"), self.search_failed)
             self.structureThread.start()
+
+    def update_bandstructure(self,bs=None,material_id=None):
+        if bs is None or material_id is None:
+            return
+        self.bandstructures[material_id] = bs
 
     def update_structure(self,structure=None,material_id=None):
         if structure is None or material_id is None:
             return
 
         self.status_indicator.setText('Structure successfully loaded')
-        self.selected_structure = structure
+        self.selected_id = material_id
         self.structures[material_id] = structure
         self.structure_visualization.update_crystal_structure(structure)
         self.structure_visualization.update_plot(keep_view=False)
 
     def apply(self):
-        if self.selected_structure is not None:
-            main.crystal_structure = self.selected_structure
+        if self.selected_id is not None:
+            main.crystal_structure = self.structures[self.selected_id]
             main.update_structure_plot()
+        if self.selected_id in self.bandstructures.keys():
+            bs = self.bandstructures[self.selected_id]
+            if isinstance(bs,sst.BandStructure):
+                main.band_structures[self.selected_id] = bs
+
+
 
     def accept_own(self):
         self.apply()
@@ -1108,6 +1126,7 @@ class MaterialsApiWindow(QtGui.QDialog):
             return
         else:
             super().keyPressEvent(event)
+
 
 class LoadResultsWindow(QtGui.QDialog):
     def __init__(self, parent, tasks):
@@ -3858,6 +3877,15 @@ if __name__ == "__main__":
     app = QtGui.QApplication.instance()
     app.setApplicationName('OpenDFT')
 
-    main = MainWindow(parent=app)
+    splash,splash_progess = make_splash_screen()
 
+    for i in range(1, 11):
+        splash_progess.setValue(i)
+        t = time.time()
+        while time.time() < t + 0.1:
+            app.processEvents()
+        if i == 6:
+            main = MainWindow(parent=app)
+
+    splash.finish(main)
     app.exec_()

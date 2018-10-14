@@ -253,6 +253,7 @@ class StructureVisualization(HasTraits):
         self.mayavi_unitcell = None
         self.atom_resolution = 20
 
+
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
 
