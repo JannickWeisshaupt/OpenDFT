@@ -3882,9 +3882,9 @@ if __name__ == "__main__":
     for i in range(1, 11):
         splash_progess.setValue(i)
         t = time.time()
-        while time.time() < t + 0.1:
+        while time.time() < t + 0.02:
             app.processEvents()
-        if i == 6:
+        if i == 3:
             main = MainWindow(parent=app)
 
     splash.finish(main)
