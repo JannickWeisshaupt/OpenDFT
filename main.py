@@ -981,6 +981,9 @@ class MaterialsApiWindow(QtGui.QDialog):
         bottom_layout.addWidget(self.status_indicator)
 
         bottom_layout.addStretch(1)
+        self.import_results_checkbutton = QtGui.QCheckBox('Import results')
+        bottom_layout.addWidget(self.import_results_checkbutton)
+
         self.buttonBox = QtGui.QDialogButtonBox(self)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(
@@ -1071,11 +1074,6 @@ class MaterialsApiWindow(QtGui.QDialog):
                     self.emit(QtCore.SIGNAL('structure'), structure, self.search_string)
                 except Exception as e:
                     self.emit(QtCore.SIGNAL('structure_failed'), e)
-                try:
-                    bs = sst.get_materials_band_structure_from_id(self.search_string)
-                    self.emit(QtCore.SIGNAL('bandstructure'), bs, self.search_string)
-                except Exception as e:
-                    print(e)
                 return
 
         search_string = self.table.item(index,0).text()
@@ -1087,14 +1085,24 @@ class MaterialsApiWindow(QtGui.QDialog):
                 self.structureThread.wait()
             self.structureThread = WorkThread(search_string)
             self.connect( self.structureThread, QtCore.SIGNAL("structure"), self.update_structure)
-            self.connect( self.structureThread, QtCore.SIGNAL("bandstructure"), self.update_bandstructure)
             self.connect(self.structureThread, QtCore.SIGNAL("structure_failed"), self.search_failed)
             self.structureThread.start()
 
+    @QtCore.pyqtSlot()
     def update_bandstructure(self,bs=None,material_id=None):
         if bs is None or material_id is None:
             return
-        self.bandstructures[material_id] = bs
+        if isinstance(bs, sst.BandStructure):
+            main.band_structures[self.selected_id] = bs
+            main.band_structure_window.do_select_event()
+
+    @QtCore.pyqtSlot()
+    def update_dos(self, dos=None, material_id=None):
+        if dos is None or material_id is None:
+            return
+        if isinstance(dos, sst.DensityOfStates):
+            main.dos[self.selected_id] = dos
+            main.dos_window.do_select_event()
 
     def update_structure(self,structure=None,material_id=None):
         if structure is None or material_id is None:
@@ -1110,10 +1118,47 @@ class MaterialsApiWindow(QtGui.QDialog):
         if self.selected_id is not None:
             main.crystal_structure = self.structures[self.selected_id]
             main.update_structure_plot()
-        if self.selected_id in self.bandstructures.keys():
-            bs = self.bandstructures[self.selected_id]
-            if isinstance(bs,sst.BandStructure):
-                main.band_structures[self.selected_id] = bs
+
+        if self.import_results_checkbutton.checkState():
+            self.result_threads = []
+
+            class BsThread(QtCore.QThread):
+                def __init__(self, search_string):
+                    super().__init__()
+                    self.search_string = search_string
+
+                def run(self):
+                    try:
+                        bs = sst.get_materials_band_structure_from_id(self.search_string)
+                        self.emit(QtCore.SIGNAL('bandstructure'), bs, self.search_string)
+                    except Exception as e:
+                        self.emit(QtCore.SIGNAL('bandstructure_failed'), bs, self.search_string)
+                    return
+
+
+            bs_thread = BsThread(self.selected_id)
+            self.connect(bs_thread, QtCore.SIGNAL("bandstructure"), self.update_bandstructure)
+            bs_thread.start()
+            self.result_threads.append(bs_thread)
+
+            class DosThread(QtCore.QThread):
+                def __init__(self, search_string):
+                    super().__init__()
+                    self.search_string = search_string
+
+                def run(self):
+                    try:
+                        bs = sst.get_materials_dos_from_id(self.search_string)
+                        self.emit(QtCore.SIGNAL('dos'), bs, self.search_string)
+                    except Exception as e:
+                        self.emit(QtCore.SIGNAL('dos_failed'), bs, self.search_string)
+                    return
+
+            dos_thread = DosThread(self.selected_id)
+            self.connect(dos_thread, QtCore.SIGNAL("dos"), self.update_dos)
+            dos_thread.start()
+            self.result_threads.append(dos_thread)
+
 
 
 

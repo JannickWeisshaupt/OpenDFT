@@ -797,6 +797,24 @@ def get_materials_structure_from_id(id):
         structure = m.get_structure_by_material_id(id)
     return convert_pymatgen_structure(structure)
 
+def replace_greek(x):
+    if x == '\\Gamma':
+        res = 'Gamma'
+    else:
+        res = x
+    return res
+
+
+def get_materials_dos_from_id(id):
+    with MPRester(API_KEY) as m:
+        dos = m.get_dos_by_material_id(id)
+
+    data = np.zeros((len(dos.energies),2))
+    data[:,0] = dos.energies
+    for key,value in dos.densities.items():
+        data[:,1] = data[:,1] + value
+    return DensityOfStates(data)
+
 def get_materials_band_structure_from_id(id):
     with MPRester(API_KEY) as m:
         band_structure = m.get_bandstructure_by_material_id(id)
@@ -820,15 +838,41 @@ def get_materials_band_structure_from_id(id):
             conv_bands.append(array)
 
     sorted_bands = sorted(conv_bands,key=np.mean)
-    high_sym_path = HighSymmKpath(structure)
-    path = convert_hs_path_to_own(high_sym_path)
-    return BandStructure(sorted_bands,special_k_points=path)
+    # high_sym_path = HighSymmKpath(structure)
+    # path = convert_hs_path_to_own(high_sym_path)
+    path = []
+    last_label = None
+    for branch in band_structure.branches:
+        s_index = branch['start_index']
+        e_index = branch['end_index']
+
+        label = replace_greek(branch['name'].split('-')[0])
+
+        if last_label is not None and last_label!= label:
+            path.append([last_coords, last_label])
+        last_label = replace_greek(branch['name'].split('-')[1])
+        last_coords = band_structure.kpoints[e_index].frac_coords
+
+        path.append([band_structure.kpoints[s_index].frac_coords,label])
+
+
+    e_index = branch['end_index']
+    label = branch['name'].split('-')[1]
+    if label == u'\\Gamma':
+        label = 'Gamma'
+    path.append([band_structure.kpoints[e_index].frac_coords, label])
+
+    path_conv = calculate_path_length(conv_structure,path)
+    return BandStructure(sorted_bands,special_k_points=path_conv)
 
 if __name__ == "__main__":
     data = query_materials_database('LiBH4')
     id = data[0]['material_id']
+
+    id = 'mp-66'
     structure = get_materials_structure_from_id(id)
-    bs = get_materials_band_structure_from_id(id)
+    # bs = get_materials_band_structure_from_id(id)
+    dos = get_materials_dos_from_id(id)
     coords = structure.calc_absolute_coordinates()
 
 
