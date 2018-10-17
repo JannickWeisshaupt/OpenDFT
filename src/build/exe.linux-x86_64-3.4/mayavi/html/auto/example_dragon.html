@@ -1,0 +1,186 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Dragon example &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Lucy example" href="example_lucy.html" />
+    <link rel="prev" title="Bunny example" href="example_bunny.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_lucy.html" title="Lucy example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_bunny.html" title="Bunny example"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" accesskey="U">Example gallery</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="dragon-example">
+<span id="example-dragon"></span><h1>Dragon example<a class="headerlink" href="#dragon-example" title="Permalink to this headline">¶</a></h1>
+<p>Viewing Stanford 3D Scanning Repository dragon model</p>
+<p><strong>Python source code:</strong> <a class="reference download internal" href="../_downloads/dragon.py" download=""><code class="xref download docutils literal notranslate"><span class="pre">dragon.py</span></code></a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2"># Copyright (c) 2014-2015, Enthought, Inc.</span>
+<span class="s2"># Standard library imports</span>
+<span class="s2">import os</span>
+<span class="s2">from os.path import join</span>
+
+<span class="s2"># Enthought library imports</span>
+<span class="s2">from mayavi import mlab</span>
+
+<span class="s2">### Download the dragon data, if not already on disk ############################</span>
+<span class="s2">if not os.path.exists(&#39;dragon.tar.gz&#39;):</span>
+<span class="s2">    # Download the data</span>
+<span class="s2">    try:</span>
+<span class="s2">        from urllib import urlopen</span>
+<span class="s2">    except ImportError:</span>
+<span class="s2">        from urllib.request import urlopen</span>
+<span class="s2">    print(&quot;Downloading dragon model, Please Wait (11MB)&quot;)</span>
+<span class="s2">    opener = urlopen(</span>
+<span class="s2">            &#39;http://graphics.stanford.edu/pub/3Dscanrep/dragon/dragon_recon.tar.gz&#39;)</span>
+<span class="s2">    open(&#39;dragon.tar.gz&#39;, &#39;wb&#39;).write(opener.read())</span>
+
+<span class="s2"># Extract the data</span>
+<span class="s2">import tarfile</span>
+<span class="s2">dragon_tar_file = tarfile.open(&#39;dragon.tar.gz&#39;)</span>
+<span class="s2">try:</span>
+<span class="s2">    os.mkdir(&#39;dragon_data&#39;)</span>
+<span class="s2">except:</span>
+<span class="s2">    pass</span>
+<span class="s2">dragon_tar_file.extractall(&#39;dragon_data&#39;)</span>
+<span class="s2">dragon_tar_file.close()</span>
+
+<span class="s2"># Path to the dragon ply file</span>
+<span class="s2">dragon_ply_file = join(&#39;dragon_data&#39;, &#39;dragon_recon&#39;, &#39;dragon_vrip.ply&#39;)</span>
+
+<span class="s2"># Render the dragon ply file</span>
+<span class="s2">mlab.pipeline.surface(mlab.pipeline.open(dragon_ply_file))</span>
+<span class="s2">mlab.show()</span>
+
+<span class="s2">import shutil</span>
+<span class="s2">shutil.rmtree(&#39;dragon_data&#39;)</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_bunny.html"
+                        title="previous chapter">Bunny example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example_lucy.html"
+                        title="next chapter">Lucy example</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/auto/example_dragon.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_lucy.html" title="Lucy example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_bunny.html" title="Bunny example"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" >Example gallery</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

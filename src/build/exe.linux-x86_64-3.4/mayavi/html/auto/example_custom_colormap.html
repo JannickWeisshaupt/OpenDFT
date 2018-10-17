@@ -1,0 +1,190 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Custom colormap example &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Surface from irregular data example" href="example_surface_from_irregular_data.html" />
+    <link rel="prev" title="Lucy example" href="example_lucy.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_surface_from_irregular_data.html" title="Surface from irregular data example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_lucy.html" title="Lucy example"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" accesskey="U">Example gallery</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="custom-colormap-example">
+<span id="example-custom-colormap"></span><h1>Custom colormap example<a class="headerlink" href="#custom-colormap-example" title="Permalink to this headline">¶</a></h1>
+<p>An example showing how a custom colormap (or look up table) can be used
+for a given object.</p>
+<p>Although the end user specifies colormaps by giving the name of a set of
+predefined colormaps, Mayavi (and VTK) deal with color internally using
+‘Look Up Tables’ (LUT): a table that associate a scalar value to a
+color defined by its RGBA components.</p>
+<p>In this example, we show how the LUT of an object can be retrieved and
+modified. Specificaly, we start by giving a surf object the ‘cool’
+colormap, but we modify add to add a transparency effect.</p>
+<p>Notice in the resulting image how the surface becomes more transparent
+for its lower points.</p>
+<p>Note that if you want to use a different number of colors, you can
+change the ‘number_of_colors’ attribute of the lut object and assign a
+new array of the right shape to its ‘table’ attribute.</p>
+<img alt="../_images/example_custom_colormap.jpg" class="align-center" src="../_images/example_custom_colormap.jpg" />
+<p><strong>Python source code:</strong> <a class="reference download internal" href="../_downloads/custom_colormap.py" download=""><code class="xref download docutils literal notranslate"><span class="pre">custom_colormap.py</span></code></a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>
+<span class="s2"># Create some data</span>
+<span class="s2">import numpy as np</span>
+
+<span class="s2">x, y = np.mgrid[-10:10:200j, -10:10:200j]</span>
+<span class="s2">z = 100 * np.sin(x * y) / (x * y)</span>
+
+<span class="s2"># Visualize it with mlab.surf</span>
+<span class="s2">from mayavi import mlab</span>
+<span class="s2">mlab.figure(bgcolor=(1, 1, 1))</span>
+<span class="s2">surf = mlab.surf(z, colormap=&#39;cool&#39;)</span>
+
+<span class="s2"># Retrieve the LUT of the surf object.</span>
+<span class="s2">lut = surf.module_manager.scalar_lut_manager.lut.table.to_array()</span>
+
+<span class="s2"># The lut is a 255x4 array, with the columns representing RGBA</span>
+<span class="s2"># (red, green, blue, alpha) coded with integers going from 0 to 255.</span>
+
+<span class="s2"># We modify the alpha channel to add a transparency gradient</span>
+<span class="s2">lut[:, -1] = np.linspace(0, 255, 256)</span>
+<span class="s2"># and finally we put this LUT back in the surface object. We could have</span>
+<span class="s2"># added any 255*4 array rather than modifying an existing LUT.</span>
+<span class="s2">surf.module_manager.scalar_lut_manager.lut.table = lut</span>
+
+<span class="s2"># We need to force update of the figure now that we have changed the LUT.</span>
+<span class="s2">mlab.draw()</span>
+<span class="s2">mlab.view(40, 85)</span>
+
+<span class="s2">mlab.show()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_lucy.html"
+                        title="previous chapter">Lucy example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example_surface_from_irregular_data.html"
+                        title="next chapter">Surface from irregular data example</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/auto/example_custom_colormap.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_surface_from_irregular_data.html" title="Surface from irregular data example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_lucy.html" title="Lucy example"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" >Example gallery</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

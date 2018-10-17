@@ -1,0 +1,215 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Atomic orbital example &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tvtk in mayavi example" href="example_tvtk_in_mayavi.html" />
+    <link rel="prev" title="Simple structured grid example" href="example_simple_structured_grid.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_tvtk_in_mayavi.html" title="Tvtk in mayavi example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_simple_structured_grid.html" title="Simple structured grid example"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" accesskey="U">Example gallery</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="atomic-orbital-example">
+<span id="example-atomic-orbital"></span><h1>Atomic orbital example<a class="headerlink" href="#atomic-orbital-example" title="Permalink to this headline">¶</a></h1>
+<p>An example showing the norm and phase of an atomic orbital: isosurfaces of
+the norm, with colors  displaying the phase.</p>
+<p>This example shows how you can apply a filter on one data set, and dislay
+a second data set on the output of the filter. Here we use the contour
+filter to extract isosurfaces of the norm of a complex field, and we
+display the phase of the field with the colormap.</p>
+<p>The field we choose to plot is a simplified version of the 3P_y atomic
+orbital for hydrogen-like atoms.</p>
+<p>The first step is to create a data source with two scalar datasets. The
+second step is to apply filters and modules, using the
+‘set_active_attribute’ filter to select on which data these apply.</p>
+<p>Creating a data source with two scalar datasets is actually slighlty
+tricky, as it requires some understanding of the layout of the datasets
+in TVTK. The reader is referred to <a class="reference internal" href="../data.html#data-structures-used-by-mayavi"><span class="std std-ref">Data representation in Mayavi</span></a>
+for more details.</p>
+<img alt="../_images/example_atomic_orbital.jpg" class="align-center" src="../_images/example_atomic_orbital.jpg" />
+<p><strong>Python source code:</strong> <a class="reference download internal" href="../_downloads/atomic_orbital.py" download=""><code class="xref download docutils literal notranslate"><span class="pre">atomic_orbital.py</span></code></a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2"># Author: Gael Varoquaux &lt;gael.varoquaux@normalesup.org&gt;</span>
+<span class="s2"># Copyright (c) 2008, Enthought, Inc.</span>
+<span class="s2"># License: BSD Style.</span>
+
+<span class="s2"># Create the data ############################################################</span>
+<span class="s2">import numpy as np</span>
+
+<span class="s2">x, y, z = np.ogrid[- .5:.5:200j, - .5:.5:200j, - .5:.5:200j]</span>
+<span class="s2">r = np.sqrt(x ** 2 + y ** 2 + z ** 2)</span>
+
+
+<span class="s2"># Generalized Laguerre polynomial (3, 2)</span>
+<span class="s2">L = - r ** 3 / 6 + 5. / 2 * r ** 2 - 10 * r + 6</span>
+
+<span class="s2"># Spherical harmonic (3, 2)</span>
+<span class="s2">Y = (x + y * 1j) ** 2 * z / r ** 3</span>
+
+<span class="s2">Phi = L * Y * np.exp(- r) * r ** 2</span>
+
+<span class="s2"># Plot it ####################################################################</span>
+<span class="s2">from mayavi import mlab</span>
+<span class="s2">mlab.figure(1, fgcolor=(1, 1, 1), bgcolor=(0, 0, 0))</span>
+<span class="s2"># We create a scalar field with the module of Phi as the scalar</span>
+<span class="s2">src = mlab.pipeline.scalar_field(np.abs(Phi))</span>
+
+<span class="s2"># And we add the phase of Phi as an additional array</span>
+<span class="s2"># This is a tricky part: the layout of the new array needs to be the same</span>
+<span class="s2"># as the existing dataset, and no checks are performed. The shape needs</span>
+<span class="s2"># to be the same, and so should the data. Failure to do so can result in</span>
+<span class="s2"># segfaults.</span>
+<span class="s2">src.image_data.point_data.add_array(np.angle(Phi).T.ravel())</span>
+<span class="s2"># We need to give a name to our new dataset.</span>
+<span class="s2">src.image_data.point_data.get_array(1).name = &#39;angle&#39;</span>
+<span class="s2"># Make sure that the dataset is up to date with the different arrays:</span>
+<span class="s2">src.update()</span>
+
+<span class="s2"># We select the &#39;scalar&#39; attribute, ie the norm of Phi</span>
+<span class="s2">src2 = mlab.pipeline.set_active_attribute(src,</span>
+<span class="s2">                                    point_scalars=&#39;scalar&#39;)</span>
+
+<span class="s2"># Cut isosurfaces of the norm</span>
+<span class="s2">contour = mlab.pipeline.contour(src2)</span>
+
+<span class="s2"># Now we select the &#39;angle&#39; attribute, ie the phase of Phi</span>
+<span class="s2">contour2 = mlab.pipeline.set_active_attribute(contour,</span>
+<span class="s2">                                    point_scalars=&#39;angle&#39;)</span>
+
+<span class="s2"># And we display the surface. The colormap is the current attribute: the phase.</span>
+<span class="s2">mlab.pipeline.surface(contour2, colormap=&#39;hsv&#39;)</span>
+
+<span class="s2">mlab.colorbar(title=&#39;Phase&#39;, orientation=&#39;vertical&#39;, nb_labels=3)</span>
+
+<span class="s2">mlab.show()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_simple_structured_grid.html"
+                        title="previous chapter">Simple structured grid example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example_tvtk_in_mayavi.html"
+                        title="next chapter">Tvtk in mayavi example</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/auto/example_atomic_orbital.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_tvtk_in_mayavi.html" title="Tvtk in mayavi example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_simple_structured_grid.html" title="Simple structured grid example"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" >Example gallery</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>
