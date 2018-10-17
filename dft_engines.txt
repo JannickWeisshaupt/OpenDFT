@@ -1,5 +1,0 @@
-exciting: Done
-nwchem: somewhat done
-quantum espresso: Moslty Done
-Siesta: Missing (not installed)
-Abinit: Missing (installed)
