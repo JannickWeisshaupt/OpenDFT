@@ -1,0 +1,245 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Animating the data &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="animating-the-data">
+<span id="mlab-animating-data"></span><h1>Animating the data<a class="headerlink" href="#animating-the-data" title="Permalink to this headline">¶</a></h1>
+<p>Often it isn’t sufficient to just plot the data.  You may also want to
+change the data of the plot and update the plot without having to
+recreate the entire visualization, for instance to do animations, or in
+an interactive application. Indeed, recreating the entire visualization
+is very inefficient and leads to very jerky looking
+animations. To do this, mlab provides a very convenient way to change
+the data of an existing mlab visualization.  Consider a very simple
+example.  The <cite>mlab.test_simple_surf_anim</cite> function has this code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">import numpy as np</span>
+<span class="s2">from mayavi import mlab</span>
+<span class="s2">x, y = np.mgrid[0:3:1,0:3:1]</span>
+<span class="s2">s = mlab.surf(x, y, np.asarray(x*0.1, &#39;d&#39;))</span>
+
+<span class="s2">for i in range(10):</span>
+<span class="s2">    s.mlab_source.scalars = np.asarray(x*0.1*(i+1), &#39;d&#39;)</span>
+</pre></div>
+</div>
+<p>The first two lines define a simple plane and view that.  The next three
+lines animate that data by changing the scalars producing a plane that
+rotates about the origin.  The key here is that the <cite>s</cite> object above has
+a special attribute called <cite>mlab_source</cite>.  This sub-object allows us to
+manipulate the points and scalars.  If we wanted to change the <cite>x</cite> values
+we could set that too by:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">s.mlab_source.x = new_x</span>
+</pre></div>
+</div>
+<p>The only thing to keep in mind here is that the shape of <cite>x</cite> should not
+be changed.</p>
+<p>Note that many of the examples discussed here may not appear to be
+animated at all and you may just see the final state of the animation.
+If you save a screenshot of the image at each stage of the animation,
+you would get the correct result.  However, you will not get the
+visual effect on screen.  See the section
+<a class="reference internal" href="tips.html#animating-a-visualization"><span class="std std-ref">Animating a visualization</span></a> to learn more on the use of the
+<cite>&#64;animate</cite> decorator (<a class="reference internal" href="auto/mlab_other_functions.html#mayavi.mlab.animate" title="mayavi.mlab.animate"><code class="xref py py-func docutils literal notranslate"><span class="pre">mayavi.mlab.animate()</span></code></a>) to achieve this.
+We show a small example here, where we rewrite the above to animate
+nicely:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">import numpy as np</span>
+<span class="s2">from mayavi import mlab</span>
+<span class="s2">x, y = np.mgrid[0:3:1,0:3:1]</span>
+<span class="s2">s = mlab.surf(x, y, np.asarray(x*0.1, &#39;d&#39;))</span>
+
+<span class="s2">@mlab.animate</span>
+<span class="s2">def anim()</span>
+<span class="s2">    for i in range(10):</span>
+<span class="s2">        s.mlab_source.scalars = np.asarray(x*0.1*(i+1), &#39;d&#39;)</span>
+<span class="s2">        yield</span>
+
+<span class="s2">anim()</span>
+<span class="s2">mlab.show()</span>
+</pre></div>
+</div>
+<p>In the above, note that we wrap the iteration in a function which is a
+generator and decorate it with the <cite>&#64;mlab.animate</cite> decorator.</p>
+<p>If multiple values have to be changed, you can use the <cite>set</cite> method of
+the <cite>mlab_source</cite> to set them as shown in the more complicated example
+below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2"># Produce some nice data.</span>
+<span class="s2">n_mer, n_long = 6, 11</span>
+<span class="s2">pi = np.pi</span>
+<span class="s2">dphi = pi/1000.0</span>
+<span class="s2">phi = np.arange(0.0, 2*pi + 0.5*dphi, dphi, &#39;d&#39;)</span>
+<span class="s2">mu = phi*n_mer</span>
+<span class="s2">x = np.cos(mu)*(1+np.cos(n_long*mu/n_mer)*0.5)</span>
+<span class="s2">y = np.sin(mu)*(1+np.cos(n_long*mu/n_mer)*0.5)</span>
+<span class="s2">z = np.sin(n_long*mu/n_mer)*0.5</span>
+
+<span class="s2"># View it.</span>
+<span class="s2">l = mlab.plot3d(x, y, z, np.sin(mu), tube_radius=0.025, colormap=&#39;Spectral&#39;)</span>
+
+<span class="s2"># Now animate the data.</span>
+<span class="s2">ms = l.mlab_source</span>
+<span class="s2">for i in range(10):</span>
+<span class="s2">    x = np.cos(mu)*(1+np.cos(n_long*mu/n_mer +</span>
+<span class="s2">                                      np.pi*(i+1)/5.)*0.5)</span>
+<span class="s2">    scalars = np.sin(mu + np.pi*(i+1)/5)</span>
+<span class="s2">    ms.trait_set(x=x, scalars=scalars)</span>
+</pre></div>
+</div>
+<p>Notice the use of the <cite>set</cite> method above. With this method, the
+visualization is recomputed only once.  In this case, the shape of the
+new arrays has not changed, only their values have.  If the shape of the
+array changes then one should use the <cite>reset</cite> method as shown below:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">x, y = np.mgrid[0:3:1,0:3:1]</span>
+<span class="s2">s = mlab.surf(x, y, np.asarray(x*0.1, &#39;d&#39;),</span>
+<span class="s2">              representation=&#39;wireframe&#39;)</span>
+<span class="s2"># Animate the data.</span>
+<span class="s2">fig = mlab.gcf()</span>
+<span class="s2">ms = s.mlab_source</span>
+<span class="s2">for i in range(5):</span>
+<span class="s2">    x, y = np.mgrid[0:3:1.0/(i+2),0:3:1.0/(i+2)]</span>
+<span class="s2">    sc = np.asarray(x*x*0.05*(i+1), &#39;d&#39;)</span>
+<span class="s2">    ms.reset(x=x, y=y, scalars=sc)</span>
+<span class="s2">    fig.scene.reset_zoom()</span>
+</pre></div>
+</div>
+<p>Many standard examples for animating data are provided with mlab.  Try
+the examples with the name <cite>mlab.test_&lt;name&gt;_anim</cite>, i.e. where the name
+ends with an <cite>_anim</cite> to see how these work and run.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is important to remember distinction between <cite>set</cite> and <cite>reset</cite>.
+Use <cite>set</cite> or directly set the attributes (<cite>x</cite>, <cite>y</cite>, <cite>scalars</cite> etc.)
+when you are not changing the shape of the data but only the values.
+Use <cite>reset</cite> when the arrays are changing shape and size.  Reset
+usually regenerates all the data and can be inefficient when
+compared to <cite>set</cite> or directly setting the traits.</p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">When creating a Mayavi pipeline, as explained in the following
+subsection, instead of using ready-made plotting function, the
+<cite>mlab_source</cite> attribute is created only on sources created via
+<cite>mlab</cite>. Pipeline created entirely using <cite>mlab</cite> will present this
+attribute.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If you are animating several plot objects, each time you modify the
+data with there <cite>mlab_source</cite> attribute, Mayavi will trigger a
+refresh of the scene. This operation might take time, and thus slow
+your animation. In this case, the tip
+<a class="reference internal" href="tips.html#acceleration-mayavi-scripts"><span class="std std-ref">Accelerating a Mayavi script</span></a> may come in handy.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/mlab_animating.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

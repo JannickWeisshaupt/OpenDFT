@@ -1,0 +1,198 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Exploring a vector field &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Modules" href="modules.html" />
+    <link rel="prev" title="Using Mayavi with scipy" href="example_using_with_scipy.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="Modules"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_using_with_scipy.html" title="Using Mayavi with scipy"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="application.html" accesskey="U">Using the Mayavi application</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="exploring-a-vector-field">
+<h1>Exploring a vector field<a class="headerlink" href="#exploring-a-vector-field" title="Permalink to this headline">¶</a></h1>
+<p>In this example, we create a vector field from the gradient of a scalar
+field and explore it interactively. This example shows you how to do some
+operations similar to the previous example, but interactively, using the
+filters and modules. This approach requires a better knowledge of Mayavi
+and the VTK filters than the previous example, in which <cite>numpy</cite> is used
+for most of the operations. The big gain is that the resulting
+visualization can be explored interactively.</p>
+<p>First, let us create the same scalar field as the previous example:. We
+open Mayavi and enter the following code in the Python shell:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">from mayavi import mlab</span>
+<span class="s2">import numpy as np</span>
+
+<span class="s2">def V(x, y, z):</span>
+<span class="s2">    &quot;&quot;&quot;</span> <span class="n">A</span> <span class="mi">3</span><span class="n">D</span> <span class="n">sinusoidal</span> <span class="n">lattice</span> <span class="k">with</span> <span class="n">a</span> <span class="n">parabolic</span> <span class="n">confinement</span><span class="o">.</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    return np.cos(10*x) + np.cos(10*y) + np.cos(10*z) + 2*(x**2 + y**2 + z**2)</span>
+<span class="s2">X, Y, Z = np.mgrid[-2:2:100j, -2:2:100j, -2:2:100j]</span>
+<span class="s2">mlab.contour3d(X, Y, Z, V)</span>
+</pre></div>
+</div>
+<p>As in the previous example, we can change the color map and the values
+chosen in the isosurfaces.</p>
+<p>We want to take the gradient of the scalar field, to create a vector
+field. To do this we are going to use the <cite>CellDerivatives</cite> filter, that
+takes derivatives of the data located in the cells (that is, between the
+points, see <a class="reference internal" href="data.html#data-structures-used-by-mayavi"><span class="std std-ref">Data representation in Mayavi</span></a>). For this, we first
+need to interpolate the data from the points where it is located to the
+cells, using a <cite>PointToCellData</cite> filter. We can then apply our
+<cite>CellDerivatives</cite> filter, and then a <cite>CellToPointData</cite> filter to get
+point data back.</p>
+<p>To visualize the vector field, we can use a <cite>VectorCutPlane</cite> module. The
+resulting vectors are too large, and we can go to the <cite>Glyph</cite> tab,
+(and the <cite>Glyph</cite> tab in this tab), to reduce the scale factor to 0.2. The
+vector field is still too dense, therefore we go to the <cite>Masking</cite> tab to
+enable masking, mask with an <cite>on ratio</cite> of 6 (one arrow out of 6 is
+masked) and turn off the random mode.</p>
+<a class="reference internal image-reference" href="_images/example_vector_cut_plane.jpg"><img alt="_images/example_vector_cut_plane.jpg" src="_images/example_vector_cut_plane.jpg" style="width: 666.0px; height: 519.0px;" /></a>
+<p>To have nice colors, we also changed the color map of the vector field by
+going to the <cite>Colors and legend</cite> node just above the <cite>VectorCutPlane</cite>,
+and choosing a look up table <strong>in the VectorLUT</strong> tab, as there can be
+different color maps for vector data and scalar data.</p>
+<p>Unlike the previous example, we can play with all the parameters in the
+dialog box, like masking, or select <cite>color_by_scalar</cite> in the <cite>Glyph</cite> tab,
+to display the value of the potential. We can also move the cut plane
+used to display the vectors by dragging it.</p>
+<p>Now that we have a 3D vector field, we can also use Mayavi to integrate
+the trajectory of a particle in it. For this we can use the streamline
+module. It displays trajectories starting from the vertices of a seed
+surface. We choose (in the <cite>Seed</cite> tab) a <cite>Point Widget</cite> as a seed. We can
+then move the seed point by dragging it along in the 3D scene. This
+allows us to explore the trajectories in the potential created by the
+initial scalar field. In our case, all the trajectories end up in a local
+potential minimum, and moving the seed point along lets us see in which
+minimum each point will fall into, in other world the basin of attraction
+of each local minimum.</p>
+<img alt="_images/example_streamline.jpg" src="_images/example_streamline.jpg" />
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_using_with_scipy.html"
+                        title="previous chapter">Using Mayavi with scipy</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="modules.html"
+                        title="next chapter">Modules</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/example_exploring_a_vector_field.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="Modules"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_using_with_scipy.html" title="Using Mayavi with scipy"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="application.html" >Using the Mayavi application</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

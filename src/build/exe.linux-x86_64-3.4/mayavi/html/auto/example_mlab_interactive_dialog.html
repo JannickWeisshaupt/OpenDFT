@@ -1,0 +1,221 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mlab interactive dialog example &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Wx mayavi embed in notebook example" href="example_wx_mayavi_embed_in_notebook.html" />
+    <link rel="prev" title="Superquad with gui example" href="example_superquad_with_gui.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_wx_mayavi_embed_in_notebook.html" title="Wx mayavi embed in notebook example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_superquad_with_gui.html" title="Superquad with gui example"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" accesskey="U">Example gallery</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="mlab-interactive-dialog-example">
+<span id="example-mlab-interactive-dialog"></span><h1>Mlab interactive dialog example<a class="headerlink" href="#mlab-interactive-dialog-example" title="Permalink to this headline">¶</a></h1>
+<p>An example of how to modify the data visualized  via an interactive dialog.</p>
+<p>A dialog is created via <a class="reference external" href="http://code.enthought.com/projects/traits/">TraitsUI</a> from an object (MyModel).
+Some attributes of the objects are represented on the dialog: first a
+Mayavi scene, that will host our visualization, and two parameters that
+control the data plotted.</p>
+<p>A curve is plotted in the embedded scene using the associated
+mlab.points3d function. The visualization object created is stored
+as an attribute on the main MyModel object, to modify it inplace later.</p>
+<p>When the <cite>n_meridional</cite> and <cite>n_longitudinal</cite> attributes are modified, eg via
+the slide bars on the dialog, the curve is recomputed, and the
+visualization is updated by modifying inplace the stored plot
+object (see <a class="reference internal" href="../mlab_animating.html#mlab-animating-data"><span class="std std-ref">Animating the data</span></a>).</p>
+<p>This example is discussed in details in the section
+<a class="reference internal" href="../building_applications.html#embedding-mayavi-traits"><span class="std std-ref">Embedding a Mayavi scene in a Traits dialog</span></a>.</p>
+<img alt="../_images/example_mlab_interactive_dialog.jpg" class="align-center" src="../_images/example_mlab_interactive_dialog.jpg" />
+<p><strong>Python source code:</strong> <a class="reference download internal" href="../_downloads/mlab_interactive_dialog.py" download=""><code class="xref download docutils literal notranslate"><span class="pre">mlab_interactive_dialog.py</span></code></a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2"># Author: Gael Varoquaux &lt;gael.varoquaux@normalesup.org&gt;</span>
+<span class="s2"># Copyright (c) 2008, Enthought, Inc.</span>
+<span class="s2"># License: BSD Style.</span>
+
+
+<span class="s2">from numpy import arange, pi, cos, sin</span>
+
+<span class="s2">from traits.api import HasTraits, Range, Instance, </span><span class="se">\</span>
+<span class="s2">        on_trait_change</span>
+<span class="s2">from traitsui.api import View, Item, Group</span>
+
+<span class="s2">from mayavi.core.api import PipelineBase</span>
+<span class="s2">from mayavi.core.ui.api import MayaviScene, SceneEditor, </span><span class="se">\</span>
+<span class="s2">                MlabSceneModel</span>
+
+
+<span class="s2">dphi = pi/1000.</span>
+<span class="s2">phi = arange(0.0, 2*pi + 0.5*dphi, dphi, &#39;d&#39;)</span>
+
+<span class="s2">def curve(n_mer, n_long):</span>
+<span class="s2">    mu = phi*n_mer</span>
+<span class="s2">    x = cos(mu) * (1 + cos(n_long * mu/n_mer)*0.5)</span>
+<span class="s2">    y = sin(mu) * (1 + cos(n_long * mu/n_mer)*0.5)</span>
+<span class="s2">    z = 0.5 * sin(n_long*mu/n_mer)</span>
+<span class="s2">    t = sin(mu)</span>
+<span class="s2">    return x, y, z, t</span>
+
+
+<span class="s2">class MyModel(HasTraits):</span>
+<span class="s2">    n_meridional    = Range(0, 30, 6, )#mode=&#39;spinner&#39;)</span>
+<span class="s2">    n_longitudinal  = Range(0, 30, 11, )#mode=&#39;spinner&#39;)</span>
+
+<span class="s2">    scene = Instance(MlabSceneModel, ())</span>
+
+<span class="s2">    plot = Instance(PipelineBase)</span>
+
+
+<span class="s2">    # When the scene is activated, or when the parameters are changed, we</span>
+<span class="s2">    # update the plot.</span>
+<span class="s2">    @on_trait_change(&#39;n_meridional,n_longitudinal,scene.activated&#39;)</span>
+<span class="s2">    def update_plot(self):</span>
+<span class="s2">        x, y, z, t = curve(self.n_meridional, self.n_longitudinal)</span>
+<span class="s2">        if self.plot is None:</span>
+<span class="s2">            self.plot = self.scene.mlab.plot3d(x, y, z, t,</span>
+<span class="s2">                                tube_radius=0.025, colormap=&#39;Spectral&#39;)</span>
+<span class="s2">        else:</span>
+<span class="s2">            self.plot.mlab_source.trait_set(x=x, y=y, z=z, scalars=t)</span>
+
+
+<span class="s2">    # The layout of the dialog created</span>
+<span class="s2">    view = View(Item(&#39;scene&#39;, editor=SceneEditor(scene_class=MayaviScene),</span>
+<span class="s2">                     height=250, width=300, show_label=False),</span>
+<span class="s2">                Group(</span>
+<span class="s2">                        &#39;_&#39;, &#39;n_meridional&#39;, &#39;n_longitudinal&#39;,</span>
+<span class="s2">                     ),</span>
+<span class="s2">                resizable=True,</span>
+<span class="s2">                )</span>
+
+<span class="s2">my_model = MyModel()</span>
+<span class="s2">my_model.configure_traits()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_superquad_with_gui.html"
+                        title="previous chapter">Superquad with gui example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example_wx_mayavi_embed_in_notebook.html"
+                        title="next chapter">Wx mayavi embed in notebook example</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/auto/example_mlab_interactive_dialog.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_wx_mayavi_embed_in_notebook.html" title="Wx mayavi embed in notebook example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_superquad_with_gui.html" title="Superquad with gui example"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" >Example gallery</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

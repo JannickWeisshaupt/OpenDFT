@@ -1,0 +1,213 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Pick on surface example &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Select red balls example" href="example_select_red_balls.html" />
+    <link rel="prev" title="Magnetic field example" href="example_magnetic_field.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_select_red_balls.html" title="Select red balls example"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="example_magnetic_field.html" title="Magnetic field example"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" accesskey="U">Example gallery</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pick-on-surface-example">
+<span id="example-pick-on-surface"></span><h1>Pick on surface example<a class="headerlink" href="#pick-on-surface-example" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div>Example showing how to pick data on a surface, going all the way back</div></blockquote>
+<p>to the index in the numpy arrays.</p>
+<p>In this example, two views of the same data are shown. One with the data
+on a sphere, the other with the data flat.</p>
+<p>We use the ‘on_mouse_pick’ method of the scene to register a callback on
+clicking on the sphere. The callback is called with a picker object as
+andan argument. We use the point_id of the point that has been picked,
+andand  go back to the 2D index on the data matrix to find its position.</p>
+<p><strong>Python source code:</strong> <a class="reference download internal" href="../_downloads/pick_on_surface.py" download=""><code class="xref download docutils literal notranslate"><span class="pre">pick_on_surface.py</span></code></a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>
+<span class="s2">################################################################################</span>
+<span class="s2"># Create some data</span>
+<span class="s2">import numpy as np</span>
+<span class="s2">pi  = np.pi</span>
+<span class="s2">cos = np.cos</span>
+<span class="s2">sin = np.sin</span>
+
+<span class="s2">phi, theta = np.mgrid[0:pi:180j,0:2*pi:180j]</span>
+<span class="s2">m0 = 4; m1 = 3; m2 = 2; m3 = 3; m4 = 1; m5 = 2; m6 = 2; m7 = 4;</span>
+<span class="s2">s = sin(m0*phi)**m1 + cos(m2*phi)**m3 + sin(m4*theta)**m5 + cos(m6*theta)**m7</span>
+<span class="s2">x = sin(phi)*cos(theta)</span>
+<span class="s2">y = cos(phi)</span>
+<span class="s2">z = sin(phi)*sin(theta)</span>
+
+<span class="s2">################################################################################</span>
+<span class="s2"># Plot the data</span>
+<span class="s2">from mayavi import mlab</span>
+
+<span class="s2"># A first plot in 3D</span>
+<span class="s2">fig = mlab.figure(1)</span>
+<span class="s2">mlab.clf()</span>
+<span class="s2">mesh = mlab.mesh(x, y, z, scalars=s)</span>
+<span class="s2">cursor3d = mlab.points3d(0., 0., 0., mode=&#39;axes&#39;,</span>
+<span class="s2">                                color=(0, 0, 0),</span>
+<span class="s2">                                scale_factor=0.5)</span>
+<span class="s2">mlab.title(&#39;Click on the ball&#39;)</span>
+
+<span class="s2"># A second plot, flat</span>
+<span class="s2">fig2d = mlab.figure(2)</span>
+<span class="s2">mlab.clf()</span>
+<span class="s2">im = mlab.imshow(s)</span>
+<span class="s2">cursor = mlab.points3d(0, 0, 0, mode=&#39;2dthick_cross&#39;,</span>
+<span class="s2">                                color=(0, 0, 0),</span>
+<span class="s2">                                scale_factor=10)</span>
+<span class="s2">mlab.view(90, 0)</span>
+
+<span class="s2">################################################################################</span>
+<span class="s2"># Some logic to select &#39;mesh&#39; and the data index when picking.</span>
+
+<span class="s2">def picker_callback(picker_obj):</span>
+<span class="s2">    picked = picker_obj.actors</span>
+<span class="s2">    if mesh.actor.actor._vtk_obj in [o._vtk_obj for o in picked]:</span>
+<span class="s2">        # m.mlab_source.points is the points array underlying the vtk</span>
+<span class="s2">        # dataset. GetPointId return the index in this array.</span>
+<span class="s2">        x_, y_ = np.lib.index_tricks.unravel_index(picker_obj.point_id,</span>
+<span class="s2">                                                                s.shape)</span>
+<span class="s2">        print(&quot;Data indices: </span><span class="si">%i</span><span class="s2">, </span><span class="si">%i</span><span class="s2">&quot; % (x_, y_))</span>
+<span class="s2">        n_x, n_y = s.shape</span>
+<span class="s2">        cursor.mlab_source.reset(x=x_ - n_x/2.,</span>
+<span class="s2">                               y=y_ - n_y/2.)</span>
+<span class="s2">        cursor3d.mlab_source.reset(x=x[x_, y_],</span>
+<span class="s2">                                 y=y[x_, y_],</span>
+<span class="s2">                                 z=z[x_, y_])</span>
+
+<span class="s2">fig.on_mouse_pick(picker_callback)</span>
+
+<span class="s2">mlab.show()</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="example_magnetic_field.html"
+                        title="previous chapter">Magnetic field example</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="example_select_red_balls.html"
+                        title="next chapter">Select red balls example</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/auto/example_pick_on_surface.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="example_select_red_balls.html" title="Select red balls example"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="example_magnetic_field.html" title="Magnetic field example"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">mayavi 4.6.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="examples.html" >Example gallery</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>

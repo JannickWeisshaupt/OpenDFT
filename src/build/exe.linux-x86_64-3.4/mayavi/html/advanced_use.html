@@ -1,0 +1,241 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Advanced use of Mayavi &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Organisation of Mayavi visualizations: the pipeline" href="pipeline.html" />
+    <link rel="prev" title="mlab: Python scripting for 3D plotting" href="mlab.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="pipeline.html" title="Organisation of Mayavi visualizations: the pipeline"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="mlab.html" title="mlab: Python scripting for 3D plotting"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <style type="text/css">
+  li.toctree-l1 {
+      padding: 0.5em 0 1em 0 ;
+      list-style-type: none;
+      font-size: 150% ;
+      }
+
+  li.toctree-l2 {
+      font-size: 70% ;
+      list-style-type: square;
+      }
+
+  li.toctree-l3 {
+      font-size: 85% ;
+      list-style-type: circle;
+      }
+
+
+</style><div class="section" id="advanced-use-of-mayavi">
+<span id="id1"></span><h1>Advanced use of Mayavi<a class="headerlink" href="#advanced-use-of-mayavi" title="Permalink to this headline">¶</a></h1>
+<div class="topic">
+<p class="topic-title first">Section summary</p>
+<p>This section gives details on the working principles of Mayavi. Read it
+to gain a better understanding, in order to use Mayavi’s full power.</p>
+<ul class="simple">
+<li>First we describe the organisation of the pipeline that defines a
+Mayavi visualization.</li>
+<li>Second we describe data structures, how they are defined and how you
+can build them. This information is useful for a better
+understanding of how to build efficient pipelines.</li>
+<li>Finally we describe the object-oriented structure behind Mayavi and
+the pipeline. This information opens the door to advanced scripting
+of the Mayavi application, and is especially useful if you whish
+to develop custom tools with Mayavi.</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pipeline.html">Organisation of Mayavi visualizations: the pipeline</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#anatomy-of-a-mayavi-pipeline">Anatomy of a Mayavi pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html#layout-of-a-pipeline">Layout of a pipeline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pipeline.html#navigating-in-the-pipeline">Navigating in the pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#the-link-between-different-mayavi-entry-points">The link between different Mayavi entry points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html#a-pipeline-example-examined">A pipeline example examined</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Data representation in Mayavi</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="data.html#introduction-to-tvtk-datasets">Introduction to TVTK datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data.html#the-flow-of-data">The flow of data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data.html#retrieving-the-data-from-mayavi-pipelines">Retrieving the data from Mayavi pipelines</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="data.html#probing-data-at-given-positions">Probing data at given positions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#inspecting-the-internals-of-the-data-structures">Inspecting the internals of the data structures</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="data.html#extracting-data-points-and-values">Extracting data points and values</a></li>
+<li class="toctree-l4"><a class="reference internal" href="data.html#extracting-lines">Extracting lines</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#headless-use-of-mayavi-for-the-algorithms-without-visualization">Headless use of Mayavi for the algorithms, without visualization</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="data.html#dissection-of-the-different-tvtk-datasets">Dissection of the different TVTK datasets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="data.html#imagedata">ImageData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#rectilineargrid">RectilinearGrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#structuredgrid">StructuredGrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#polydata">PolyData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#unstructuredgrid">UnstructuredGrid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#external-references">External references</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data.html#datasets-creation-examples">Datasets creation examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="data.html#inserting-tvtk-datasets-in-the-mayavi-pipeline">Inserting TVTK datasets in the Mayavi pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="mayavi_objects.html">Objects populating the Mayavi pipeline</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#scene">Scene</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#source">Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#filter">Filter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#modulemanager-colors-and-legends-node">ModuleManager: Colors and legends node</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#module">Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#engine">Engine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#base-class-pipelinebase">Base class: PipelineBase</a></li>
+<li class="toctree-l2"><a class="reference internal" href="mayavi_objects.html#class-hierarchy">Class hierarchy</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_scripting.html">Advanced Scripting with Mayavi</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="advanced_scripting.html#design-overview-mayavi-as-a-visualization-framework">Design Overview: Mayavi as a visualization framework</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="advanced_scripting.html#object-oriented-construction-of-a-visualization">Object-oriented construction of a visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="advanced_scripting.html#life-cycle-of-the-different-objects">Life-cycle of the different objects</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_scripting.html#scripting-the-mayavi2-application">Scripting the <code class="docutils literal notranslate"><span class="pre">mayavi2</span></code> application</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="advanced_scripting.html#scripting-from-the-ui">Scripting from the UI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="advanced_scripting.html#scripting-from-ipython">Scripting from IPython</a></li>
+<li class="toctree-l3"><a class="reference internal" href="advanced_scripting.html#an-example">An example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="advanced_scripting.html#using-the-mayavi-envisage-plugins">Using the Mayavi envisage plugins</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="mlab.html"
+                        title="previous chapter"><code class="docutils literal notranslate"><span class="pre">mlab</span></code>: Python scripting for 3D plotting</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="pipeline.html"
+                        title="next chapter">Organisation of Mayavi visualizations: the pipeline</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/advanced_use.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="pipeline.html" title="Organisation of Mayavi visualizations: the pipeline"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="mlab.html" title="mlab: Python scripting for 3D plotting"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>
