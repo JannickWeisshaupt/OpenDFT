@@ -11,6 +11,10 @@ Welcome to OpenDFT's documentation!
    :caption: Contents:
 
 
+   introduction
+   installation
+   solid_state_tools
+
 
 Indices and tables
 ==================

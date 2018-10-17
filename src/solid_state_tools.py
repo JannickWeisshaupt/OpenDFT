@@ -42,6 +42,12 @@ def remove_duplicates_old(data, treshold=0.01):
 
 
 class MolecularStructure(object):
+    """Represents a molecular structure
+    Arguments:
+    atoms -- a (Nx4) numpy array with [x,y,z,type] as rows. Type is an integer with the atomic number.
+
+
+    """
     def __init__(self, atoms, scale=1.0):
         self.atoms = np.array(atoms, dtype=np.float)  # np array with [x,y,z,type] type is number in periodic system
         self.atoms[:, :3] = self.atoms[:, :3] * scale
@@ -49,9 +55,11 @@ class MolecularStructure(object):
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
     def calc_absolute_coordinates(self, repeat=[1, 1, 1],edges=False):
+        """Returns the catesion coordinates"""
         return self.atoms
 
     def find_bonds(self, abs_coords):
+        """Returns a list of bonds between atom i and j, i.e. [[i,j],...]"""
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:, :3]
 

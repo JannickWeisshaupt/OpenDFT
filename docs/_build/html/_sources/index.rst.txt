@@ -10,8 +10,10 @@ Welcome to OpenDFT's documentation!
    :maxdepth: 2
    :caption: Contents:
 
- .. autoclass:: Handler
-    :members:
+
+   introduction
+   installation
+   solid_state_tools
 
 
 Indices and tables
