@@ -982,6 +982,7 @@ class MaterialsApiWindow(QtGui.QDialog):
 
         bottom_layout.addStretch(1)
         self.import_results_checkbutton = QtGui.QCheckBox('Import results')
+        self.import_results_checkbutton.toggle()
         bottom_layout.addWidget(self.import_results_checkbutton)
 
         self.buttonBox = QtGui.QDialogButtonBox(self)

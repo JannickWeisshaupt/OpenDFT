@@ -265,7 +265,7 @@ class StructureVisualization(HasTraits):
             keep_view = False
         if self.crystal_structure is None:
             return
-        self.scene.anti_aliasing_frames = 20
+        # self.scene.anti_aliasing_frames = 20 # does not work
         # We can do normal mlab calls on the embedded scene.
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
         repeat = [self.n_x, self.n_y, self.n_z]

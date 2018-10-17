@@ -810,7 +810,7 @@ def get_materials_dos_from_id(id):
         dos = m.get_dos_by_material_id(id)
 
     data = np.zeros((len(dos.energies),2))
-    data[:,0] = dos.energies
+    data[:,0] = dos.energies - dos.get_gap()/2
     for key,value in dos.densities.items():
         data[:,1] = data[:,1] + value
     return DensityOfStates(data)
@@ -834,10 +834,11 @@ def get_materials_band_structure_from_id(id):
         for i in range(band.shape[0]):
             array = np.zeros((len(band[i,:]),2))
             array[:,0] = k_scalar
-            array[:,1] = band[i,:]
+            array[:,1] = band[i,:] - band_structure.efermi-band_structure.get_band_gap()['energy']/2
             conv_bands.append(array)
 
-    sorted_bands = sorted(conv_bands,key=np.mean)
+    sorted_bands = conv_bands
+    # sorted_bands = sorted(conv_bands,key=np.mean)
     # high_sym_path = HighSymmKpath(structure)
     # path = convert_hs_path_to_own(high_sym_path)
     path = []
