@@ -1,0 +1,23 @@
+The icons are mostly derived work from other icons. As such they are
+licensed accordingly to the original license:
+
+    Eclipse: Eclipse Public Licence
+    Nuvola: LGPL
+    Crystal: LGPL
+    OOo: LGPL
+    GV: Gael Varoquaux: BSD-licensed
+
+Unless stated in this file, icons are work of enthought, and are released
+under a 3 clause BSD-like license.
+
+Files and orginal authors:
+----------------------------------------------------------------
+                     add_filter.png | Nuvola
+                     add_module.png | Crystal
+                      add_scene.png | Crystal
+                     add_source.png | Crystal
+                            add.ico | GV
+                    help_action.png | GV
+                             m2.png | GV
+                            mv2.ico | GV
+                    preferences.png | Crystal

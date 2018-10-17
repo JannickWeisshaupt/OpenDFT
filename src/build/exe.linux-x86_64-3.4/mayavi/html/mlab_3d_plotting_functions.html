@@ -1,0 +1,320 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>3D Plotting functions for numpy arrays &#8212; mayavi 4.6.1 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+<style type="text/css">
+  body {
+    /* Very bottom copyright, etc. info */
+    background: #4d598d;
+  }
+
+  .documentwrapper {
+    /* Blank area on left bar */
+    background: #24326e;
+  }
+
+  .related {
+    /* Long horizontal nav bars */
+    background: #3c4b8a!important;
+  }
+
+  .sphinxsidebarwrapper {
+    /* Filled part of left sidebar */
+    background: #24326e;
+  }
+
+  a {
+    color: #253370;
+  }
+
+  .sphinxsidebarwrapper a {
+    color: #f2f2f2!important;
+  }
+</style>
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="d-plotting-functions-for-numpy-arrays">
+<span id="mlab-plotting-functions"></span><h1>3D Plotting functions for numpy arrays<a class="headerlink" href="#d-plotting-functions-for-numpy-arrays" title="Permalink to this headline">¶</a></h1>
+<p>Visualization can be created in <cite>mlab</cite> by a set of functions operating on
+numpy arrays.</p>
+<p>The mlab plotting functions take numpy arrays as input, describing the
+<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, and <code class="docutils literal notranslate"><span class="pre">z</span></code> coordinates of the data. They build full-blown
+visualizations: they create the data source, filters if necessary, and
+add the visualization modules. Their behavior, and thus the visualization
+created, can be fine-tuned through keyword arguments, similarly to pylab.
+In addition, they all return the visualization module created, thus
+visualization can also be modified by changing the attributes of this
+module.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In this section, we only list the different functions. Each function
+is described in detail in the <a class="reference internal" href="auto/mlab_reference.html#mlab-reference"><span class="std std-ref">MLab reference</span></a>, at the end of
+the user guide, with figures and examples. Please follow the links.</p>
+</div>
+<div class="section" id="d-and-1d-data">
+<h2>0D and 1D data<a class="headerlink" href="#d-and-1d-data" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&#160;</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_points3d1.jpg"><img alt="points3d" src="_images/enthought_mayavi_mlab_points3d1.jpg" style="width: 160.5px; height: 161.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">points3d()</span></code>
+<br>
+Plots glyphs (like points) at the position of the
+supplied data, described by <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code>
+numpy arrays of the same shape.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_plot3d1.jpg"><img alt="plot3d" src="_images/enthought_mayavi_mlab_plot3d1.jpg" style="width: 153.0px; height: 113.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">plot3d()</span></code>
+<br>
+Plots line between the supplied data, described by <code class="docutils literal notranslate"><span class="pre">x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code> 1D numpy arrays of the same length.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="d-data">
+<h2>2D data<a class="headerlink" href="#d-data" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&#160;</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_imshow1.jpg"><img alt="imshow" src="_images/enthought_mayavi_mlab_imshow1.jpg" style="width: 200.0px; height: 129.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">imshow()</span></code>
+<br>
+View a 2D array as an image.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_surf1.jpg"><img alt="surf" src="_images/enthought_mayavi_mlab_surf1.jpg" style="width: 192.5px; height: 153.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">surf()</span></code>
+<br>
+View a 2D array as a carpet plot, with the z axis
+representation through elevation the value of the
+array points.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_contour_surf1.jpg"><img alt="contour_surf" src="_images/enthought_mayavi_mlab_contour_surf1.jpg" style="width: 200.0px; height: 145.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">contour_surf()</span></code>
+<br>
+View a 2D array as line contours, elevated
+according to the value of the array points.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_mesh1.jpg"><img alt="mesh" src="_images/enthought_mayavi_mlab_mesh1.jpg" style="width: 136.0px; height: 120.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">mesh()</span></code>
+<br>
+Plot a surface described by three 2D arrays, <code class="docutils literal notranslate"><span class="pre">x</span></code>,
+<code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code> giving the coordinates of the data points
+as a grid.
+<br>
+Unlike <code class="xref py py-func docutils literal notranslate"><span class="pre">surf()</span></code>, the surface is defined by its
+<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> and <code class="docutils literal notranslate"><span class="pre">z</span></code> coordinates with no privileged
+direction. More complex surfaces can be created.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_barchart1.jpg"><img alt="barchart" src="_images/enthought_mayavi_mlab_barchart1.jpg" style="width: 161.0px; height: 113.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">barchart()</span></code>
+<br>
+Plot an array <code class="docutils literal notranslate"><span class="pre">s</span></code>, or a set of points with
+explicit coordinates arrays, <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> and <code class="docutils literal notranslate"><span class="pre">z</span></code>,
+as a bar chart, eg for histograms.
+<br>
+This function is very versatile and will accept 2D or
+3D arrays, but also clouds of points, to position the
+bars.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_triangular_mesh1.jpg"><img alt="triangular_mesh" src="_images/enthought_mayavi_mlab_triangular_mesh1.jpg" style="width: 137.0px; height: 105.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">triangular_mesh()</span></code>
+<br>
+Plot a triangular mesh, fully specified by
+<code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> and <code class="docutils literal notranslate"><span class="pre">z</span></code> coordinates of its
+vertices, and the (n, 3) array of the indices of
+the triangles.</td>
+</tr>
+</tbody>
+</table>
+<div class="topic">
+<p class="topic-title first">Vertical scale of  <code class="xref py py-func docutils literal notranslate"><span class="pre">surf()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">contour_surf()</span></code></p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">surf()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">contour_surf()</span></code> can be used as 3D
+representation of 2D data. By default the z-axis is supposed to
+be in the same units as the x and y axis, but it can be
+auto-scaled to give a 2/3 aspect ratio. This behavior can be
+controlled by specifying the “warp_scale=’auto’”.</p>
+</div>
+<div class="topic">
+<p class="topic-title first">From data points to surfaces.</p>
+<p>Knowing the positions of data points is not enough to define a
+surface, connectivity information is also required. With the
+functions <code class="xref py py-func docutils literal notranslate"><span class="pre">surf()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">mesh()</span></code>, this connectivity
+information is implicitly extracted from the shape of the input
+arrays: neighboring data points in the 2D input arrays are
+connected, and the data lies on a grid. With the function
+<code class="xref py py-func docutils literal notranslate"><span class="pre">triangular_mesh()</span></code>, connectivity is explicitly specified.
+Quite often, the connectivity is not regular, but is not known in
+advance either. The data points lie on a surface, and we want to
+plot the surface implicitly defined. The <cite>delaunay2d</cite> filter does
+the required nearest-neighbor matching, and interpolation, as
+shown in the (<a class="reference internal" href="auto/example_surface_from_irregular_data.html#example-surface-from-irregular-data"><span class="std std-ref">Surface from irregular data example</span></a>).</p>
+</div>
+</div>
+<div class="section" id="id1">
+<h2>3D data<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&#160;</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_contour3d1.jpg"><img alt="contour3d" src="_images/enthought_mayavi_mlab_contour3d1.jpg" style="width: 184.5px; height: 169.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">contour3d()</span></code>
+<br>
+Plot iso-surfaces of volumetric data defined as a 3D
+array.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_quiver3d1.jpg"><img alt="quiver3d" src="_images/enthought_mayavi_mlab_quiver3d1.jpg" style="width: 169.0px; height: 177.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">quiver3d()</span></code>
+<br>
+Plot arrows to represent vectors at data points.
+The <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code> position are specified by
+numpy arrays, as well as the <code class="docutils literal notranslate"><span class="pre">u</span></code>, <code class="docutils literal notranslate"><span class="pre">v</span></code>, <code class="docutils literal notranslate"><span class="pre">w</span></code>
+components of the vectors.</td>
+</tr>
+<tr class="row-even"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_flow1.jpg"><img alt="flow" src="_images/enthought_mayavi_mlab_flow1.jpg" style="width: 169.0px; height: 105.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">flow()</span></code>
+<br>
+Plot a trajectory of particles along a vector field
+described by three 3D arrays giving the <code class="docutils literal notranslate"><span class="pre">u</span></code>,
+<code class="docutils literal notranslate"><span class="pre">v</span></code>, <code class="docutils literal notranslate"><span class="pre">w</span></code> components on a grid.</td>
+</tr>
+<tr class="row-odd"><td><a class="reference internal" href="_images/enthought_mayavi_mlab_volume_slice.jpg"><img alt="slice" src="_images/enthought_mayavi_mlab_volume_slice.jpg" style="width: 121.0px; height: 185.0px;" /></a></td>
+<td><code class="xref py py-func docutils literal notranslate"><span class="pre">volume_slice()</span></code>
+<br>
+Plots an interactive image plane sliced through
+volumetric data.</td>
+</tr>
+</tbody>
+</table>
+<div class="topic">
+<p class="topic-title first">Structured or unstructured data</p>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">contour3d()</span></code>, <code class="xref py py-func docutils literal notranslate"><span class="pre">volume_slice()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">flow()</span></code> require
+ordered data (to be able to interpolate between the points), whereas
+<code class="xref py py-func docutils literal notranslate"><span class="pre">quiver3d()</span></code> works with any set of points. The required structure
+is detailed in the functions’ documentation.</p>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Many richer visualizations can be created by assembling data sources
+filters and modules. See the
+<a class="reference internal" href="mlab_pipeline.html#controlling-the-pipeline-with-mlab-scripts"><span class="std std-ref">Assembling pipelines with mlab</span></a> and the
+<a class="reference internal" href="mlab_case_studies.html#mlab-case-studies"><span class="std std-ref">Case studies of some visualizations</span></a> sections.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/mayavi-logo.png" alt="Logo"/>
+            </a></p>
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">3D Plotting functions for numpy arrays</a><ul>
+<li><a class="reference internal" href="#d-and-1d-data">0D and 1D data</a></li>
+<li><a class="reference internal" href="#d-data">2D data</a></li>
+<li><a class="reference internal" href="#id1">3D data</a></li>
+</ul>
+</li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/mlab_3d_plotting_functions.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">mayavi 4.6.1 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2008-2018, Enthought Inc..
+      Last updated on Aug 08, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.1.
+    </div>
+  </body>
+</html>
