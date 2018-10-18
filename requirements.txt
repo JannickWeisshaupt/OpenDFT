@@ -10,7 +10,7 @@ requests==2.18.4
 psutil==5.4.6
 mayavi==4.6.1
 pymatgen==2018.3.14
-setuptools==28.8.0
+setuptools==40.4.3
 sortedcontainers==2.0.3
 scipy==1.0.0
 traits==4.6.0
