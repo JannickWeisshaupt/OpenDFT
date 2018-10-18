@@ -13,3 +13,6 @@ main.spec
 /trial_and_error
 /papers
 /tutorials
+/docs/_build
+/docs/_static
+/docs/_templates
