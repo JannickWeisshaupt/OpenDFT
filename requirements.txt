@@ -16,5 +16,4 @@ scipy==1.0.0
 traits==4.6.0
 periodictable==1.5.0
 six==1.11.0
-cx_Freeze==5.1.1
 ruamel.base==1.0.0
