@@ -13,17 +13,18 @@ otherwise they cannot be used.
 
 If OpenDFT does not start and some errors appear in the terminal try to install qt4 on your system, for e.g. ubuntu use |br| **sudo apt install qt4-default**.
 
-Some DFT codes can be installed through the aptitude package manager. For the others follow the instructions provided by their websites.
 
 #######################
 DFT codes installation
 #######################
-
+OpenDFT is a graphical user interface to command line quantum chemistry and/or DFT codes. As such it requires those to be installed and accessible through their standard
+names in the terminal that started OpenDFT, i.e. through the environmental variables supplied to OpenDFT. Below is a "how to install" list of the supported codes.
 
 =======================
 Nwchem
 =======================
 ``sudo apt-get install nwchem``
+or download the nwchem-release_ and follow these instructions_
 
 =======================
 Quantum espresso
@@ -31,6 +32,8 @@ Quantum espresso
 ``sudo apt-get install quantum-espresso``
 
 .. _release: https://github.com/JannickWeisshaupt/OpenDFT/releases
+.. _nwchem-release: https://github.com/nwchemgit/nwchem/releases/download/v6.8-release/nwchem-6.8-release.revision-v6.8-47-gdf6c956-src.2017-12-14.tar.bz2
+.. _instructions: http://www.nwchem-sw.org/index.php/Compiling_NWChem
 .. |br| raw:: html
 
     <br />
