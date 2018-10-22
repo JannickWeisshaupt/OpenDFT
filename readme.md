@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/opendft/badge/?version=latest)](https://opendft.readthedocs.io/en/latest/?badge=latest)
+
 # OpenDFT
 
 OpenDFT is a free and open source software that brings cutting edge solid state research to the people.
