@@ -1,4 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/opendft/badge/?version=latest)](https://opendft.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.com/JannickWeisshaupt/OpenDFT.svg?branch=master)](https://travis-ci.com/JannickWeisshaupt/OpenDFT)
 
 # OpenDFT
 
