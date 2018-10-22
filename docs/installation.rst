@@ -2,7 +2,7 @@
 How to install OpenDFT
 #######################
 OpenDFT is very easy to install on its own. Just follow the steps below and it should work. OpenDFT relies on DFT codes, e.g. exciting, abinit etc.
-that are already installed on your system. They must be available in the terminal that start OpenDFT with their standard name, i.e. **excitingser** for exciting, abinit for abinit etc.,
+that are installed on your system. They must be available in the terminal that start OpenDFT with their standard name, i.e. ``excitingser`` for exciting, abinit for abinit etc.,
 otherwise they cannot be used.
 
 - Download the latest release from the OpenDFT release_ page and save it on your work station.
@@ -23,13 +23,16 @@ names in the terminal that started OpenDFT, i.e. through the environmental varia
 =======================
 Nwchem
 =======================
-``sudo apt-get install nwchem``
-or download the nwchem-release_ and follow these instructions_
+``sudo apt-get install nwchem`` |br|
+or download the nwchem-release_ and follow these instructions_ |br|
+Afterwards the command ``nwchem`` should work in the terminal.
 
 =======================
 Quantum espresso
 =======================
-``sudo apt-get install quantum-espresso``
+``sudo apt-get install quantum-espresso`` |br|
+or download
+
 
 .. _release: https://github.com/JannickWeisshaupt/OpenDFT/releases
 .. _nwchem-release: https://github.com/nwchemgit/nwchem/releases/download/v6.8-release/nwchem-6.8-release.revision-v6.8-47-gdf6c956-src.2017-12-14.tar.bz2

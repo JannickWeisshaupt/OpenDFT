@@ -7,7 +7,7 @@ import time
 from scipy.spatial import ConvexHull, Voronoi
 import os
 import copy
-from little_helpers import find_data_file
+from src.little_helpers import find_data_file
 from collections import OrderedDict
 import itertools
 
@@ -713,7 +713,7 @@ def calculate_standard_path(structure):
     if not hs_path.kpath: # fix for bug in pymatgen that for certain structures no path is returned
         raise Exception('High symmetry path generation failed.')
 
-    conv_path = convert_hs_path_to_own(path)
+    conv_path = convert_hs_path_to_own(hs_path)
     return conv_path
 
 
