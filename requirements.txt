@@ -17,4 +17,3 @@ traits==4.6.0
 periodictable==1.5.0
 six==1.11.0
 ruamel.base==1.0.0
-sip==4.19.12
