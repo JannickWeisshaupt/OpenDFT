@@ -3,6 +3,16 @@ import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../')
 
+os.environ['ETS_TOOLKIT'] = 'qt4'
+
+import imp
+
+try:
+    imp.find_module('PySide')  # test if PySide if available
+except ImportError:
+    os.environ['QT_API'] = 'pyqt'  # signal to pyface that PyQt4 should be used
+
+
 import src.solid_state_tools as sst
 import numpy as np
 
