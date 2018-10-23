@@ -40,9 +40,11 @@ from visualization import StructureVisualization, BandStructureVisualization, Sc
     OpticalSpectrumVisualization, colormap_list, BrillouinVisualization, VolumeSlicer,DosVisualization,PhononVisualization
 import solid_state_tools as sst
 from solid_state_tools import p_table, p_table_rev
-from little_helpers import CopySelectedCellsAction, PasteIntoTable, set_procname, get_proc_name, \
+from little_helpers import set_procname, get_proc_name, \
     find_data_file, get_stacktrace_as_string,eval_expr,find_fraction,DequeSet
-from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit, QFloatTableWidgetItem,make_splash_screen
+from qt_widgets import EntryWithLabel, LabeledLabel, MySearchLineEdit, \
+    QFloatTableWidgetItem,make_splash_screen,CopySelectedCellsAction, PasteIntoTable
+
 from TerminalClass import PythonTerminal
 import pickle
 import time
