@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0,'./src/')
+sys.path.insert(0,'../src/')
 import src.solid_state_tools as sst
 import numpy as np
 
