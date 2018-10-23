@@ -1,5 +1,8 @@
-import sys
-sys.path.insert(0,'../src/')
+import sys, os
+
+myPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, myPath + '/../')
+
 import src.solid_state_tools as sst
 import numpy as np
 
