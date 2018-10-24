@@ -11,7 +11,6 @@ from src.little_helpers import find_data_file
 from collections import OrderedDict
 import itertools
 
-from pymatgen.electronic_structure.bandstructure import BandStructure,BandStructureSymmLine
 from pymatgen.symmetry.bandstructure import HighSymmKpath,SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
 import pymatgen as mg
@@ -71,8 +70,8 @@ class MolecularStructure(object):
                 dist = np.linalg.norm(abs_coords_pure[j1, :] - abs_coords_pure[j2, :])
                 if dist < (cov_radii[int(abs_coords[j1, 3])] + cov_radii[int(abs_coords[j2, 3])]) * 1.3:
                     dist_mat[j1, j2] = dist
-                    bonds.append([j1, j2]);
-        return bonds
+                    bonds.append((j1, j2))
+        return tuple(bonds)
 
     def symmetry_information(self):
         mol = mg.Molecule(self.atoms[:, 3], self.atoms[:, :3])
@@ -124,24 +123,6 @@ class CrystalStructure(object):
             abs_coord_out = self._add_edges(abs_coord_out,repeat)
         return abs_coord_out
 
-    def find_bonds_old(self, abs_coords):
-        import time
-        st = time.time()
-        n_atoms = abs_coords.shape[0]
-        abs_coords_pure = abs_coords[:, :3]
-
-        dist_mat = np.zeros((n_atoms, n_atoms))
-        bonds = []
-        for j1 in range(n_atoms):
-            for j2 in range(j1 + 1, n_atoms):
-
-                dist = np.linalg.norm(abs_coords_pure[j1, :] - abs_coords_pure[j2, :])
-                if dist < (cov_radii[int(abs_coords[j1, 3])] + cov_radii[int(abs_coords[j2, 3])]) * 1.3:
-                    dist_mat[j1, j2] = dist
-                    bonds.append([j1, j2])
-        print(time.time() - st)
-        return bonds
-
     def find_bonds(self, abs_coords):
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:, :3]
@@ -156,7 +137,7 @@ class CrystalStructure(object):
                 if j1 != index + j1 + 1:
                     bonds.add((j1, index + j1 + 1))
 
-        return list(bonds)
+        return tuple(bonds)
 
     def convert_to_tpiba(self, band_structure_points):
         if type(band_structure_points) in [list, tuple]:
