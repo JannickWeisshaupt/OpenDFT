@@ -12,13 +12,15 @@ unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]])
 atoms = np.array([[0.0, 0.0, 0.0, 6], [0.25, 0.25, 0.25, 6]])
 diamond = sst.CrystalStructure(unit_cell, atoms)
 
+if not os.path.isdir(os.path.dirname(os.path.abspath(__file__))+'/outputs/'):
+    os.mkdir(os.path.dirname(os.path.abspath(__file__))+'/outputs/')
 
 def start_engine(blocking=True):
     pass
 
 handler = Handler()
 handler._start_engine = start_engine
-handler.project_directory =os.path.dirname(os.path.abspath(__file__))+'/outputs/'
+handler.project_directory = os.path.dirname(os.path.abspath(__file__))+'/outputs/'
 
 def test_scf():
     handler.start_ground_state(diamond)
