@@ -16,3 +16,4 @@ main.spec
 /docs/_build
 /docs/_static
 /docs/_templates
+/tests/outputs

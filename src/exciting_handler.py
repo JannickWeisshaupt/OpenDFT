@@ -1,6 +1,6 @@
 import six
 import numpy as np
-import solid_state_tools as sst
+import src.solid_state_tools as sst
 import xml.etree.ElementTree as ET
 import xml
 from xml.dom import minidom
@@ -10,7 +10,7 @@ import os
 import time
 import re
 import threading
-from little_helpers import convert_to_ordered
+from src.little_helpers import convert_to_ordered
 from sortedcontainers import SortedSet
 
 p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
