@@ -33,6 +33,7 @@ def compare_path(p,o):
             break
     return is_equal
 
+
 def test_molecular_structure():
     all_tests = []
 
@@ -46,6 +47,7 @@ def test_molecular_structure():
     all_tests.append(bond_test)
 
     assert all(all_tests)
+
 
 def test_crystal_structure():
     dens = diamond.density()
@@ -83,8 +85,12 @@ def test_standard_path():
     assert compare_path(stored_path,path)
 
 
-
+def test_brillouin_construction():
+    w_points = sst.construct_brillouin_vertices(diamond)
+    brillouin_edges = sst.construct_convex_hull(w_points)
+    assert (len(w_points) == 24) and (len(brillouin_edges) == 44)
 
 if __name__ == "__main__":
+    test_brillouin_construction()
     test_crystal_structure()
     test_molecular_structure()

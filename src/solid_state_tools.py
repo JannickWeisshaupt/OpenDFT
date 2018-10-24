@@ -27,7 +27,7 @@ p_table = {i: el.__repr__() for i, el in enumerate(pt.elements)}
 p_table_rev = {el.__repr__(): i for i, el in enumerate(pt.elements)}
 elemental_masses = [pt.mass.mass(el) for el in pt.elements]
 
-def remove_duplicates_old(data, treshold=0.01):
+def remove_duplicates(data, treshold=0.01):
     if len(data) == 0:
         return np.array([])
     new_data = []
@@ -413,7 +413,7 @@ class StructureParser:
                     sym_atom_array[counter, 3] = atom_spec
                     counter += 1
 
-            atom_array_finally = remove_duplicates_old(sym_atom_array)
+            atom_array_finally = remove_duplicates(sym_atom_array)
         else:
             atom_array_finally = atom_array
 
@@ -620,7 +620,6 @@ def construct_brillouin_vertices(crystal_structure):
     voronoi = Voronoi(all_points)
     wigner_points = voronoi.vertices
 
-
     wigner_points_cleaned = []
 
     for w_point in wigner_points:
@@ -632,38 +631,12 @@ def construct_brillouin_vertices(crystal_structure):
     for i, w_point in enumerate(wigner_points_cleaned):
         vertices_array[i, :] = w_point
 
-    return remove_duplicates_old(vertices_array)
+    return remove_duplicates(vertices_array)
 
 
 def construct_convex_hull(w_points):
     hull = ConvexHull(w_points)
     return hull.simplices
-
-    # bonds = []
-    # for simplex in hull.simplices:
-    #     simplex = np.append(simplex, simplex[0])
-    #     for i in range(len(simplex)-1):
-    #         bonds.append([simplex[i],simplex[i+1]])
-    #
-    # connections = []
-    # for i in range(w_points.shape[0]):
-    #     con_temp = set()
-    #     for bond in bonds:
-    #         if i==bond[0]:
-    #             con_temp.add(bond[1])
-    #         elif i==bond[1]:
-    #             con_temp.add(bond[0])
-    #     connections.append(con_temp)
-    #
-    # shortest_connections = []
-    # for i,connection in enumerate(connections):
-    #     connection = list(connection)
-    #     dist = np.linalg.norm(w_points[connection,:]-w_points[i,:] ,axis=1)
-    #     in_sort = np.argsort(dist)[:3]
-    #     shortest_connections.append(np.array(connection)[in_sort])
-    # shortest_connections = connections
-
-    # return shortest_connections
 
 
 def convert_hs_path_to_own(hs_path):
@@ -684,6 +657,7 @@ def convert_hs_path_to_own(hs_path):
 
     conv_path = convert_path(path, kpoints)
     return conv_path
+
 
 def calculate_standard_path(structure):
     lattice = mg.Lattice(structure.lattice_vectors)
@@ -766,6 +740,7 @@ def calculate_mass_matrix(structure,repeat=(1,1,1),edges=False,phonon_conv=False
     np.fill_diagonal(mass_matrix,mass_list_coll)
     return mass_matrix
 
+
 def convert_pymatgen_structure(structure):
     cart_coords = structure.cart_coords
     atoms_cart = np.zeros((cart_coords.shape[0],4))
@@ -776,15 +751,18 @@ def convert_pymatgen_structure(structure):
     crystal_structure = CrystalStructure(structure.lattice.matrix/bohr, atoms_cart,relative_coords=False)
     return crystal_structure
 
+
 def query_materials_database(structure_formula):
     with MPRester(API_KEY) as m:
         data = m.get_data(structure_formula)
     return data
 
+
 def get_materials_structure_from_id(id):
     with MPRester(API_KEY) as m:
         structure = m.get_structure_by_material_id(id)
     return convert_pymatgen_structure(structure)
+
 
 def replace_greek(x):
     if x == '\\Gamma':
@@ -803,6 +781,7 @@ def get_materials_dos_from_id(id):
     for key,value in dos.densities.items():
         data[:,1] = data[:,1] + value
     return DensityOfStates(data)
+
 
 def get_materials_band_structure_from_id(id):
     with MPRester(API_KEY) as m:
@@ -854,6 +833,7 @@ def get_materials_band_structure_from_id(id):
 
     path_conv = calculate_path_length(conv_structure,path)
     return BandStructure(sorted_bands,special_k_points=path_conv)
+
 
 if __name__ == "__main__":
     data = query_materials_database('LiBH4')
