@@ -1135,7 +1135,7 @@ class MaterialsApiWindow(QtGui.QDialog):
                         bs = sst.get_materials_band_structure_from_id(self.search_string)
                         self.emit(QtCore.SIGNAL('bandstructure'), bs, self.search_string)
                     except Exception as e:
-                        self.emit(QtCore.SIGNAL('bandstructure_failed'), bs, self.search_string)
+                        self.emit(QtCore.SIGNAL('bandstructure_failed'),self.search_string)
                     return
 
 
@@ -1154,7 +1154,7 @@ class MaterialsApiWindow(QtGui.QDialog):
                         bs = sst.get_materials_dos_from_id(self.search_string)
                         self.emit(QtCore.SIGNAL('dos'), bs, self.search_string)
                     except Exception as e:
-                        self.emit(QtCore.SIGNAL('dos_failed'), bs, self.search_string)
+                        self.emit(QtCore.SIGNAL('dos_failed'),self.search_string)
                     return
 
             dos_thread = DosThread(self.selected_id)
@@ -2752,7 +2752,8 @@ class EditStructureWindow(QtGui.QMainWindow):
                     item = self.atom_table.item(i, 0)
                     item.setText(p_table[atom[3]])
         except Exception as e:
-            print(e)
+            if DEBUG:
+                print(get_stacktrace_as_string(html=False))
             logging.exception(e)
 
         self.connect_tables()
@@ -3034,13 +3035,13 @@ class MainWindow(QtGui.QMainWindow):
 
         self.status_bar.addPermanentWidget(self.status_text)
 
-        self.engine_option_window = EngineOptionsDialog(self)
+        self.engine_option_window = None
         self.ks_state_window = KsStateWindow(self)
-        self.structure_window = EditStructureWindow(self)
+        self.structure_window = None
         self.brillouin_window = BrillouinWindow(self)
         self.console_window = None
         self.information_window = CodeInformationWindow(self)
-        self.volume_slicer_window = VolumeSlicerWidget(self)
+        self.volume_slicer_window = None
         self.phonon_window = None
         self.materials_api_window = None
 
@@ -3706,6 +3707,8 @@ class MainWindow(QtGui.QMainWindow):
             self.optical_spectra_window.update_tree()
 
     def open_engine_option_window(self):
+        if self.engine_option_window is None:
+            self.engine_option_window = EngineOptionsDialog(self)
         self.engine_option_window.update_all()
         self.engine_option_window.show()
 
@@ -3714,6 +3717,9 @@ class MainWindow(QtGui.QMainWindow):
         self.ks_state_window.show()
 
     def open_structure_window(self, new=False):
+        if self.structure_window is None:
+            self.structure_window = EditStructureWindow(self)
+
         if new:
             self.structure_window.set_structure(None)
         else:
@@ -3856,12 +3862,14 @@ class MainWindow(QtGui.QMainWindow):
         def update_density_plot(density,bs_name,plot_options):
             self.mayavi_widget.visualization.plot_density(density, **plot_options)
             self.information_window.show_information(density.engine_information, bs_name)
-            if self.volume_slicer_window.isVisible():
+            if self.volume_slicer_window is not None and self.volume_slicer_window.isVisible():
                 self.ks_state_window.plot_widget.open_slice_widget()  # this forces a replot and does not do any other harm
 
         self.connect(self.ks_state_window.plot_widget,QtCore.SIGNAL('DensityChanged'),update_density_plot)
 
         def open_slice_widget(density,plot_options):
+            if self.volume_slicer_window is None:
+                self.volume_slicer_window = VolumeSlicerWidget(self)
             self.volume_slicer_window.mayavi_widget.set_data(density, self.crystal_structure)
             self.volume_slicer_window.mayavi_widget.display_scene3d(colormap=plot_options['colormap'])
             self.volume_slicer_window.show()

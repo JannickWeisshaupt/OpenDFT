@@ -47,8 +47,7 @@ def remove_duplicates(data, treshold=0.01):
 
 class MolecularStructure(object):
     """Represents a molecular structure
-    Arguments:
-    atoms -- a (Nx4) numpy array with [x,y,z,type] as rows. Type is an integer with the atomic number.
+    :param  atoms -- a (Nx4) numpy array with [x,y,z,type] as rows. Type is an integer with the atomic number (H=1,He=2 etc.).
 
 
     """
@@ -59,11 +58,17 @@ class MolecularStructure(object):
         self.scale = scale  # This is just bonus info. Do not use this here. Only for editing
 
     def calc_absolute_coordinates(self, repeat=[1, 1, 1],edges=False):
-        """Returns the catesion coordinates"""
+        """Returns the cartesion coordinates"""
         return self.atoms
 
     def find_bonds(self, abs_coords):
-        """Returns a list of bonds between atom i and j, i.e. [[i,j],...]"""
+        """Returns a list of bonds between atom i and j, i.e. ((i,j),...).
+The bonds are calculated according to covalent radii from the literature.
+
+        :return bonds:  a tuple of of two element tuples which represent the connections or bonds
+
+
+"""
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:, :3]
 
@@ -79,13 +84,26 @@ class MolecularStructure(object):
         return tuple(bonds)
 
     def symmetry_information(self):
+        """
+        Returns symmetry information of the molecule as for example its point group
+
+        :return info: a dictionary with symmetry informations
+        """
         mol = mg.Molecule(self.atoms[:, 3], self.atoms[:, :3])
         analyzer = PointGroupAnalyzer(mol)
-        res = {'point group':analyzer.get_pointgroup()}
-        return res
+        info = {'point group':analyzer.get_pointgroup()}
+        return info
 
 
 class CrystalStructure(object):
+    """This class represents a crystal structure
+
+    :param lattice_vectors: a 3x3 numpy array with the lattice vectors as rows
+    :param atoms: a Nx4 numpy array the atomic positions in [:,:3] as either relative (crystal) or cartesion coordinates
+    :param relative_coords:
+    :param scale: A scale of the whole unit cell. This parameter is only used to nicely format the lattice vectors. The lattice_vectors argument must still contain the correct unit vectors.
+
+    """
     def __init__(self, lattice_vectors, atoms, relative_coords=True, scale=1.0):
         self._lattice_vectors = np.array(lattice_vectors, dtype=np.float)  # tuple of np.arrays
 
@@ -112,6 +130,14 @@ class CrystalStructure(object):
         self.calculate_inv_lattice()
 
     def calc_absolute_coordinates(self, repeat=(1, 1, 1), offset=(0,0,0),edges=False):
+        """Returns the cartesion coordinates
+
+        :param repeat: 3 element tuple which determines the number of repeated unit cells
+        :param offset: optional offset from (0,0,0)
+        :param edges: Determines whether atoms on the faces or edges should be plotted only ones (->False) or multiple times (->True)
+        :return: cartesian coordinates of the atoms
+        :rtype: Nx4 numpy array
+        """
         n_repeat = repeat[0] * repeat[1] * repeat[2]
 
         abs_coord = np.zeros((self.n_atoms, repeat[0], repeat[1], repeat[2], 4))
@@ -129,6 +155,13 @@ class CrystalStructure(object):
         return abs_coord_out
 
     def find_bonds(self, abs_coords):
+        """Searches for bonds between all atoms. This function uses literature values for the covalent bond radii.
+
+        :param abs_coords: cartesion coordinates of the atoms (Nx4) as returned by calc_absolute_coordinates
+        :return: Tuple of all bonds between the atoms by their index.
+        :rtype: A tuple of two-tuples, e.g. ((3,5),(1,2))
+
+        """
         n_atoms = abs_coords.shape[0]
         abs_coords_pure = abs_coords[:, :3]
 
