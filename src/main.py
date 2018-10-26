@@ -3038,11 +3038,11 @@ class MainWindow(QtGui.QMainWindow):
         self.ks_state_window = KsStateWindow(self)
         self.structure_window = EditStructureWindow(self)
         self.brillouin_window = BrillouinWindow(self)
-        self.console_window = ConsoleWindow(self)
+        self.console_window = None
         self.information_window = CodeInformationWindow(self)
         self.volume_slicer_window = VolumeSlicerWidget(self)
-        self.phonon_window = MayaviPhononWindow(self.crystal_structure,self.band_structures,parent=self)
-        self.materials_api_window = MaterialsApiWindow(self)
+        self.phonon_window = None
+        self.materials_api_window = None
 
 
         self.tab_layout = QtGui.QVBoxLayout()
@@ -3727,6 +3727,8 @@ class MainWindow(QtGui.QMainWindow):
         self.structure_window.show()
 
     def open_materials_api_window(self):
+        if self.materials_api_window is None:
+            self.materials_api_window = MaterialsApiWindow(self)
         self.materials_api_window.show()
 
     def open_brillouin_window(self):
@@ -3748,6 +3750,8 @@ class MainWindow(QtGui.QMainWindow):
         result_window.show()
 
     def open_scripting_console(self):
+        if self.console_window is None:
+            self.console_window = ConsoleWindow(self)
         self.dft_engine_window.read_all_option_widgets()
         self.console_window.show()
 
@@ -3787,6 +3791,8 @@ class MainWindow(QtGui.QMainWindow):
         self.console_window.python_interpreter.update_vars(shared_vars)
 
     def open_phonon_window(self):
+        if self.phonon_window is None:
+            self.phonon_window = MayaviPhononWindow(self.crystal_structure, self.band_structures, parent=self)
         self.phonon_window.update_crystal_structure(self.crystal_structure)
         self.phonon_window.visualization.last_plot = None
         self.phonon_window.update_plot()

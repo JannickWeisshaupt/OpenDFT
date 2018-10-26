@@ -1,11 +1,10 @@
-import sys, os
-import pytest
+try:
+    from .context import src
+except Exception: #ImportError
+    from context import src
 
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../')
-
-import src.solid_state_tools as sst
 import numpy as np
+from src import solid_state_tools as sst
 
 unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]])
 atoms = np.array([[0.0, 0.0, 0.0, 6], [0.25, 0.25, 0.25, 6]])

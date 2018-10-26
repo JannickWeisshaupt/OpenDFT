@@ -192,6 +192,8 @@ def make_splash_screen():
     splash = QtGui.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
     splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
     splash.setEnabled(False)
+    splash.setWindowIcon(QtGui.QIcon(find_data_file('/data/icons/icon.ico')))
+    splash.setWindowTitle('OpenDFT')
     # splash = QSplashScreen(splash_pix)
     # adding progress bar
     progressBar = QtGui.QProgressBar(splash)

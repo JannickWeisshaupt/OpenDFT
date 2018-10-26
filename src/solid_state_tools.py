@@ -7,7 +7,12 @@ import time
 from scipy.spatial import ConvexHull, Voronoi
 import os
 import copy
-from src.little_helpers import find_data_file
+
+try:
+    from little_helpers import find_data_file
+except ImportError:
+    from .little_helpers import find_data_file
+
 from collections import OrderedDict
 import itertools
 

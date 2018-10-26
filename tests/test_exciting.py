@@ -1,11 +1,12 @@
-import sys, os
-import pytest
+try:
+    from .context import src
+except Exception: #ImportError
+    from context import src
 
-myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../')
+import os
 
 import numpy as np
-import src.solid_state_tools as sst
+from src import solid_state_tools as sst
 from src.exciting_handler import Handler
 
 unit_cell = 6.719 * np.array([[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]])
