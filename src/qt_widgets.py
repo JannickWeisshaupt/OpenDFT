@@ -199,7 +199,7 @@ def make_splash_screen():
     progressBar = QtGui.QProgressBar(splash)
     progressBar.setTextVisible(False)
     progressBar.setMaximum(10)
-    progressBar.setGeometry(70, 350, 150, 20)
+    progressBar.setGeometry(80, 345, 150, 10)
 
     # splash.setMask(splash_pix.mask())
 
