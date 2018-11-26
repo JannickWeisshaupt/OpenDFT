@@ -188,7 +188,7 @@ class QFloatTableWidgetItem(QtGui.QTableWidgetItem):
             return QtGui.QTableWidgetItem.__lt__(self, other)
 
 def make_splash_screen():
-    splash_pix = QtGui.QPixmap(find_data_file('/data/artwork/gaas_cubic_with_header.png')).scaled(500, 500, QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation)
+    splash_pix = QtGui.QPixmap(find_data_file('/data/artwork/splash_screen.png')).scaled(700, 700, QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation)
     splash = QtGui.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
     splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
     splash.setEnabled(False)
@@ -199,7 +199,7 @@ def make_splash_screen():
     progressBar = QtGui.QProgressBar(splash)
     progressBar.setTextVisible(False)
     progressBar.setMaximum(10)
-    progressBar.setGeometry(0, splash_pix.height() - 50, splash_pix.width(), 20)
+    progressBar.setGeometry(70, 350, 150, 20)
 
     # splash.setMask(splash_pix.mask())
 
