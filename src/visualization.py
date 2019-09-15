@@ -109,6 +109,8 @@ class BrillouinVisualization(HasTraits):
         self.text_plots = []
         self.glyph_points = None
         self.picker = None
+        self.w_points = None
+        self.centers = None
 
     def clear_plot(self):
         self.scene.mlab.clf(figure=self.scene.mayavi_scene)
@@ -117,6 +119,7 @@ class BrillouinVisualization(HasTraits):
         self.crystal_structure = crystal_structure
         self.w_points = sst.construct_brillouin_vertices(crystal_structure)
         self.brillouin_edges = sst.construct_convex_hull(self.w_points)
+        self.centers = sst.find_center_of_faces(self.w_points, self.brillouin_edges)
 
     def set_path(self, k_path):
         self.k_path = k_path
@@ -171,12 +174,8 @@ class BrillouinVisualization(HasTraits):
     def plot_brillouin_zone(self, plot_connections=True):
 
         self.wpoints_plot = np.append(self.w_points, np.array([[0, 0, 0]]), axis=0)
-        # TODO find general way to make the center of facets points
-        # for i in [-1,1]:
-        #     for j in range(3):
-        #         self.wpoints_plot = np.append(self.wpoints_plot, np.array([i*0.5*self.crystal_structure.inv_lattice_vectors[j,:]]), axis=0)
+        self.wpoints_plot = np.append(self.wpoints_plot, self.centers, axis=0)
 
-        # self.scene.mlab.points3d(0.0, 0.0, 0.0, color=(0.7, 0.7, 0.7), scale_factor=.1, figure=self.scene.mayavi_scene)
         self.plot_of_vertices = self.scene.mlab.points3d(self.wpoints_plot[:, 0], self.wpoints_plot[:, 1],
                                                          self.wpoints_plot[:, 2], color=(0.7, 0.7, 0.7),
                                                          scale_factor=.1, figure=self.scene.mayavi_scene)
@@ -185,12 +184,6 @@ class BrillouinVisualization(HasTraits):
         self.scene.mlab.triangular_mesh(self.w_points[:, 0], self.w_points[:, 1], self.w_points[:, 2],
                                         self.brillouin_edges, opacity=0.3, color=(0.5, 0.5, 0.5), tube_radius=2,
                                         figure=self.scene.mayavi_scene)
-
-        # if plot_connections:
-        #     for i, connection in enumerate(self.brillouin_edges):
-        #         for con in connection:
-        #             bond = [i, con]
-        #             self.scene.mlab.plot3d(self.w_points[bond, 0], self.w_points[bond, 1], self.w_points[bond, 2],figure=self.scene.mayavi_scene,tube_radius=0.01)
 
         self.plot_unit_vectors()
 
@@ -1724,8 +1717,8 @@ def set_dark_mode_matplotlib(f, ax, color):
 if __name__ == "__main__":
     from solid_state_tools import CrystalStructure, PhononEigenvectors,StructureParser
 
-    atoms = np.array([[0, 0, 0, 6], [1/3, 1/3, 0, 6]])
-    unit_cell = 4.65 * np.array([[0.5,  0.8660254040,  0.0], [-0.5,0.8660254040,0.0], [0, 0, 6.0]])
+    atoms = np.array([[0, 0, 0, 6], [1/4, 1/4, 1/4, 6]])
+    unit_cell = 6.6 * np.array([[0,  0.5,  0.5], [0.5,0.0,0.5], [0.5, 0.5, 0.0]])
 
     # unit_cell = 20*np.eye(3,3)
     # N = 50
@@ -1741,18 +1734,20 @@ if __name__ == "__main__":
 
     freqs = np.ones((1, 1))
     # mode = np.array([np.random.randn(3*N_atoms)])[None,:,:]
-    mode = np.array([[0,0,1,0,0,1]])[None,:,:]
+    # mode = np.array([[0,0,1,0,0,1]])[None,:,:]
+    #
+    # k_vector = np.array([[0.1,0.1,0]])
+    #
+    # eig = PhononEigenvectors(freqs,mode,k_vector)
+    #
+    # vis = PhononVisualization(crystal_structure)
+    # vis.phonon_eigenvectors = eig
+    # vis.plot_phonons(0,0)
+    # vis.configure_traits()
 
-    k_vector = np.array([[0.1,0.1,0]])
-
-    eig = PhononEigenvectors(freqs,mode,k_vector)
-
-    vis = PhononVisualization(crystal_structure)
-    vis.phonon_eigenvectors = eig
-    vis.plot_phonons(0,0)
+    vis = BrillouinVisualization(None)
+    vis.set_crystal_structure(crystal_structure)
     vis.configure_traits()
-
-
 
 
     # x, y, z = np.ogrid[-5:5:64j, -5:5:64j, -5:5:64j]

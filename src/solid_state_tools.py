@@ -810,6 +810,61 @@ def replace_greek(x):
     return res
 
 
+def find_center_of_faces(coordinates, triangles):
+    faces = construct_faces(coordinates, triangles)
+    centers = np.zeros((len(faces), 3))
+
+    for i, vertex in enumerate(faces):
+        centers[i, :] = np.mean(coordinates[list(vertex), :], axis=0)
+    return centers
+
+
+def is_in_plane(base_triangle, test_triangle, coordinates):
+    normal = construct_normal_from_triangle(coordinates, base_triangle)
+    normal_alt = construct_normal_from_triangle(coordinates, test_triangle)
+
+    if base_triangle[0] == test_triangle[0]:
+        test_vec = coordinates[base_triangle[0], :] - coordinates[test_triangle[1], :]
+    else:
+        test_vec = coordinates[base_triangle[0], :] - coordinates[test_triangle[0], :]
+
+    test_vec = test_vec/np.linalg.norm(test_vec)
+    return (abs(np.dot(normal, normal_alt)) > 0.999) and (abs(np.dot(normal, test_vec)) < 0.001)
+
+
+def construct_normal_from_triangle(coordinates, triangle):
+    v1 = coordinates[triangle[1], :] - coordinates[triangle[0], :]
+    v2 = coordinates[triangle[2], :] - coordinates[triangle[0], :]
+    normal = np.cross(v1, v2)
+    return normal/np.linalg.norm(normal)
+
+
+def is_list_in_list_of_lists(small_list, large_list):
+    for el in large_list:
+        if sorted(small_list) == sorted(el):
+            return True
+    return False
+
+
+def construct_faces(points, triangles):
+    used_triangles = []
+    faces = []
+    for base_triangle in triangles:
+        if is_list_in_list_of_lists(base_triangle, used_triangles):
+            continue
+        used_triangles.append(base_triangle)
+        face = set(base_triangle)
+        for test_triangle in triangles:
+            if is_list_in_list_of_lists(test_triangle, used_triangles):
+                continue
+            if is_in_plane(base_triangle, test_triangle, points):
+                face.update(test_triangle)
+                used_triangles.append(test_triangle)
+        faces.append(list(face))
+
+    return faces
+
+
 def get_materials_dos_from_id(id):
     with MPRester(API_KEY) as m:
         dos = m.get_dos_by_material_id(id)
@@ -945,3 +1000,5 @@ if __name__ == "__main__":
     # out = parser.parse_cif_file('/home/jannick/OpenDFT_projects/LiBH4/1504402.cif')
     # general_handler = GeneralHandler()
     # print(general_handler.available_handlers)
+
+
