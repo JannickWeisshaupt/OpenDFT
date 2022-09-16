@@ -4,7 +4,7 @@ certifi==2018.1.18
 spglib==1.10.3.39
 pandas==0.22.0
 numpy==1.15.0
-vtk==8.1.1
+vtk==9.0.1
 pyface==6.0.0
 requests==2.18.4
 psutil==5.4.6
