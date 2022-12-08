@@ -1,6 +1,6 @@
 traitsui==6.0.0
 matplotlib==2.2.0
-certifi==2018.1.18
+certifi==2022.12.7
 spglib==1.10.3.39
 pandas==0.22.0
 numpy==1.15.0
