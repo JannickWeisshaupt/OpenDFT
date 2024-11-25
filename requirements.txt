@@ -6,7 +6,7 @@ pandas==0.22.0
 numpy==1.15.0
 vtk==8.1.1
 pyface==6.0.0
-requests==2.18.4
+requests==2.20.0
 psutil==5.4.6
 mayavi==4.6.1
 pymatgen==2018.3.14
